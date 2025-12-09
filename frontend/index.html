@@ -159,12 +159,12 @@
                     <h4 class="form-title" id="formTitle">添加搜索引擎</h4>
                     <div class="form-group">
                         <label for="engineInputName">名称</label>
-                        <input type="text" id="engineInputName" placeholder="例如：Google" required>
+                        <input type="text" id="engineInputName" placeholder="例如：Google" required autocomplete="off" data-form-type="other">
                     </div>
                     <div class="form-group">
                         <label for="engineInputUrl">搜索 URL</label>
                         <input type="url" id="engineInputUrl" placeholder="例如：https://www.google.com/search?q="
-                            required>
+                            required autocomplete="off" data-form-type="other">
                         <small class="form-hint">URL 末尾应包含查询参数，如 <code>?q=</code> 或 <code>?wd=</code></small>
                     </div>
                     <div class="form-group">
@@ -176,7 +176,7 @@
                                     <button type="button" class="btn btn-secondary btn-sm" id="autoFetchEngineIcon">自动获取</button>
                                     <button type="button" class="btn btn-secondary btn-sm" id="selectFromLibraryBtn">图标库</button>
                                 </div>
-                                <input type="text" id="engineInputIconUrl" placeholder="或手动输入图标 URL">
+                                <input type="text" id="engineInputIconUrl" placeholder="或手动输入图标 URL" autocomplete="off" data-form-type="other">
                             </div>
                         </div>
                         <small class="form-hint">自动获取、从图标库选择，或手动输入图标地址</small>
@@ -230,15 +230,15 @@
                 </div>
                 <div class="form-group" id="bookmarkNameGroup">
                     <label for="bookmarkInputName">名称 *</label>
-                    <input type="text" id="bookmarkInputName" placeholder="网站名称">
+                    <input type="text" id="bookmarkInputName" placeholder="网站名称" autocomplete="off" data-form-type="other">
                 </div>
                 <div class="form-group bookmark-only-field">
                     <label for="bookmarkInputUrl">网址 *</label>
-                    <input type="url" id="bookmarkInputUrl" placeholder="https://example.com">
+                    <input type="url" id="bookmarkInputUrl" placeholder="https://example.com" autocomplete="off" data-form-type="other">
                 </div>
                 <div class="form-group bookmark-only-field">
                     <label for="bookmarkInputDesc">描述</label>
-                    <input type="text" id="bookmarkInputDesc" placeholder="简短描述">
+                    <input type="text" id="bookmarkInputDesc" placeholder="简短描述" autocomplete="off" data-form-type="other">
                 </div>
                 <div class="form-group">
                     <label>图标</label>
@@ -262,10 +262,10 @@
                                 </div>
                             </div>
                             <div class="icon-panel" data-panel="emoji">
-                                <input type="text" id="bookmarkInputEmoji" placeholder="🌐" maxlength="4">
+                                <input type="text" id="bookmarkInputEmoji" placeholder="🌐" maxlength="4" autocomplete="off" data-form-type="other">
                             </div>
                             <div class="icon-panel" data-panel="url">
-                                <input type="url" id="bookmarkInputIconUrl" placeholder="图标 URL">
+                                <input type="url" id="bookmarkInputIconUrl" placeholder="图标 URL" autocomplete="off" data-form-type="other">
                             </div>
                             <div class="icon-panel" data-panel="upload">
                                 <input type="file" id="bookmarkInputIconFile" accept="image/*" style="display:none;">
@@ -301,7 +301,7 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label for="categoryInputName">分类名称</label>
-                    <input type="text" id="categoryInputName" placeholder="分类名称">
+                    <input type="text" id="categoryInputName" placeholder="分类名称" autocomplete="off" data-form-type="other">
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" id="cancelCategoryBtn">取消</button>
@@ -407,7 +407,7 @@
                             </div>
                             <div class="setting-row">
                                 <div class="setting-info"><span>文本内容</span></div>
-                                <input type="text" id="logoText" class="setting-input" value="书签导航" maxlength="20">
+                                <input type="text" id="logoText" class="setting-input" value="书签导航" maxlength="20" autocomplete="off" data-form-type="other">
                             </div>
                         </div>
                         <div class="setting-card">
@@ -430,7 +430,7 @@
                             <h5 class="card-subtitle">壁纸</h5>
                             <div class="setting-row">
                                 <div class="setting-info"><span>图片 URL</span></div>
-                                <input type="url" id="wallpaperUrl" class="setting-input" placeholder="留空使用默认渐变背景">
+                                <input type="url" id="wallpaperUrl" class="setting-input" placeholder="留空使用默认渐变背景" autocomplete="off" data-form-type="other">
                             </div>
                             <div class="setting-row">
                                 <div class="setting-info"><span>模糊度</span></div>
@@ -449,7 +449,7 @@
                             <div class="setting-row">
                                 <div class="setting-info"><span>最大宽度</span></div>
                                 <input type="number" id="contentMaxWidth" class="setting-input setting-input-sm"
-                                    value="1200" min="800" max="2000">
+                                    value="1200" min="800" max="2000" autocomplete="off" data-form-type="other">
                                 <span>px</span>
                             </div>
                         </div>
@@ -537,19 +537,19 @@
                             </div>
                             <div class="form-group">
                                 <label for="webdavUrl">服务器地址</label>
-                                <input type="url" id="webdavUrl" placeholder="https://dav.jianguoyun.com/dav/">
+                                <input type="url" id="webdavUrl" placeholder="https://dav.jianguoyun.com/dav/" autocomplete="off" data-form-type="other">
                             </div>
                             <div class="form-group">
                                 <label for="webdavUser">用户名</label>
-                                <input type="text" id="webdavUser" placeholder="your@email.com">
+                                <input type="text" id="webdavUser" placeholder="your@email.com" autocomplete="off" data-form-type="other">
                             </div>
                             <div class="form-group">
                                 <label for="webdavPass">密码</label>
-                                <input type="password" id="webdavPass" placeholder="应用专用密码">
+                                <input type="password" id="webdavPass" placeholder="应用专用密码" autocomplete="new-password" data-form-type="other">
                             </div>
                             <div class="form-group">
                                 <label for="webdavPath">文件路径</label>
-                                <input type="text" id="webdavPath" value="bookmarks/config.json">
+                                <input type="text" id="webdavPath" value="bookmarks/config.json" autocomplete="off" data-form-type="other">
                             </div>
                             <div class="setting-row">
                                 <button class="btn btn-secondary" id="webdavSaveBtn">保存设置</button>

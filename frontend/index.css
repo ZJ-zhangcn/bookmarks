@@ -1062,6 +1062,42 @@ body {
     border-bottom: 1px solid var(--glass-border);
 }
 
+/* 折叠按钮 */
+.collapse-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.collapse-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.collapse-btn svg {
+    width: 18px;
+    height: 18px;
+    transition: transform var(--transition-normal);
+}
+
+.category-section.collapsed .collapse-btn svg {
+    transform: rotate(-90deg);
+}
+
+.category-section.collapsed .category-header {
+    margin-bottom: 0;
+    border-bottom-color: transparent;
+}
+
 .category-title {
     font-size: 1.3rem;
     font-weight: 600;

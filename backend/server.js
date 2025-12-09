@@ -679,7 +679,7 @@ app.post('/api/import', (req, res) => {
 
     try {
         const insertCat = db.prepare('INSERT OR REPLACE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)');
-        const insertBm = db.prepare('INSERT OR REPLACE INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        const insertBm = db.prepare('INSERT OR REPLACE INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         const insertEng = db.prepare('INSERT OR REPLACE INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)');
 
         const transaction = db.transaction(() => {
@@ -687,7 +687,7 @@ app.post('/api/import', (req, res) => {
                 categories.forEach((c, i) => insertCat.run(c.id, c.name, c.icon, c.sort_order || i));
             }
             if (bookmarks) {
-                bookmarks.forEach(b => insertBm.run(b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '🌐', b.icon_type || 'auto', b.icon_data || ''));
+                bookmarks.forEach((b, i) => insertBm.run(b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '🌐', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order !== undefined ? b.sort_order : i));
             }
             if (engines) {
                 engines.forEach((e, i) => insertEng.run(e.id, e.name, e.icon, e.url, e.sort_order !== undefined ? e.sort_order : i));

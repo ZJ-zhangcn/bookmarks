@@ -23,6 +23,7 @@ let editingEngineId = null;
 let currentIconType = 'auto';
 let currentIconData = '';
 let editingBookmark = null; // 存储正在编辑的书签原始数据
+let collapsedCategories = new Set(); // 存储折叠状态的分类ID
 
 // ========================================
 // DOM 元素
@@ -34,6 +35,7 @@ let DOM = {};
 // ========================================
 async function init() {
     cacheDOMElements();
+    loadCollapsedState(); // 加载折叠状态
     await loadData();
     renderAll();
     bindAllEvents();
@@ -231,13 +233,19 @@ function renderBookmarks() {
 
         hasResults = true;
 
+        const isCollapsed = collapsedCategories.has(category.id);
         const section = document.createElement('section');
-        section.className = 'category-section';
+        section.className = 'category-section' + (isCollapsed ? ' collapsed' : '');
         section.dataset.categoryId = category.id;
         section.style.animationDelay = `${idx * 0.1}s`;
 
         section.innerHTML = `
             <header class="category-header">
+                <button class="collapse-btn" data-category="${category.id}" title="${isCollapsed ? '展开' : '折叠'}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                </button>
                 <h2 class="category-title">${category.name}</h2>
                 <div class="category-header-actions">
                     <button class="header-action-btn add-btn" data-category="${category.id}" title="添加书签">
@@ -249,7 +257,7 @@ function renderBookmarks() {
                 </div>
                 <span class="category-count">${filteredItems.length} 个</span>
             </header>
-            <div class="bookmarks-grid" data-category="${category.id}">
+            <div class="bookmarks-grid" data-category="${category.id}" ${isCollapsed ? 'style="display:none;"' : ''}>
                 ${filteredItems.map((item, i) => createBookmarkCard(item, searchTerm, i)).join('')}
             </div>
         `;
@@ -746,8 +754,10 @@ function handleBookmarkClick(e) {
     const deleteBtn = e.target.closest('.bookmark-action-btn.delete');
     const addBtn = e.target.closest('.header-action-btn.add-btn');
     const sortBtn = e.target.closest('.header-action-btn.sort-btn');
+    const collapseBtn = e.target.closest('.collapse-btn');
 
-    if (editBtn) { e.preventDefault(); e.stopPropagation(); openBookmarkModal(editBtn.dataset.id); }
+    if (collapseBtn) { e.preventDefault(); e.stopPropagation(); toggleCategoryCollapse(collapseBtn.dataset.category); }
+    else if (editBtn) { e.preventDefault(); e.stopPropagation(); openBookmarkModal(editBtn.dataset.id); }
     else if (deleteBtn) { e.preventDefault(); e.stopPropagation(); deleteBookmark(deleteBtn.dataset.id); }
     else if (addBtn) { e.preventDefault(); openBookmarkModal(null, addBtn.dataset.category); }
     else if (sortBtn) { e.preventDefault(); toggleBookmarkSorting(sortBtn.dataset.category); }
@@ -770,10 +780,35 @@ function openBookmarkModal(bookmarkId = null, categoryId = null) {
             DOM.bookmarkInputUrl.value = bookmark.url;
             DOM.bookmarkInputDesc.value = bookmark.description || '';
             DOM.bookmarkInputCategory.value = bookmark.category_id;
-            currentIconType = bookmark.icon_type || 'auto';
+
+            // 根据原图标类型设置当前图标类型，base64 类型显示为 auto
+            const originalIconType = bookmark.icon_type || 'auto';
+            currentIconType = (originalIconType === 'base64') ? 'auto' : originalIconType;
             currentIconData = bookmark.icon_data || '';
-            if (bookmark.icon_type === 'emoji') DOM.bookmarkInputEmoji.value = bookmark.icon_data || '';
-            if (bookmark.icon_type === 'url') DOM.bookmarkInputIconUrl.value = bookmark.icon_data || '';
+
+            // 填充对应的输入框
+            if (originalIconType === 'emoji') {
+                DOM.bookmarkInputEmoji.value = bookmark.icon_data || '';
+            } else {
+                DOM.bookmarkInputEmoji.value = '';
+            }
+            if (originalIconType === 'url') {
+                DOM.bookmarkInputIconUrl.value = bookmark.icon_data || '';
+            } else {
+                DOM.bookmarkInputIconUrl.value = '';
+            }
+
+            // 显示已有图标的预览
+            if (bookmark.icon_data) {
+                if (originalIconType === 'base64' || originalIconType === 'url') {
+                    DOM.iconPreviewAuto.innerHTML = `<img src="${bookmark.icon_data}" class="selected">`;
+                } else if (originalIconType === 'emoji') {
+                    DOM.iconPreviewAuto.innerHTML = `<span>${bookmark.icon_data}</span>`;
+                }
+            } else {
+                DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+            }
+            DOM.iconPreviewUpload.innerHTML = '';
         }
     } else {
         editingBookmark = null; // 新建书签
@@ -794,7 +829,8 @@ function openBookmarkModal(bookmarkId = null, categoryId = null) {
     document.querySelectorAll('.icon-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.icon-panel').forEach(p => p.classList.remove('active'));
     document.querySelector(`[data-type="${currentIconType}"]`)?.classList.add('active');
-    document.querySelector(`[data-panel="${currentIconType}"]`)?.classList.add('active');
+    // 只在书签弹窗内查找面板
+    DOM.bookmarkModal.querySelector(`[data-panel="${currentIconType}"]`)?.classList.add('active');
 
     DOM.bookmarkModal.classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -856,17 +892,6 @@ async function saveBookmark() {
     let icon_data = '';
     let icon = '🌐';
 
-    // 判断是否需要转换图标：如果编辑时图标未更改且已是 base64，则跳过转换
-    const needsIconConversion = () => {
-        // 新书签需要转换
-        if (!editingBookmark) return true;
-        // 原书签不是 base64，需要转换
-        if (editingBookmark.icon_type !== 'base64') return true;
-        // 图标类型改变了，需要转换
-        if (currentIconType !== editingBookmark.icon_type && currentIconType !== 'auto') return true;
-        return false;
-    };
-
     // 组件使用默认图标
     if (item_type === 'component') {
         const componentIcons = { cpu: '💻', memory: '📊', disk: '💾' };
@@ -878,6 +903,10 @@ async function saveBookmark() {
         if (currentIconData) {
             icon_type = currentIconData.startsWith('data:') ? 'base64' : 'url';
             icon_data = currentIconData;
+        } else if (editingBookmark && editingBookmark.icon_data) {
+            // 没有选择新图标，使用原有图标
+            icon_type = editingBookmark.icon_type;
+            icon_data = editingBookmark.icon_data;
         }
     } else if (currentIconType === 'emoji') {
         icon_data = DOM.bookmarkInputEmoji.value.trim() || '🌐';
@@ -904,48 +933,52 @@ async function saveBookmark() {
                 icon_type = 'url';
                 icon_data = iconUrl;
             }
+        } else if (editingBookmark && editingBookmark.icon_data) {
+            // 没有输入新 URL，使用原有图标
+            icon_type = editingBookmark.icon_type;
+            icon_data = editingBookmark.icon_data;
         }
     } else if (currentIconType === 'upload') {
-        icon_type = 'base64';
-        icon_data = currentIconData;
-    } else if (currentIconType === 'auto' || currentIconType === 'base64') {
-        // 编辑书签时，如果图标已缓存且未更改，直接使用原有数据
-        if (editingBookmark && editingBookmark.icon_type === 'base64' && !needsIconConversion()) {
+        if (currentIconData) {
             icon_type = 'base64';
+            icon_data = currentIconData;
+        } else if (editingBookmark && editingBookmark.icon_data) {
+            // 没有上传新图标，使用原有图标
+            icon_type = editingBookmark.icon_type;
             icon_data = editingBookmark.icon_data;
-        } else {
-            // 获取选中的 favicon URL 并转换为 base64
-            const selectedImg = DOM.iconPreviewAuto.querySelector('img.selected') || DOM.iconPreviewAuto.querySelector('img');
-            if (selectedImg && selectedImg.src) {
-                // 检查是否是 data: URL（已经是 base64）
-                if (selectedImg.src.startsWith('data:')) {
-                    icon_type = 'base64';
-                    icon_data = selectedImg.src;
-                } else {
-                    try {
-                        const convertRes = await fetch(`${API_BASE}/api/icon/convert`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ url: selectedImg.src })
-                        });
-                        const convertData = await convertRes.json();
-                        if (convertData.success && convertData.data) {
-                            icon_type = 'base64';
-                            icon_data = convertData.data;
-                        } else {
-                            icon_type = 'url';
-                            icon_data = selectedImg.src;
-                        }
-                    } catch {
+        }
+    } else if (currentIconType === 'auto') {
+        // 获取选中的 favicon URL 并转换为 base64
+        const selectedImg = DOM.iconPreviewAuto.querySelector('img.selected') || DOM.iconPreviewAuto.querySelector('img');
+        if (selectedImg && selectedImg.src) {
+            // 检查是否是 data: URL（已经是 base64）
+            if (selectedImg.src.startsWith('data:')) {
+                icon_type = 'base64';
+                icon_data = selectedImg.src;
+            } else {
+                try {
+                    const convertRes = await fetch(`${API_BASE}/api/icon/convert`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: selectedImg.src })
+                    });
+                    const convertData = await convertRes.json();
+                    if (convertData.success && convertData.data) {
+                        icon_type = 'base64';
+                        icon_data = convertData.data;
+                    } else {
                         icon_type = 'url';
                         icon_data = selectedImg.src;
                     }
+                } catch {
+                    icon_type = 'url';
+                    icon_data = selectedImg.src;
                 }
-            } else if (editingBookmark && editingBookmark.icon_data) {
-                // 没有选择新图标，使用原有图标
-                icon_type = editingBookmark.icon_type;
-                icon_data = editingBookmark.icon_data;
             }
+        } else if (editingBookmark && editingBookmark.icon_data) {
+            // 没有选择新图标，使用原有图标
+            icon_type = editingBookmark.icon_type;
+            icon_data = editingBookmark.icon_data;
         }
     }
 
@@ -1919,6 +1952,54 @@ function showWebdavStatus(msg, type) {
     DOM.webdavStatus.textContent = msg;
     DOM.webdavStatus.className = 'webdav-status ' + type;
     setTimeout(() => { DOM.webdavStatus.className = 'webdav-status'; }, 5000);
+}
+
+// ========================================
+// 分类折叠功能
+// ========================================
+function toggleCategoryCollapse(categoryId) {
+    const section = document.querySelector(`.category-section[data-category-id="${categoryId}"]`);
+    if (!section) return;
+
+    const grid = section.querySelector('.bookmarks-grid');
+    const collapseBtn = section.querySelector('.collapse-btn');
+    const isCollapsed = collapsedCategories.has(categoryId);
+
+    if (isCollapsed) {
+        // 展开
+        collapsedCategories.delete(categoryId);
+        section.classList.remove('collapsed');
+        grid.style.display = '';
+        collapseBtn.title = '折叠';
+    } else {
+        // 折叠
+        collapsedCategories.add(categoryId);
+        section.classList.add('collapsed');
+        grid.style.display = 'none';
+        collapseBtn.title = '展开';
+    }
+
+    // 保存折叠状态到本地存储
+    saveCollapsedState();
+}
+
+function loadCollapsedState() {
+    try {
+        const saved = localStorage.getItem('collapsedCategories');
+        if (saved) {
+            collapsedCategories = new Set(JSON.parse(saved));
+        }
+    } catch (e) {
+        console.error('加载折叠状态失败:', e);
+    }
+}
+
+function saveCollapsedState() {
+    try {
+        localStorage.setItem('collapsedCategories', JSON.stringify([...collapsedCategories]));
+    } catch (e) {
+        console.error('保存折叠状态失败:', e);
+    }
 }
 
 // ========================================
