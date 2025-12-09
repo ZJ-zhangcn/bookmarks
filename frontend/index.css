@@ -1854,12 +1854,20 @@ body {
     background: var(--bg-tertiary);
 }
 
-/* 固定设置按钮 - 右上角 */
-.settings-btn-fixed {
+/* 固定按钮组 - 右上角 */
+.fixed-buttons {
     position: fixed;
     top: 20px;
     right: 20px;
     z-index: 1000;
+    display: flex;
+    gap: 10px;
+    /* 支持安全区域 */
+    top: calc(20px + env(safe-area-inset-top));
+    right: calc(20px + env(safe-area-inset-right));
+}
+
+.fixed-btn {
     width: 44px;
     height: 44px;
     display: flex;
@@ -1876,16 +1884,207 @@ body {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-.settings-btn-fixed svg {
+.fixed-btn svg {
     width: 22px;
     height: 22px;
 }
 
-.settings-btn-fixed:hover {
+.fixed-btn:hover {
     color: var(--text-primary);
     border-color: var(--primary);
     background: var(--bg-tertiary);
+}
+
+.fixed-btn.settings-btn:hover {
     transform: rotate(45deg);
+}
+
+.fixed-btn.search-btn:hover {
+    transform: scale(1.05);
+}
+
+/* 书签搜索浮层 */
+.bookmark-search-overlay {
+    position: fixed;
+    inset: 0;
+    background: hsla(0, 0%, 0%, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 1100;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 15vh;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-normal);
+}
+
+.bookmark-search-overlay.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.bookmark-search-panel {
+    width: 90%;
+    max-width: 600px;
+    max-height: 70vh;
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 20px 60px hsla(0, 0%, 0%, 0.5);
+    transform: translateY(-20px) scale(0.95);
+    transition: transform var(--transition-normal);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.bookmark-search-overlay.open .bookmark-search-panel {
+    transform: translateY(0) scale(1);
+}
+
+.bookmark-search-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--glass-border);
+    background: var(--bg-tertiary);
+}
+
+.bookmark-search-header svg {
+    width: 24px;
+    height: 24px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+
+.bookmark-search-header input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.bookmark-search-header input::placeholder {
+    color: var(--text-tertiary);
+}
+
+.bookmark-search-close {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.bookmark-search-close:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.bookmark-search-close svg {
+    width: 20px;
+    height: 20px;
+}
+
+.bookmark-search-results {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+}
+
+.bookmark-search-results:empty::after {
+    content: '输入关键词搜索书签...';
+    display: block;
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-tertiary);
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: background var(--transition-fast);
+}
+
+.search-result-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.search-result-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    flex-shrink: 0;
+    font-size: 1.2rem;
+}
+
+.search-result-icon img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+.search-result-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.search-result-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-result-desc {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-result-category {
+    font-size: 0.75rem;
+    color: var(--primary);
+    background: var(--primary-muted);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+
+.search-no-results {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-tertiary);
+}
+
+/* 设置提示文字 */
+.setting-hint {
+    display: block;
+    margin-top: var(--spacing-xs);
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
 }
 
 /* ========================================
@@ -2614,6 +2813,9 @@ select:focus {
         height: 100vh !important;
         margin: 0 !important;
         border-radius: 0 !important;
+        /* 支持安全区域 */
+        padding-top: env(safe-area-inset-top) !important;
+        padding-bottom: env(safe-area-inset-bottom) !important;
     }
 
     /* 设置弹窗头部 - 增大关闭按钮 */
@@ -2642,8 +2844,8 @@ select:focus {
     .settings-container {
         flex-direction: column !important;
         min-height: auto !important;
-        max-height: calc(100vh - 60px) !important;
-        height: calc(100vh - 60px) !important;
+        max-height: calc(100vh - 60px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+        height: calc(100vh - 60px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
     }
 
     .settings-sidebar {

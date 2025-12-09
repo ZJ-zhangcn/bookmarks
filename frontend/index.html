@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="个人书签导航 - 快速访问常用网站的便捷入口">
     <title>书签导航 | 我的常用网站</title>
     <!-- Favicon -->
@@ -134,14 +134,45 @@
         </footer>
     </div>
 
-    <!-- 固定设置按钮 -->
-    <button class="settings-btn-fixed" id="settingsBtn" title="设置">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3" />
-            <path
-                d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-        </svg>
-    </button>
+    <!-- 固定按钮组 -->
+    <div class="fixed-buttons">
+        <!-- 书签搜索按钮 -->
+        <button class="fixed-btn search-btn" id="bookmarkSearchBtn" title="搜索书签">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
+        </button>
+        <!-- 设置按钮 -->
+        <button class="fixed-btn settings-btn" id="settingsBtn" title="设置">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3" />
+                <path
+                    d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- 书签搜索浮层 -->
+    <div class="bookmark-search-overlay" id="bookmarkSearchOverlay">
+        <div class="bookmark-search-panel">
+            <div class="bookmark-search-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="bookmarkSearchInput" placeholder="搜索书签..." autocomplete="off">
+                <button class="bookmark-search-close" id="bookmarkSearchClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="bookmark-search-results" id="bookmarkSearchResults">
+                <!-- 搜索结果将通过 JavaScript 动态渲染 -->
+            </div>
+        </div>
+    </div>
 
     <!-- 搜索引擎管理弹窗 -->
     <div class="modal-overlay" id="engineModal">
@@ -431,6 +462,15 @@
                                 <label class="switch"><input type="checkbox" id="searchBarShow" checked><span
                                         class="slider"></span></label>
                             </div>
+                        </div>
+                        <div class="setting-card">
+                            <h5 class="card-subtitle">书签过滤输入框</h5>
+                            <div class="setting-row">
+                                <div class="setting-info"><span>显示</span></div>
+                                <label class="switch"><input type="checkbox" id="bookmarkFilterShow" checked><span
+                                        class="slider"></span></label>
+                            </div>
+                            <small class="setting-hint">隐藏后可通过右下角搜索按钮搜索书签</small>
                         </div>
                         <div class="setting-card">
                             <h5 class="card-subtitle">壁纸</h5>

@@ -141,6 +141,14 @@ function cacheDOMElements() {
         clockTime: document.getElementById('clockTime'),
         clockDate: document.getElementById('clockDate'),
         searchBarShow: document.getElementById('searchBarShow'),
+        bookmarkFilterShow: document.getElementById('bookmarkFilterShow'),
+        searchContainer: document.querySelector('.search-container'),
+        // 书签搜索浮层
+        bookmarkSearchBtn: document.getElementById('bookmarkSearchBtn'),
+        bookmarkSearchOverlay: document.getElementById('bookmarkSearchOverlay'),
+        bookmarkSearchInput: document.getElementById('bookmarkSearchInput'),
+        bookmarkSearchClose: document.getElementById('bookmarkSearchClose'),
+        bookmarkSearchResults: document.getElementById('bookmarkSearchResults'),
         wallpaperUrl: document.getElementById('wallpaperUrl'),
         wallpaperBlur: document.getElementById('wallpaperBlur'),
         wallpaperBlurValue: document.getElementById('wallpaperBlurValue'),
@@ -659,6 +667,12 @@ function bindAllEvents() {
     DOM.settingsModalClose.addEventListener('click', closeSettingsModal);
     DOM.settingsModal.addEventListener('click', e => { if (e.target === DOM.settingsModal) closeSettingsModal(); });
     DOM.addCategoryBtn.addEventListener('click', () => openCategoryModal());
+
+    // 书签搜索浮层
+    DOM.bookmarkSearchBtn.addEventListener('click', openBookmarkSearch);
+    DOM.bookmarkSearchClose.addEventListener('click', closeBookmarkSearch);
+    DOM.bookmarkSearchOverlay.addEventListener('click', e => { if (e.target === DOM.bookmarkSearchOverlay) closeBookmarkSearch(); });
+    DOM.bookmarkSearchInput.addEventListener('input', handleBookmarkSearch);
 
     // 空状态添加按钮
     if (DOM.emptyAddBookmark) {
@@ -2011,7 +2025,7 @@ function closeSettingsModal() {
 }
 
 function closeAllModals() {
-    [DOM.engineModal, DOM.bookmarkModal, DOM.categoryModal, DOM.settingsModal].forEach(m => m?.classList.remove('open'));
+    [DOM.engineModal, DOM.bookmarkModal, DOM.categoryModal, DOM.settingsModal, DOM.bookmarkSearchOverlay].forEach(m => m?.classList.remove('open'));
     document.body.style.overflow = '';
 }
 
@@ -2084,6 +2098,7 @@ async function loadPersonalization() {
             if (DOM.logoText) DOM.logoText.value = config.logoText || '书签导航';
             if (DOM.clockShow) DOM.clockShow.checked = config.clockShow || false;
             if (DOM.searchBarShow) DOM.searchBarShow.checked = config.searchBarShow !== false;
+            if (DOM.bookmarkFilterShow) DOM.bookmarkFilterShow.checked = config.bookmarkFilterShow !== false;
             if (DOM.wallpaperUrl) DOM.wallpaperUrl.value = config.wallpaperUrl || '';
             if (DOM.wallpaperBlur) DOM.wallpaperBlur.value = config.wallpaperBlur || 0;
             if (DOM.wallpaperBlurValue) DOM.wallpaperBlurValue.textContent = (config.wallpaperBlur || 0) + 'px';
@@ -2103,6 +2118,7 @@ async function savePersonalization() {
         logoText: DOM.logoText ? DOM.logoText.value : '书签导航',
         clockShow: DOM.clockShow ? DOM.clockShow.checked : false,
         searchBarShow: DOM.searchBarShow ? DOM.searchBarShow.checked : true,
+        bookmarkFilterShow: DOM.bookmarkFilterShow ? DOM.bookmarkFilterShow.checked : true,
         wallpaperUrl: DOM.wallpaperUrl ? DOM.wallpaperUrl.value : '',
         wallpaperBlur: DOM.wallpaperBlur ? parseInt(DOM.wallpaperBlur.value) : 0,
         wallpaperDim: DOM.wallpaperDim ? parseInt(DOM.wallpaperDim.value) : 30,
@@ -2133,6 +2149,11 @@ function applyPersonalization(config) {
     // 搜索栏
     const searchForm = document.querySelector('.web-search-form');
     if (searchForm) searchForm.style.display = config.searchBarShow ? '' : 'none';
+
+    // 书签过滤输入框
+    if (DOM.searchContainer) {
+        DOM.searchContainer.style.display = config.bookmarkFilterShow !== false ? '' : 'none';
+    }
 
     // 时钟
     if (DOM.clockContainer) {
@@ -2366,6 +2387,76 @@ function saveCollapsedState() {
     } catch (e) {
         console.error('保存折叠状态失败:', e);
     }
+}
+
+// ========================================
+// 书签搜索浮层
+// ========================================
+function openBookmarkSearch() {
+    DOM.bookmarkSearchOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    DOM.bookmarkSearchInput.value = '';
+    DOM.bookmarkSearchResults.innerHTML = '';
+    setTimeout(() => DOM.bookmarkSearchInput.focus(), 100);
+}
+
+function closeBookmarkSearch() {
+    DOM.bookmarkSearchOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+    DOM.bookmarkSearchInput.value = '';
+    DOM.bookmarkSearchResults.innerHTML = '';
+}
+
+function handleBookmarkSearch() {
+    const searchTerm = DOM.bookmarkSearchInput.value.toLowerCase().trim();
+
+    if (!searchTerm) {
+        DOM.bookmarkSearchResults.innerHTML = '';
+        return;
+    }
+
+    // 过滤书签（只搜索书签类型，不包括组件）
+    const results = bookmarks.filter(b => {
+        if (b.item_type === 'component') return false;
+        return b.name.toLowerCase().includes(searchTerm) ||
+            (b.description && b.description.toLowerCase().includes(searchTerm)) ||
+            b.url.toLowerCase().includes(searchTerm);
+    });
+
+    if (results.length === 0) {
+        DOM.bookmarkSearchResults.innerHTML = '<div class="search-no-results">没有找到匹配的书签</div>';
+        return;
+    }
+
+    // 渲染搜索结果
+    DOM.bookmarkSearchResults.innerHTML = results.slice(0, 20).map(item => {
+        const category = categories.find(c => c.id === item.category_id);
+        const categoryName = category ? category.name : '未分类';
+
+        // 获取图标
+        let iconHtml;
+        const cachedIcon = iconCache.get(item.id);
+        if (cachedIcon && cachedIcon.icon_data) {
+            iconHtml = `<img src="${cachedIcon.icon_data}" alt="${item.name}">`;
+        } else if (item.icon_type === 'base64' && item.icon_data) {
+            iconHtml = `<img src="${item.icon_data}" alt="${item.name}">`;
+        } else if (item.icon_type === 'url' && item.icon_data) {
+            iconHtml = `<img src="${item.icon_data}" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
+        } else {
+            iconHtml = item.icon || '🌐';
+        }
+
+        return `
+            <a href="${item.url}" class="search-result-item" target="_blank" rel="noopener" onclick="closeBookmarkSearch()">
+                <div class="search-result-icon">${iconHtml}</div>
+                <div class="search-result-info">
+                    <div class="search-result-name">${highlightText(item.name, searchTerm)}</div>
+                    <div class="search-result-desc">${item.description ? highlightText(item.description, searchTerm) : item.url}</div>
+                </div>
+                <span class="search-result-category">${categoryName}</span>
+            </a>
+        `;
+    }).join('');
 }
 
 // ========================================
