@@ -2846,8 +2846,8 @@ select:focus {
         z-index: 10 !important;
         background: var(--bg-secondary) !important;
         padding: var(--spacing-md) !important;
-        /* 使用 max() 确保至少有 44px 的顶部间距，兼容状态栏 */
-        padding-top: max(44px, calc(var(--spacing-md) + env(safe-area-inset-top))) !important;
+        /* 使用 max() 确保至少有 50px 的顶部间距，兼容状态栏 */
+        padding-top: max(50px, calc(var(--spacing-md) + env(safe-area-inset-top))) !important;
         border-bottom: 1px solid var(--glass-border) !important;
     }
 
