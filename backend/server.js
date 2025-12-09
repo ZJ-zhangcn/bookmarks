@@ -81,16 +81,14 @@ try {
 } catch (e) { /* 列已存在 */ }
 try {
     db.exec(`ALTER TABLE search_engines ADD COLUMN sort_order INTEGER DEFAULT 0`);
-} catch (e) { /* 列已存在 */ }
 
-// 初始化搜索引擎排序（如果 sort_order 都是0，按 is_default 和 created_at 初始化）
-try {
+    // 只有新添加列时才初始化排序
     const engines = db.prepare('SELECT id, is_default FROM search_engines ORDER BY is_default DESC, created_at ASC').all();
     const updateStmt = db.prepare('UPDATE search_engines SET sort_order = ? WHERE id = ?');
     engines.forEach((e, i) => {
         updateStmt.run(i, e.id);
     });
-} catch (e) { /* 忽略错误 */ }
+} catch (e) { /* 列已存在，不需要初始化排序 */ }
 
 // 中间件
 app.use(cors());
