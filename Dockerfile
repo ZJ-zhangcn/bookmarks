@@ -2,19 +2,27 @@
 FROM node:20-alpine
 
 # 安装 better-sqlite3 编译依赖
-RUN apk add --no-cache python3 make g++
+# 使用 --no-cache 并分步执行以提高跨平台构建稳定性
+RUN apk update && \
+    apk add --no-cache python3 && \
+    apk add --no-cache make && \
+    apk add --no-cache g++
 
 WORKDIR /app
 
-# 复制后端
+# 复制后端 package.json
 COPY backend/package*.json ./backend/
-RUN cd backend && npm install --production && \
-    # 清理编译缓存
+
+# 安装依赖
+WORKDIR /app/backend
+RUN npm install --production && \
     npm cache clean --force
 
-COPY backend/ ./backend/
+# 复制后端代码
+COPY backend/ ./
 
 # 复制前端
+WORKDIR /app
 COPY frontend/ ./frontend/
 
 # 创建数据目录
