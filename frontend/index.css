@@ -2616,6 +2616,28 @@ select:focus {
         border-radius: 0 !important;
     }
 
+    /* 设置弹窗头部 - 增大关闭按钮 */
+    .modal.modal-xl .modal-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 10 !important;
+        background: var(--bg-secondary) !important;
+        padding: var(--spacing-md) !important;
+        border-bottom: 1px solid var(--glass-border) !important;
+    }
+
+    .modal.modal-xl .modal-close {
+        width: 44px !important;
+        height: 44px !important;
+        background: var(--bg-tertiary) !important;
+        border-radius: var(--radius-md) !important;
+    }
+
+    .modal.modal-xl .modal-close svg {
+        width: 24px !important;
+        height: 24px !important;
+    }
+
     /* 设置面板改为垂直布局 */
     .settings-container {
         flex-direction: column !important;
@@ -2672,6 +2694,7 @@ select:focus {
 
     .settings-content {
         padding: var(--spacing-sm) !important;
+        padding-bottom: calc(var(--spacing-xl) + 80px) !important; /* 额外底部间距，防止被浏览器工具栏遮挡 */
         flex: 1 !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch;
@@ -2998,6 +3021,10 @@ select:focus {
     @media (max-width: 768px) {
         .modal.modal-xl {
             padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .settings-content {
+            padding-bottom: calc(var(--spacing-xl) + 80px + env(safe-area-inset-bottom)) !important;
         }
 
         .engine-dropdown {
