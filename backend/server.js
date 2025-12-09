@@ -32,7 +32,7 @@ db.exec(`
         sort_order INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
-    
+
     CREATE TABLE IF NOT EXISTS bookmarks (
         id TEXT PRIMARY KEY,
         category_id TEXT NOT NULL,
@@ -48,7 +48,7 @@ db.exec(`
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (category_id) REFERENCES categories(id)
     );
-    
+
     CREATE TABLE IF NOT EXISTS search_engines (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -57,10 +57,18 @@ db.exec(`
         is_default INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
-    
+
     CREATE TABLE IF NOT EXISTS config (
         key TEXT PRIMARY KEY,
         value TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS icon_library (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        data TEXT NOT NULL,
+        type TEXT DEFAULT 'base64',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 `);
 
@@ -403,9 +411,32 @@ app.get('/api/engines', (req, res) => {
     res.json({ success: true, data: engines });
 });
 
-// 获取图标库（从现有书签和搜索引擎中提取已使用的图标）
+// ========================================
+// 图标库 API
+// ========================================
+
+// 获取图标库（合并手动上传的图标和书签/搜索引擎中的图标）
 app.get('/api/icons/library', (req, res) => {
     try {
+        const icons = [];
+
+        // 获取手动上传的图标
+        const uploadedIcons = db.prepare(`
+            SELECT id, name, data, type, created_at
+            FROM icon_library
+            ORDER BY created_at DESC
+        `).all();
+
+        uploadedIcons.forEach(icon => {
+            icons.push({
+                id: icon.id,
+                data: icon.data,
+                type: icon.type,
+                source: icon.name || '手动上传',
+                uploaded: true
+            });
+        });
+
         // 获取所有书签的图标（base64 和 url 类型）
         const bookmarkIcons = db.prepare(`
             SELECT DISTINCT icon_data, icon_type, name
@@ -420,15 +451,14 @@ app.get('/api/icons/library', (req, res) => {
             WHERE icon IS NOT NULL AND icon != '' AND icon LIKE 'http%' OR icon LIKE 'data:%'
         `).all();
 
-        const icons = [];
-
         // 处理书签图标
         bookmarkIcons.forEach(b => {
             if (b.icon_data && !icons.find(i => i.data === b.icon_data)) {
                 icons.push({
                     data: b.icon_data,
                     type: b.icon_type,
-                    source: b.name
+                    source: b.name,
+                    uploaded: false
                 });
             }
         });
@@ -439,12 +469,97 @@ app.get('/api/icons/library', (req, res) => {
                 icons.push({
                     data: e.icon,
                     type: e.icon.startsWith('data:') ? 'base64' : 'url',
-                    source: e.name
+                    source: e.name,
+                    uploaded: false
                 });
             }
         });
 
         res.json({ success: true, data: icons });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 上传图标到图标库
+app.post('/api/icons/library', (req, res) => {
+    const { name, data, type } = req.body;
+
+    if (!data) {
+        return res.status(400).json({ success: false, error: '缺少图标数据' });
+    }
+
+    try {
+        const iconId = `icon_${Date.now()}`;
+        db.prepare('INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)')
+            .run(iconId, name || '', data, type || 'base64');
+        res.json({ success: true, data: { id: iconId } });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 从 URL 上传图标（自动转换为 base64）
+app.post('/api/icons/library/from-url', async (req, res) => {
+    const { name, url } = req.body;
+
+    if (!url) {
+        return res.status(400).json({ success: false, error: '缺少图标 URL' });
+    }
+
+    try {
+        // 获取图标并转换为 base64
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 5000
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+        const contentType = response.headers.get('content-type') || 'image/png';
+        const base64 = Buffer.from(buffer).toString('base64');
+        const data = `data:${contentType.split(';')[0]};base64,${base64}`;
+
+        const iconId = `icon_${Date.now()}`;
+        db.prepare('INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)')
+            .run(iconId, name || '', data, 'base64');
+        res.json({ success: true, data: { id: iconId, data } });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 删除图标库中的图标
+app.delete('/api/icons/library/:id', (req, res) => {
+    try {
+        const result = db.prepare('DELETE FROM icon_library WHERE id = ?').run(req.params.id);
+        if (result.changes > 0) {
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ success: false, error: '图标不存在' });
+        }
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 批量删除图标
+app.post('/api/icons/library/batch-delete', (req, res) => {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ success: false, error: '无效的图标 ID 列表' });
+    }
+
+    try {
+        const placeholders = ids.map(() => '?').join(',');
+        const result = db.prepare(`DELETE FROM icon_library WHERE id IN (${placeholders})`).run(...ids);
+        res.json({ success: true, deleted: result.changes });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }

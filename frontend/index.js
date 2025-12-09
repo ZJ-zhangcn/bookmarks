@@ -586,7 +586,10 @@ function bindAllEvents() {
             // 切换到 Docker 标签页时加载容器列表
             if (tab.dataset.tab === 'docker') loadDockerContainers();
             // 切换到图标库标签页时加载图标
-            if (tab.dataset.tab === 'icons') renderIconLibrary();
+            if (tab.dataset.tab === 'icons') {
+                renderIconLibrary();
+                bindIconLibraryManageEvents();
+            }
         });
     });
 
@@ -1337,8 +1340,10 @@ async function saveCategoryOrder() {
 }
 
 // ========================================
-// 图标库（设置面板）
+// 图标库管理（设置面板）
 // ========================================
+let selectedIcons = new Set(); // 选中的图标 ID
+
 async function renderIconLibrary() {
     if (!DOM.settingsIconLibraryGrid) return;
 
@@ -1346,33 +1351,72 @@ async function renderIconLibrary() {
     DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-loading">加载中...</div>';
 
     try {
-        // 使用缓存或从 API 获取图标数据
-        if (!iconLibraryCache) {
-            const res = await fetch(`${API_BASE}/api/icons/library`);
-            const data = await res.json();
-            if (data.success) {
-                iconLibraryCache = data.data;
-            }
+        // 从 API 获取图标数据（每次都刷新）
+        const res = await fetch(`${API_BASE}/api/icons/library`);
+        const data = await res.json();
+        if (data.success) {
+            iconLibraryCache = data.data;
         }
 
+        updateIconLibraryCount();
+
         if (!iconLibraryCache || iconLibraryCache.length === 0) {
-            DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-empty">暂无缓存的图标</div>';
+            DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-empty">暂无图标，请上传或添加书签</div>';
             return;
         }
 
         DOM.settingsIconLibraryGrid.innerHTML = iconLibraryCache.map((icon, index) => `
-            <div class="icon-library-item" data-index="${index}" data-icon="${encodeURIComponent(icon.data)}" title="${icon.source || '未知来源'}">
+            <div class="icon-library-item ${icon.uploaded ? 'uploaded' : ''} ${selectedIcons.has(icon.id) ? 'selected' : ''}"
+                 data-index="${index}"
+                 data-id="${icon.id || ''}"
+                 data-icon="${encodeURIComponent(icon.data)}"
+                 title="${icon.source || '未知来源'}${icon.uploaded ? ' (已上传)' : ''}">
+                ${icon.uploaded ? '<input type="checkbox" class="icon-checkbox" ' + (selectedIcons.has(icon.id) ? 'checked' : '') + '>' : ''}
                 <img src="${icon.data}" alt="图标" onerror="this.parentElement.style.display='none'">
+                ${icon.uploaded ? '<button class="icon-delete-btn" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' : ''}
             </div>
         `).join('');
 
-        // 点击图标复制到剪贴板
-        DOM.settingsIconLibraryGrid.onclick = async (e) => {
-            const item = e.target.closest('.icon-library-item');
-            if (!item) return;
+        // 绑定事件
+        bindIconLibraryEvents();
+    } catch (err) {
+        console.error('加载图标库失败:', err);
+        DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-empty">加载图标库失败</div>';
+    }
+}
 
+function bindIconLibraryEvents() {
+    // 点击图标
+    DOM.settingsIconLibraryGrid.onclick = async (e) => {
+        const item = e.target.closest('.icon-library-item');
+        if (!item) return;
+
+        const deleteBtn = e.target.closest('.icon-delete-btn');
+        const checkbox = e.target.closest('.icon-checkbox');
+
+        if (deleteBtn) {
+            // 删除单个图标
+            e.stopPropagation();
+            const iconId = item.dataset.id;
+            if (iconId && confirm('确定要删除此图标吗？')) {
+                await deleteIconFromLibrary(iconId);
+            }
+        } else if (checkbox) {
+            // 复选框选择
+            const iconId = item.dataset.id;
+            if (iconId) {
+                if (checkbox.checked) {
+                    selectedIcons.add(iconId);
+                    item.classList.add('selected');
+                } else {
+                    selectedIcons.delete(iconId);
+                    item.classList.remove('selected');
+                }
+                updateBatchDeleteButton();
+            }
+        } else {
+            // 点击图标复制到剪贴板
             const iconData = decodeURIComponent(item.dataset.icon);
-
             try {
                 await navigator.clipboard.writeText(iconData);
                 item.classList.add('copied');
@@ -1380,10 +1424,212 @@ async function renderIconLibrary() {
             } catch {
                 console.log('复制失败，但图标数据可用');
             }
+        }
+    };
+}
+
+function updateIconLibraryCount() {
+    const countEl = document.getElementById('iconLibraryCount');
+    if (countEl && iconLibraryCache) {
+        const uploadedCount = iconLibraryCache.filter(i => i.uploaded).length;
+        const totalCount = iconLibraryCache.length;
+        countEl.textContent = `${totalCount} 个图标 (${uploadedCount} 个已上传)`;
+    }
+}
+
+function updateBatchDeleteButton() {
+    const btn = document.getElementById('iconBatchDeleteBtn');
+    if (btn) {
+        btn.disabled = selectedIcons.size === 0;
+        btn.textContent = selectedIcons.size > 0 ? `删除选中 (${selectedIcons.size})` : '删除选中';
+    }
+}
+
+async function deleteIconFromLibrary(iconId) {
+    try {
+        const res = await fetch(`${API_BASE}/api/icons/library/${iconId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            selectedIcons.delete(iconId);
+            await renderIconLibrary();
+        } else {
+            alert('删除失败: ' + data.error);
+        }
+    } catch (e) {
+        alert('删除失败: ' + e.message);
+    }
+}
+
+async function batchDeleteIcons() {
+    if (selectedIcons.size === 0) return;
+
+    if (!confirm(`确定要删除选中的 ${selectedIcons.size} 个图标吗？`)) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/icons/library/batch-delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: [...selectedIcons] })
+        });
+        const data = await res.json();
+        if (data.success) {
+            selectedIcons.clear();
+            await renderIconLibrary();
+        } else {
+            alert('删除失败: ' + data.error);
+        }
+    } catch (e) {
+        alert('删除失败: ' + e.message);
+    }
+}
+
+async function uploadIconToLibrary(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const res = await fetch(`${API_BASE}/api/icons/library`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: file.name.replace(/\.[^/.]+$/, ''),
+                        data: e.target.result,
+                        type: 'base64'
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    resolve(data.data);
+                } else {
+                    reject(new Error(data.error));
+                }
+            } catch (err) {
+                reject(err);
+            }
         };
-    } catch (err) {
-        console.error('加载图标库失败:', err);
-        DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-empty">加载图标库失败</div>';
+        reader.onerror = () => reject(new Error('文件读取失败'));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function uploadIconFromUrl(url) {
+    try {
+        const res = await fetch(`${API_BASE}/api/icons/library/from-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (data.success) {
+            return data.data;
+        } else {
+            throw new Error(data.error);
+        }
+    } catch (e) {
+        throw e;
+    }
+}
+
+function bindIconLibraryManageEvents() {
+    // 上传按钮
+    const uploadBtn = document.getElementById('iconLibraryUploadBtn');
+    const fileInput = document.getElementById('iconLibraryFileInput');
+
+    if (uploadBtn && fileInput) {
+        uploadBtn.onclick = () => fileInput.click();
+        fileInput.onchange = async (e) => {
+            const files = e.target.files;
+            if (!files.length) return;
+
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '上传中...';
+
+            try {
+                for (const file of files) {
+                    await uploadIconToLibrary(file);
+                }
+                await renderIconLibrary();
+            } catch (err) {
+                alert('上传失败: ' + err.message);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17,8 12,3 7,8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    上传图片
+                `;
+                fileInput.value = '';
+            }
+        };
+    }
+
+    // URL 添加按钮
+    const urlInput = document.getElementById('iconLibraryUrlInput');
+    const urlBtn = document.getElementById('iconLibraryUrlBtn');
+
+    if (urlInput && urlBtn) {
+        urlBtn.onclick = async () => {
+            const url = urlInput.value.trim();
+            if (!url) {
+                alert('请输入图标 URL');
+                return;
+            }
+
+            urlBtn.disabled = true;
+            urlBtn.textContent = '添加中...';
+
+            try {
+                await uploadIconFromUrl(url);
+                urlInput.value = '';
+                await renderIconLibrary();
+            } catch (err) {
+                alert('添加失败: ' + err.message);
+            } finally {
+                urlBtn.disabled = false;
+                urlBtn.textContent = '从 URL 添加';
+            }
+        };
+    }
+
+    // 全选复选框
+    const selectAllCheckbox = document.getElementById('iconSelectAll');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.onchange = () => {
+            const checked = selectAllCheckbox.checked;
+            selectedIcons.clear();
+
+            if (checked && iconLibraryCache) {
+                iconLibraryCache.forEach(icon => {
+                    if (icon.uploaded && icon.id) {
+                        selectedIcons.add(icon.id);
+                    }
+                });
+            }
+
+            // 更新 UI
+            document.querySelectorAll('.icon-library-item.uploaded').forEach(item => {
+                const checkbox = item.querySelector('.icon-checkbox');
+                if (checkbox) {
+                    checkbox.checked = checked;
+                }
+                if (checked) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+
+            updateBatchDeleteButton();
+        };
+    }
+
+    // 批量删除按钮
+    const batchDeleteBtn = document.getElementById('iconBatchDeleteBtn');
+    if (batchDeleteBtn) {
+        batchDeleteBtn.onclick = batchDeleteIcons;
     }
 }
 

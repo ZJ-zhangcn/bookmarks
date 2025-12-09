@@ -491,9 +491,55 @@
                                 <circle cx="12" cy="12" r="10" />
                                 <path d="M12 16v-4M12 8h.01" />
                             </svg>
-                            <span>已缓存的书签图标，可在添加书签时复用</span>
+                            <span>管理图标库，可上传自定义图标或从已有书签中选择复用</span>
                         </div>
-                        <div class="icon-library-grid" id="settingsIconLibraryGrid">
+
+                        <!-- 图标上传区域 -->
+                        <div class="setting-card">
+                            <h5 class="card-subtitle">上传图标</h5>
+                            <div class="icon-upload-area">
+                                <div class="icon-upload-methods">
+                                    <div class="upload-method">
+                                        <input type="file" id="iconLibraryFileInput" accept="image/*" multiple style="display:none;">
+                                        <button class="btn btn-secondary" id="iconLibraryUploadBtn">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="17,8 12,3 7,8"/>
+                                                <line x1="12" y1="3" x2="12" y2="15"/>
+                                            </svg>
+                                            上传图片
+                                        </button>
+                                    </div>
+                                    <div class="upload-method url-method">
+                                        <input type="url" id="iconLibraryUrlInput" placeholder="输入图标 URL" autocomplete="off" data-form-type="other">
+                                        <button class="btn btn-secondary" id="iconLibraryUrlBtn">从 URL 添加</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 图标管理工具栏 -->
+                        <div class="icon-library-toolbar">
+                            <div class="toolbar-left">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="iconSelectAll">
+                                    <span>全选</span>
+                                </label>
+                                <span class="icon-count" id="iconLibraryCount">0 个图标</span>
+                            </div>
+                            <div class="toolbar-right">
+                                <button class="btn btn-danger btn-sm" id="iconBatchDeleteBtn" disabled>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    </svg>
+                                    删除选中
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 图标网格 -->
+                        <div class="icon-library-grid icon-library-manage" id="settingsIconLibraryGrid">
                             <!-- 由 JavaScript 动态渲染 -->
                         </div>
                     </div>
