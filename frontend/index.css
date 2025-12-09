@@ -244,8 +244,8 @@ body {
    ======================================== */
 .header {
     text-align: center;
-    margin-bottom: var(--spacing-2xl);
-    padding: var(--spacing-2xl) 0;
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-2xl) 0 var(--spacing-md);
 }
 
 .logo {
@@ -310,8 +310,8 @@ body {
 .engine-btn {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md) var(--spacing-lg);
+    gap: var(--spacing-xs);
+    padding: var(--spacing-md);
     height: 100%;
     font-family: inherit;
     font-size: 0.95rem;
@@ -332,24 +332,24 @@ body {
 }
 
 .engine-icon {
-    font-size: 1.1rem;
+    font-size: 1.3rem;
     line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
 }
 
 .engine-icon img {
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
     object-fit: contain;
 }
 
-.engine-name {
-    min-width: 80px;
-    line-height: 1.2;
+/* 选择器按钮中隐藏名称，只显示图标 */
+.engine-btn .engine-name {
+    display: none;
 }
 
 .dropdown-arrow {
@@ -981,7 +981,7 @@ body {
    ======================================== */
 .search-container {
     max-width: 500px;
-    margin: 0 auto;
+    margin: var(--spacing-lg) auto 0;
 }
 
 .search-box {
@@ -1757,7 +1757,7 @@ body {
     }
 
     .header {
-        padding: var(--spacing-xl) 0;
+        padding: var(--spacing-xl) 0 var(--spacing-sm);
     }
 
     .logo {
@@ -1778,10 +1778,6 @@ body {
 
     .engine-btn {
         justify-content: center;
-    }
-
-    .engine-name {
-        min-width: auto;
     }
 
     .category-nav {
@@ -1895,10 +1891,17 @@ body {
     background: var(--bg-tertiary);
 }
 
-/* 固定按钮 - 左上角和右上角 */
-.fixed-btn {
+/* 固定按钮组 - 右上角 */
+.fixed-buttons {
     position: fixed;
+    top: calc(20px + env(safe-area-inset-top));
+    right: calc(20px + env(safe-area-inset-right));
     z-index: 1000;
+    display: flex;
+    gap: 10px;
+}
+
+.fixed-btn {
     width: 44px;
     height: 44px;
     display: flex;
@@ -1915,16 +1918,6 @@ body {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-.fixed-btn-left {
-    top: calc(20px + env(safe-area-inset-top));
-    left: calc(20px + env(safe-area-inset-left));
-}
-
-.fixed-btn-right {
-    top: calc(20px + env(safe-area-inset-top));
-    right: calc(20px + env(safe-area-inset-right));
-}
-
 .fixed-btn svg {
     width: 22px;
     height: 22px;
@@ -1936,11 +1929,11 @@ body {
     background: var(--bg-tertiary);
 }
 
-.fixed-btn-right:hover {
+.fixed-btn:last-child:hover {
     transform: rotate(45deg);
 }
 
-.fixed-btn-left:hover {
+.fixed-btn:first-child:hover {
     transform: scale(1.05);
 }
 
