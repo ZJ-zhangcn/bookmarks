@@ -247,11 +247,24 @@ body {
 }
 
 .engine-icon {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+.engine-icon img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
 }
 
 .engine-name {
     min-width: 80px;
+    line-height: 1.2;
 }
 
 .dropdown-arrow {
@@ -495,10 +508,50 @@ body {
     background: var(--bg-tertiary);
     border-radius: var(--radius-md);
     margin-bottom: var(--spacing-sm);
+    cursor: grab;
+    transition: all var(--transition-fast);
+}
+
+.engine-list-item:active {
+    cursor: grabbing;
+}
+
+.engine-list-item.dragging {
+    opacity: 0.5;
+    background: var(--accent-color-light);
 }
 
 .engine-list-item.builtin {
     opacity: 0.7;
+}
+
+.engine-drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    color: var(--text-tertiary);
+    cursor: grab;
+}
+
+.engine-drag-handle svg {
+    width: 16px;
+    height: 16px;
+}
+
+.engine-drag-handle:active {
+    cursor: grabbing;
+}
+
+.engine-default-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    background: var(--accent-gradient);
+    color: white;
+    border-radius: var(--radius-sm);
+    margin-left: 6px;
+    vertical-align: middle;
 }
 
 .engine-list-icon {

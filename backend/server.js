@@ -71,6 +71,18 @@ try {
 try {
     db.exec(`ALTER TABLE bookmarks ADD COLUMN component_type TEXT`);
 } catch (e) { /* 列已存在 */ }
+try {
+    db.exec(`ALTER TABLE search_engines ADD COLUMN sort_order INTEGER DEFAULT 0`);
+} catch (e) { /* 列已存在 */ }
+
+// 初始化搜索引擎排序（如果 sort_order 都是0，按 is_default 和 created_at 初始化）
+try {
+    const engines = db.prepare('SELECT id, is_default FROM search_engines ORDER BY is_default DESC, created_at ASC').all();
+    const updateStmt = db.prepare('UPDATE search_engines SET sort_order = ? WHERE id = ?');
+    engines.forEach((e, i) => {
+        updateStmt.run(i, e.id);
+    });
+} catch (e) { /* 忽略错误 */ }
 
 // 中间件
 app.use(cors());
@@ -387,7 +399,7 @@ app.post('/api/bookmarks/sort', (req, res) => {
 // 搜索引擎 API
 // ========================================
 app.get('/api/engines', (req, res) => {
-    const engines = db.prepare('SELECT * FROM search_engines ORDER BY created_at').all();
+    const engines = db.prepare('SELECT * FROM search_engines ORDER BY sort_order ASC, created_at ASC').all();
     res.json({ success: true, data: engines });
 });
 
@@ -439,16 +451,36 @@ app.get('/api/icons/library', (req, res) => {
 });
 
 app.post('/api/engines', (req, res) => {
-    const { id, name, icon, url, is_default } = req.body;
+    const { id, name, icon, url, sort_order } = req.body;
     const engineId = id || `eng_${Date.now()}`;
 
     try {
-        if (is_default) {
-            db.prepare('UPDATE search_engines SET is_default = 0').run();
+        // 如果是新增，获取当前最大 sort_order
+        let order = sort_order;
+        if (order === undefined || order === null) {
+            const maxOrder = db.prepare('SELECT MAX(sort_order) as max FROM search_engines').get();
+            order = (maxOrder.max || 0) + 1;
         }
-        db.prepare('INSERT OR REPLACE INTO search_engines (id, name, icon, url, is_default) VALUES (?, ?, ?, ?, ?)')
-            .run(engineId, name, icon || '🔍', url, is_default ? 1 : 0);
+        db.prepare('INSERT OR REPLACE INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)')
+            .run(engineId, name, icon || '🔍', url, order);
         res.json({ success: true, data: { id: engineId } });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 搜索引擎排序 API
+app.put('/api/engines/sort', (req, res) => {
+    const { orders } = req.body; // [{ id: 'xxx', sort_order: 0 }, ...]
+    try {
+        const updateStmt = db.prepare('UPDATE search_engines SET sort_order = ? WHERE id = ?');
+        const transaction = db.transaction(() => {
+            orders.forEach(item => {
+                updateStmt.run(item.sort_order, item.id);
+            });
+        });
+        transaction();
+        res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
@@ -648,7 +680,7 @@ app.post('/api/import', (req, res) => {
     try {
         const insertCat = db.prepare('INSERT OR REPLACE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)');
         const insertBm = db.prepare('INSERT OR REPLACE INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-        const insertEng = db.prepare('INSERT OR REPLACE INTO search_engines (id, name, icon, url, is_default) VALUES (?, ?, ?, ?, ?)');
+        const insertEng = db.prepare('INSERT OR REPLACE INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)');
 
         const transaction = db.transaction(() => {
             if (categories) {
@@ -658,7 +690,7 @@ app.post('/api/import', (req, res) => {
                 bookmarks.forEach(b => insertBm.run(b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '🌐', b.icon_type || 'auto', b.icon_data || ''));
             }
             if (engines) {
-                engines.forEach(e => insertEng.run(e.id, e.name, e.icon, e.url, e.is_default || 0));
+                engines.forEach((e, i) => insertEng.run(e.id, e.name, e.icon, e.url, e.sort_order !== undefined ? e.sort_order : i));
             }
             // 导入个性化设置
             if (personalization) {
@@ -774,19 +806,19 @@ function initDefaultData() {
     ];
 
     const defaultEngines = [
-        { id: 'eng_google', name: 'Google', icon: '🌐', url: 'https://www.google.com/search?q=', is_default: 1 },
+        { id: 'eng_google', name: 'Google', icon: '🌐', url: 'https://www.google.com/search?q=' },
         { id: 'eng_baidu', name: '百度', icon: '🔎', url: 'https://www.baidu.com/s?wd=' },
         { id: 'eng_bing', name: 'Bing', icon: '🔷', url: 'https://www.bing.com/search?q=' },
     ];
 
     const insertCat = db.prepare('INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)');
     const insertBm = db.prepare('INSERT INTO bookmarks (id, category_id, name, url, description, icon) VALUES (?, ?, ?, ?, ?, ?)');
-    const insertEng = db.prepare('INSERT INTO search_engines (id, name, icon, url, is_default) VALUES (?, ?, ?, ?, ?)');
+    const insertEng = db.prepare('INSERT INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)');
 
     const transaction = db.transaction(() => {
         defaultCategories.forEach((c, i) => insertCat.run(c.id, c.name, c.icon, i));
         defaultBookmarks.forEach((b, i) => insertBm.run(`bm_default_${i}`, b.category_id, b.name, b.url, b.description, b.icon));
-        defaultEngines.forEach(e => insertEng.run(e.id, e.name, e.icon, e.url, e.is_default || 0));
+        defaultEngines.forEach((e, i) => insertEng.run(e.id, e.name, e.icon, e.url, i));
     });
 
     transaction();

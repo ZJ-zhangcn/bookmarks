@@ -160,10 +160,10 @@ async function loadData() {
         bookmarks = bmData.success ? bmData.data : [];
         engines = engData.success ? engData.data : [];
 
-        // 设置默认搜索引擎
-        const defaultEng = engines.find(e => e.is_default);
-        if (defaultEng) {
-            currentEngine = { name: defaultEng.name, icon: defaultEng.icon, url: defaultEng.url };
+        // 设置默认搜索引擎（使用排序第一的）
+        if (engines.length > 0) {
+            const firstEngine = engines[0];
+            currentEngine = { name: firstEngine.name, icon: firstEngine.icon, url: firstEngine.url };
         }
 
         // 加载 WebDAV 设置
@@ -426,10 +426,15 @@ function renderEngineDropdown() {
 }
 
 function updateEngineDisplay() {
-    if (currentEngine.icon && currentEngine.icon.startsWith('http')) {
-        DOM.engineIcon.innerHTML = `<img src="${currentEngine.icon}" style="width:18px;height:18px;">`;
+    const icon = currentEngine.icon;
+    if (icon && icon.startsWith('http')) {
+        DOM.engineIcon.innerHTML = `<img src="${icon}" style="width:18px;height:18px;vertical-align:middle;">`;
+    } else if (icon && icon.startsWith('data:')) {
+        // base64 图标
+        DOM.engineIcon.innerHTML = `<img src="${icon}" style="width:18px;height:18px;vertical-align:middle;">`;
     } else {
-        DOM.engineIcon.textContent = currentEngine.icon;
+        // emoji 或默认图标
+        DOM.engineIcon.textContent = icon || '🌐';
     }
     DOM.engineName.textContent = currentEngine.name;
 }
@@ -1365,15 +1370,22 @@ function closeEngineModal() {
 }
 
 function renderEngineList() {
-    DOM.engineList.innerHTML = engines.map(e => {
-        const iconHtml = e.icon && e.icon.startsWith('http')
+    DOM.engineList.innerHTML = engines.map((e, index) => {
+        const iconHtml = e.icon && (e.icon.startsWith('http') || e.icon.startsWith('data:'))
             ? `<img src="${e.icon}" style="width:20px;height:20px;">`
-            : e.icon;
+            : e.icon || '🔍';
         return `
-        <div class="engine-list-item">
+        <div class="engine-list-item" draggable="true" data-id="${e.id}" data-index="${index}">
+            <div class="engine-drag-handle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/>
+                    <circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/>
+                    <circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>
+                </svg>
+            </div>
             <div class="engine-list-icon">${iconHtml}</div>
             <div class="engine-list-info">
-                <div class="engine-list-name">${e.name}${e.is_default ? ' ⭐' : ''}</div>
+                <div class="engine-list-name">${e.name}${index === 0 ? ' <span class="engine-default-badge">默认</span>' : ''}</div>
                 <div class="engine-list-url">${e.url}</div>
             </div>
             <div class="engine-list-actions">
@@ -1383,6 +1395,9 @@ function renderEngineList() {
         </div>
     `;
     }).join('');
+
+    // 绑定拖拽事件
+    initEngineDragSort();
 }
 
 function handleEngineListClick(e) {
@@ -1466,6 +1481,66 @@ function resetEngineForm() {
     DOM.saveEngineBtnText.textContent = '添加';
     DOM.cancelEditBtn.style.display = 'none';
     DOM.engineIconLibrary.style.display = 'none'; // 关闭图标库面板
+}
+
+// 搜索引擎拖拽排序
+function initEngineDragSort() {
+    const items = DOM.engineList.querySelectorAll('.engine-list-item');
+    let draggedItem = null;
+
+    items.forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            draggedItem = item;
+            item.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+            draggedItem = null;
+            // 保存新顺序
+            saveEngineOrder();
+        });
+
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (!draggedItem || draggedItem === item) return;
+
+            const rect = item.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+
+            if (e.clientY < midY) {
+                item.parentNode.insertBefore(draggedItem, item);
+            } else {
+                item.parentNode.insertBefore(draggedItem, item.nextSibling);
+            }
+        });
+    });
+}
+
+async function saveEngineOrder() {
+    const items = DOM.engineList.querySelectorAll('.engine-list-item');
+    const orders = [];
+
+    items.forEach((item, index) => {
+        orders.push({ id: item.dataset.id, sort_order: index });
+    });
+
+    try {
+        await fetch(`${API_BASE}/api/engines/sort`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orders })
+        });
+
+        // 重新加载数据并更新界面
+        await loadData();
+        renderEngineDropdown();
+        renderEngineList();
+        updateEngineDisplay();
+    } catch (e) {
+        console.error('保存排序失败:', e);
+    }
 }
 
 // 自动获取搜索引擎图标
