@@ -311,7 +311,7 @@ body {
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-sm);
     height: 100%;
     font-family: inherit;
     font-size: 0.95rem;
