@@ -853,6 +853,86 @@ app.post('/api/icon/fix-all', async (req, res) => {
     }
 });
 
+// 批量为没有图标的书签获取图标
+app.post('/api/icon/fetch-all', async (req, res) => {
+    try {
+        // 获取所有没有图标数据的书签
+        const bookmarks = db.prepare(`
+            SELECT id, url FROM bookmarks
+            WHERE url IS NOT NULL AND url != ''
+            AND (icon_data IS NULL OR icon_data = '' OR icon_type = 'auto')
+        `).all();
+
+        let success = 0;
+        let failed = 0;
+        const update = db.prepare('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?');
+
+        for (const bm of bookmarks) {
+            try {
+                const parsedUrl = new URL(bm.url);
+                const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
+
+                // 先尝试获取页面 HTML 解析 favicon
+                let iconUrl = null;
+                try {
+                    const pageRes = await fetch(bm.url, {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                        timeout: 5000
+                    });
+                    if (pageRes.ok) {
+                        const html = await pageRes.text();
+                        // 查找 <link rel="icon" 或 <link rel="shortcut icon"
+                        const iconMatch = html.match(/<link[^>]*rel=["'](?:shortcut )?icon["'][^>]*href=["']([^"']+)["']/i)
+                            || html.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["'](?:shortcut )?icon["']/i);
+                        if (iconMatch) {
+                            iconUrl = iconMatch[1].startsWith('http') ? iconMatch[1]
+                                : iconMatch[1].startsWith('//') ? 'https:' + iconMatch[1]
+                                : iconMatch[1].startsWith('/') ? baseUrl + iconMatch[1]
+                                : baseUrl + '/' + iconMatch[1];
+                        }
+                    }
+                } catch { }
+
+                // 如果没找到，尝试默认 /favicon.ico
+                if (!iconUrl) {
+                    iconUrl = baseUrl + '/favicon.ico';
+                }
+
+                // 下载图标并转为 base64
+                const iconRes = await fetch(iconUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                    timeout: 5000
+                });
+
+                if (iconRes.ok) {
+                    const buffer = await iconRes.arrayBuffer();
+                    if (buffer.byteLength > 0) {
+                        const contentType = iconRes.headers.get('content-type') || 'image/x-icon';
+                        const base64 = Buffer.from(buffer).toString('base64');
+                        const dataUrl = `data:${contentType.split(';')[0]};base64,${base64}`;
+                        update.run('base64', dataUrl, bm.id);
+                        success++;
+                        continue;
+                    }
+                }
+                failed++;
+            } catch {
+                failed++;
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `获取完成：${success} 个成功，${failed} 个失败`,
+            fetched: success,
+            failed,
+            total: bookmarks.length
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // ========================================
 // 配置导入导出
 // ========================================

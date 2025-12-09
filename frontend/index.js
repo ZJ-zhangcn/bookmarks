@@ -392,20 +392,8 @@ function createBookmarkCard(item, searchTerm) {
         iconHtml = `<img src="${item.icon_data}" alt="${item.name}">`;
     } else if (item.icon_type === 'url' && item.icon_data) {
         iconHtml = `<img src="${item.icon_data}" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
-    } else if (item.url) {
-        // 没有图标数据时，先用占位图标，等待延迟加载
-        try {
-            const domain = new URL(item.url).hostname;
-            // 内网地址不使用 Google favicon，直接尝试 /favicon.ico 或默认图标
-            if (isPrivateOrLocalAddress(domain)) {
-                iconHtml = `<img src="${new URL(item.url).origin}/favicon.ico" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
-            } else {
-                iconHtml = `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
-            }
-        } catch {
-            iconHtml = `<span>${item.icon || '🌐'}</span>`;
-        }
     } else {
+        // 没有保存图标数据时，直接使用默认 emoji，不请求外部服务
         iconHtml = `<span>${item.icon || '🌐'}</span>`;
     }
 
