@@ -618,6 +618,35 @@ app.post('/api/icons/library/batch-delete', (req, res) => {
     }
 });
 
+// 从书签中清除指定图标
+app.post('/api/icons/clear-from-bookmarks', (req, res) => {
+    const { iconData } = req.body;
+
+    if (!iconData) {
+        return res.status(400).json({ success: false, error: '缺少图标数据' });
+    }
+
+    try {
+        // 清除书签中使用此图标的数据
+        const result = db.prepare(`
+            UPDATE bookmarks
+            SET icon_type = 'emoji', icon_data = ''
+            WHERE icon_data = ?
+        `).run(iconData);
+
+        // 同时清除搜索引擎中使用此图标的数据
+        db.prepare(`
+            UPDATE search_engines
+            SET icon = '🔍'
+            WHERE icon = ?
+        `).run(iconData);
+
+        res.json({ success: true, cleared: result.changes });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.post('/api/engines', (req, res) => {
     const { id, name, icon, url, sort_order } = req.body;
     const engineId = id || `eng_${Date.now()}`;

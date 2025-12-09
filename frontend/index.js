@@ -1479,16 +1479,24 @@ async function renderIconLibrary() {
             return;
         }
 
+        // 为没有ID的图标生成临时ID
+        iconLibraryCache.forEach((icon, index) => {
+            if (!icon.id) {
+                icon.id = `temp_${index}_${Date.now()}`;
+                icon.isTemp = true; // 标记为临时ID（来自书签）
+            }
+        });
+
         DOM.settingsIconLibraryGrid.innerHTML = iconLibraryCache.map((icon, index) => `
-            <div class="icon-library-item ${icon.uploaded ? 'uploaded' : ''} ${selectedIcons.has(icon.id) ? 'selected' : ''}"
+            <div class="icon-library-item ${selectedIcons.has(icon.id) ? 'selected' : ''}"
                  data-index="${index}"
-                 data-id="${icon.id || ''}"
+                 data-id="${icon.id}"
                  data-icon="${encodeURIComponent(icon.data)}"
-                 title="${icon.source || '未知来源'}${icon.uploaded ? ' (已上传)' : ''}"
-                 onclick="handleIconItemClick(event, '${icon.id || ''}')">
-                ${icon.uploaded ? '<input type="checkbox" class="icon-checkbox" data-id="' + icon.id + '"' + (selectedIcons.has(icon.id) ? ' checked' : '') + ' onclick="event.stopPropagation()" onchange="handleIconCheckboxChange(event, \'' + icon.id + '\')">' : ''}
-                <img src="${icon.data}" alt="图标" onerror="this.parentElement.style.display='none'">
-                ${icon.uploaded ? '<button class="icon-delete-btn" data-id="' + icon.id + '" title="删除" onclick="event.stopPropagation(); handleIconDelete(\'' + icon.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' : ''}
+                 data-temp="${icon.isTemp || false}"
+                 title="${icon.source || '未知来源'}${icon.uploaded ? ' (已上传)' : ' (来自书签)'}">
+                <input type="checkbox" class="icon-checkbox" data-id="${icon.id}" ${selectedIcons.has(icon.id) ? 'checked' : ''} onchange="handleIconCheckboxChange(event, '${icon.id}')">
+                <img src="${icon.data}" alt="图标" onclick="handleIconItemClick(event)" onerror="this.parentElement.style.display='none'">
+                <button type="button" class="icon-delete-btn" title="删除" onclick="handleIconDelete('${icon.id}', ${icon.isTemp || false})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
             </div>
         `).join('');
     } catch (err) {
@@ -1514,15 +1522,52 @@ window.handleIconCheckboxChange = function(event, iconId) {
     }
 };
 
-window.handleIconDelete = async function(iconId) {
-    if (iconId && confirm('确定要删除此图标吗？')) {
+window.handleIconDelete = async function(iconId, isTemp) {
+    if (!iconId) return;
+
+    if (isTemp) {
+        // 来自书签的图标，需要从书签中清除
+        if (!confirm('此图标来自书签，删除后将清除使用此图标的书签的图标数据。确定要删除吗？')) {
+            return;
+        }
+        // 获取图标数据用于匹配
+        const item = document.querySelector(`.icon-library-item[data-id="${iconId}"]`);
+        if (!item) return;
+        const iconData = decodeURIComponent(item.dataset.icon);
+
+        try {
+            const res = await fetch(`${API_BASE}/api/icons/clear-from-bookmarks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ iconData })
+            });
+            const data = await res.json();
+            if (data.success) {
+                selectedIcons.delete(iconId);
+                await renderIconLibrary();
+                updateBatchDeleteButton();
+            } else {
+                alert('删除失败: ' + data.error);
+            }
+        } catch (e) {
+            alert('删除失败: ' + e.message);
+        }
+    } else {
+        // 手动上传的图标，直接从图标库删除
+        if (!confirm('确定要删除此图标吗？')) {
+            return;
+        }
+        selectedIcons.delete(iconId);
         await deleteIconFromLibrary(iconId);
+        updateBatchDeleteButton();
     }
 };
 
-window.handleIconItemClick = async function(event, iconId) {
+window.handleIconItemClick = async function(event) {
     // 复制图标数据到剪贴板
-    const item = event.currentTarget;
+    const item = event.target.closest('.icon-library-item');
+    if (!item) return;
+
     const iconData = decodeURIComponent(item.dataset.icon);
     try {
         await navigator.clipboard.writeText(iconData);
