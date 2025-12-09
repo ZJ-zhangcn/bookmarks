@@ -1499,9 +1499,17 @@ async function renderIconLibrary() {
     }
 }
 
+let iconLibraryEventsBound = false; // 防止重复绑定事件
+
 function bindIconLibraryEvents() {
-    // 点击图标
-    DOM.settingsIconLibraryGrid.onclick = async (e) => {
+    // 使用事件委托，避免重复绑定
+    const grid = DOM.settingsIconLibraryGrid;
+    if (!grid || iconLibraryEventsBound) return;
+
+    iconLibraryEventsBound = true;
+
+    // 绑定点击事件（只绑定一次）
+    grid.addEventListener('click', async (e) => {
         const item = e.target.closest('.icon-library-item');
         if (!item) return;
 
@@ -1510,15 +1518,18 @@ function bindIconLibraryEvents() {
 
         if (deleteBtn) {
             // 删除单个图标
+            e.preventDefault();
             e.stopPropagation();
             const iconId = item.dataset.id;
             if (iconId && confirm('确定要删除此图标吗？')) {
                 await deleteIconFromLibrary(iconId);
             }
         } else if (checkbox) {
-            // 复选框选择
+            // 复选框选择 - 阻止事件冒泡
+            e.stopPropagation();
             const iconId = item.dataset.id;
             if (iconId) {
+                // checkbox.checked 已经被浏览器切换了，直接读取新状态
                 if (checkbox.checked) {
                     selectedIcons.add(iconId);
                     item.classList.add('selected');
@@ -1539,7 +1550,7 @@ function bindIconLibraryEvents() {
                 console.log('复制失败，但图标数据可用');
             }
         }
-    };
+    });
 }
 
 function updateIconLibraryCount() {
@@ -1715,6 +1726,10 @@ function bindIconLibraryManageEvents() {
             const checked = selectAllCheckbox.checked;
             selectedIcons.clear();
 
+            // 使用 DOM 引用而不是 document.querySelectorAll
+            const grid = DOM.settingsIconLibraryGrid;
+            if (!grid) return;
+
             if (checked && iconLibraryCache) {
                 iconLibraryCache.forEach(icon => {
                     if (icon.uploaded && icon.id) {
@@ -1723,8 +1738,8 @@ function bindIconLibraryManageEvents() {
                 });
             }
 
-            // 更新 UI
-            document.querySelectorAll('.icon-library-item.uploaded').forEach(item => {
+            // 更新 UI - 使用 grid 内的元素
+            grid.querySelectorAll('.icon-library-item.uploaded').forEach(item => {
                 const checkbox = item.querySelector('.icon-checkbox');
                 if (checkbox) {
                     checkbox.checked = checked;
