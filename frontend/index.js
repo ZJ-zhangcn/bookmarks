@@ -1301,50 +1301,52 @@ async function saveCategoryOrder() {
 // ========================================
 // 图标库
 // ========================================
-function renderIconLibrary() {
+async function renderIconLibrary() {
     if (!DOM.iconLibraryGrid) return;
 
-    // 获取所有有 base64 图标的书签
-    const iconsMap = new Map(); // 用于去重
-    bookmarks.forEach(b => {
-        if (b.icon_type === 'base64' && b.icon_data) {
-            // 使用图标数据的前100个字符作为key来去重
-            const key = b.icon_data.substring(0, 100);
-            if (!iconsMap.has(key)) {
-                iconsMap.set(key, { data: b.icon_data, name: b.name });
+    // 显示加载状态
+    DOM.iconLibraryGrid.innerHTML = '<div class="icon-library-loading">加载中...</div>';
+
+    try {
+        // 使用缓存或从 API 获取图标数据
+        if (!iconLibraryCache) {
+            const res = await fetch(`${API_BASE}/api/icons/library`);
+            const data = await res.json();
+            if (data.success) {
+                iconLibraryCache = data.data;
             }
         }
-    });
 
-    const icons = Array.from(iconsMap.values());
-
-    if (icons.length === 0) {
-        DOM.iconLibraryGrid.innerHTML = '<div class="icon-library-empty">暂无缓存的图标</div>';
-        return;
-    }
-
-    DOM.iconLibraryGrid.innerHTML = icons.map((icon, index) => `
-        <div class="icon-library-item" data-index="${index}" title="${icon.name}">
-            <img src="${icon.data}" alt="${icon.name}">
-        </div>
-    `).join('');
-
-    // 点击图标复制到剪贴板或选择使用
-    DOM.iconLibraryGrid.onclick = async (e) => {
-        const item = e.target.closest('.icon-library-item');
-        if (!item) return;
-
-        const index = parseInt(item.dataset.index);
-        const iconData = icons[index].data;
-
-        try {
-            await navigator.clipboard.writeText(iconData);
-            item.classList.add('copied');
-            setTimeout(() => item.classList.remove('copied'), 1000);
-        } catch {
-            console.log('复制失败，但图标数据可用');
+        if (!iconLibraryCache || iconLibraryCache.length === 0) {
+            DOM.iconLibraryGrid.innerHTML = '<div class="icon-library-empty">暂无缓存的图标</div>';
+            return;
         }
-    };
+
+        DOM.iconLibraryGrid.innerHTML = iconLibraryCache.map((icon, index) => `
+            <div class="icon-library-item" data-index="${index}" data-icon="${encodeURIComponent(icon.data)}" title="${icon.source || '未知来源'}">
+                <img src="${icon.data}" alt="图标" onerror="this.parentElement.style.display='none'">
+            </div>
+        `).join('');
+
+        // 点击图标复制到剪贴板
+        DOM.iconLibraryGrid.onclick = async (e) => {
+            const item = e.target.closest('.icon-library-item');
+            if (!item) return;
+
+            const iconData = decodeURIComponent(item.dataset.icon);
+
+            try {
+                await navigator.clipboard.writeText(iconData);
+                item.classList.add('copied');
+                setTimeout(() => item.classList.remove('copied'), 1000);
+            } catch {
+                console.log('复制失败，但图标数据可用');
+            }
+        };
+    } catch (err) {
+        console.error('加载图标库失败:', err);
+        DOM.iconLibraryGrid.innerHTML = '<div class="icon-library-empty">加载图标库失败</div>';
+    }
 }
 
 // ========================================
