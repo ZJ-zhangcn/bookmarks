@@ -212,7 +212,7 @@ async function loadData() {
     }
 }
 
-// 延迟加载可见书签的图标
+// 延迟加载可见书签的图标（只加载 base64 类型）
 function lazyLoadVisibleIcons() {
     if (isLoadingIcons) return;
 
@@ -225,7 +225,11 @@ function lazyLoadVisibleIcons() {
         if (rect.top < window.innerHeight + 200 && rect.bottom > -200) {
             const id = el.dataset.id;
             if (id && !iconCache.has(id)) {
-                visibleBookmarkIds.push(id);
+                // 只加载需要从服务器获取图标的书签（base64 类型）
+                const bookmark = bookmarks.find(b => b.id == id);
+                if (bookmark && bookmark.icon_type === 'base64' && !bookmark.icon_data) {
+                    visibleBookmarkIds.push(id);
+                }
             }
         }
     });
@@ -402,13 +406,17 @@ function createBookmarkCard(item, searchTerm) {
     // 检查缓存中是否有图标数据
     const cachedIcon = iconCache.get(item.id);
     if (cachedIcon && cachedIcon.icon_data) {
-        iconHtml = `<img src="${cachedIcon.icon_data}" alt="${item.name}">`;
-    } else if (item.icon_type === 'base64' && item.icon_data) {
-        iconHtml = `<img src="${item.icon_data}" alt="${item.name}">`;
+        iconHtml = `<img src="${cachedIcon.icon_data}" alt="${item.name}" loading="lazy">`;
     } else if (item.icon_type === 'url' && item.icon_data) {
-        iconHtml = `<img src="${item.icon_data}" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
+        // URL 类型直接渲染，使用浏览器原生懒加载
+        iconHtml = `<img src="${item.icon_data}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${item.icon || '🌐'}</span>'">`;
+    } else if (item.icon_type === 'base64' && item.icon_data) {
+        iconHtml = `<img src="${item.icon_data}" alt="${item.name}" loading="lazy">`;
+    } else if (item.icon_type === 'base64') {
+        // base64 类型但还没加载数据，显示占位符
+        iconHtml = `<span class="icon-placeholder">${item.icon || '🌐'}</span>`;
     } else {
-        // 没有保存图标数据时，直接使用默认 emoji，不请求外部服务
+        // 没有图标数据时，直接使用默认 emoji
         iconHtml = `<span>${item.icon || '🌐'}</span>`;
     }
 
@@ -1052,27 +1060,11 @@ async function saveBookmark() {
         icon_data = DOM.bookmarkInputEmoji.value.trim() || '🌐';
         icon = icon_data;
     } else if (currentIconType === 'url') {
-        // 将 URL 图标转换为 base64
+        // 直接保存 URL，不转换为 base64
         const iconUrl = DOM.bookmarkInputIconUrl.value.trim();
         if (iconUrl) {
-            try {
-                const convertRes = await fetch(`${API_BASE}/api/icon/convert`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: iconUrl })
-                });
-                const convertData = await convertRes.json();
-                if (convertData.success && convertData.data) {
-                    icon_type = 'base64';
-                    icon_data = convertData.data;
-                } else {
-                    icon_type = 'url';
-                    icon_data = iconUrl;
-                }
-            } catch {
-                icon_type = 'url';
-                icon_data = iconUrl;
-            }
+            icon_type = 'url';
+            icon_data = iconUrl;
         } else if (editingBookmark && editingBookmark.icon_data) {
             // 没有输入新 URL，使用原有图标
             icon_type = editingBookmark.icon_type;
@@ -1088,7 +1080,7 @@ async function saveBookmark() {
             icon_data = editingBookmark.icon_data;
         }
     } else if (currentIconType === 'auto') {
-        // 获取选中的 favicon URL 并转换为 base64
+        // 获取选中的 favicon URL，直接保存 URL
         const selectedImg = DOM.iconPreviewAuto.querySelector('img.selected') || DOM.iconPreviewAuto.querySelector('img');
         if (selectedImg && selectedImg.src) {
             // 检查是否是 data: URL（已经是 base64）
@@ -1096,26 +1088,9 @@ async function saveBookmark() {
                 icon_type = 'base64';
                 icon_data = selectedImg.src;
             } else {
-                try {
-                    const convertRes = await fetch(`${API_BASE}/api/icon/convert`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: selectedImg.src })
-                    });
-                    const convertData = await convertRes.json();
-                    if (convertData.success && convertData.data) {
-                        icon_type = 'base64';
-                        icon_data = convertData.data;
-                    } else {
-                        // 转换失败，使用默认 emoji 图标，不保存无法访问的 URL
-                        icon_type = 'emoji';
-                        icon_data = '';
-                    }
-                } catch {
-                    // 转换失败，使用默认 emoji 图标
-                    icon_type = 'emoji';
-                    icon_data = '';
-                }
+                // 直接保存 URL，不转换为 base64
+                icon_type = 'url';
+                icon_data = selectedImg.src;
             }
         } else if (editingBookmark && editingBookmark.icon_data) {
             // 没有选择新图标，使用原有图标
@@ -2469,15 +2444,15 @@ function handleBookmarkSearch() {
         const category = categories.find(c => c.id === item.category_id);
         const categoryName = category ? category.name : '未分类';
 
-        // 获取图标
+        // 获取图标（优先 URL 类型）
         let iconHtml;
         const cachedIcon = iconCache.get(item.id);
         if (cachedIcon && cachedIcon.icon_data) {
             iconHtml = `<img src="${cachedIcon.icon_data}" alt="${item.name}">`;
+        } else if (item.icon_type === 'url' && item.icon_data) {
+            iconHtml = `<img src="${item.icon_data}" alt="${item.name}" onerror="this.outerHTML='<span>${item.icon || '🌐'}</span>'">`;
         } else if (item.icon_type === 'base64' && item.icon_data) {
             iconHtml = `<img src="${item.icon_data}" alt="${item.name}">`;
-        } else if (item.icon_type === 'url' && item.icon_data) {
-            iconHtml = `<img src="${item.icon_data}" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
         } else {
             iconHtml = item.icon || '🌐';
         }

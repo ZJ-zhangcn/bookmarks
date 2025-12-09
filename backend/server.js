@@ -67,7 +67,7 @@ db.exec(`
         id TEXT PRIMARY KEY,
         name TEXT,
         data TEXT NOT NULL,
-        type TEXT DEFAULT 'base64',
+        type TEXT DEFAULT 'url',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 `);
@@ -308,9 +308,10 @@ app.get('/api/bookmarks', (req, res) => {
             ORDER BY c.sort_order, b.sort_order, b.created_at
         `;
     } else {
-        // 不包含 icon_data，大幅减少数据量
+        // URL 类型图标直接返回（URL 字符串很小），base64 图标懒加载
         sql = `
             SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
+                   CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
                    b.item_type, b.component_type, b.sort_order, b.created_at,
                    c.name as category_name, c.icon as category_icon
             FROM bookmarks b
@@ -554,7 +555,7 @@ app.post('/api/icons/library', (req, res) => {
     }
 });
 
-// 从 URL 上传图标（自动转换为 base64）
+// 从 URL 添加图标到图标库（直接存储 URL）
 app.post('/api/icons/library/from-url', async (req, res) => {
     const { name, url } = req.body;
 
@@ -563,8 +564,9 @@ app.post('/api/icons/library/from-url', async (req, res) => {
     }
 
     try {
-        // 获取图标并转换为 base64
+        // 验证 URL 是否可访问
         const response = await fetch(url, {
+            method: 'HEAD',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             },
@@ -575,17 +577,13 @@ app.post('/api/icons/library/from-url', async (req, res) => {
             throw new Error(`HTTP ${response.status}`);
         }
 
-        const buffer = await response.arrayBuffer();
-        const contentType = response.headers.get('content-type') || 'image/png';
-        const base64 = Buffer.from(buffer).toString('base64');
-        const data = `data:${contentType.split(';')[0]};base64,${base64}`;
-
+        // 直接存储 URL
         const iconId = `icon_${Date.now()}`;
         db.prepare('INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)')
-            .run(iconId, name || '', data, 'base64');
-        res.json({ success: true, data: { id: iconId, data } });
+            .run(iconId, name || '', url, 'url');
+        res.json({ success: true, data: { id: iconId, data: url } });
     } catch (e) {
-        res.status(500).json({ success: false, error: e.message });
+        res.status(500).json({ success: false, error: '无法访问该 URL: ' + e.message });
     }
 });
 
