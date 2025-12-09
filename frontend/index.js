@@ -393,10 +393,15 @@ function createBookmarkCard(item, searchTerm) {
     } else if (item.icon_type === 'url' && item.icon_data) {
         iconHtml = `<img src="${item.icon_data}" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
     } else if (item.url) {
-        // 没有图标数据时，先用 Google favicon 占位，等待延迟加载
+        // 没有图标数据时，先用占位图标，等待延迟加载
         try {
             const domain = new URL(item.url).hostname;
-            iconHtml = `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
+            // 内网地址不使用 Google favicon，直接尝试 /favicon.ico 或默认图标
+            if (isPrivateOrLocalAddress(domain)) {
+                iconHtml = `<img src="${new URL(item.url).origin}/favicon.ico" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
+            } else {
+                iconHtml = `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
+            }
         } catch {
             iconHtml = `<span>${item.icon || '🌐'}</span>`;
         }
@@ -1956,23 +1961,25 @@ async function fetchEngineIcon() {
     try {
         const parsedUrl = new URL(url);
         const domain = parsedUrl.hostname;
-        const googleFavicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 
         DOM.engineIconPreview.innerHTML = '<span style="opacity:0.5">⏳</span>';
 
-        // 尝试 Google Favicon
+        // 内网地址直接尝试 /favicon.ico，外网使用 Google Favicon
+        const faviconUrl = isPrivateOrLocalAddress(domain)
+            ? `${parsedUrl.origin}/favicon.ico`
+            : `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+
         const testImg = new Image();
         testImg.onload = function () {
-            DOM.engineIconPreview.innerHTML = `<img src="${googleFavicon}">`;
-            DOM.engineIconPreview.dataset.iconUrl = googleFavicon;
-            // 不自动填充到输入框，让用户知道已自动获取
+            DOM.engineIconPreview.innerHTML = `<img src="${faviconUrl}">`;
+            DOM.engineIconPreview.dataset.iconUrl = faviconUrl;
         };
         testImg.onerror = function () {
             DOM.engineIconPreview.innerHTML = '<span>🔍</span>';
             delete DOM.engineIconPreview.dataset.iconUrl;
             alert('自动获取图标失败，请手动输入图标 URL');
         };
-        testImg.src = googleFavicon;
+        testImg.src = faviconUrl;
     } catch (e) {
         alert('URL 格式不正确');
     }
