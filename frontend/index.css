@@ -1069,7 +1069,7 @@ body {
 .category-nav {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: flex-start;
     gap: var(--spacing-sm);
     margin-bottom: var(--spacing-2xl);
     padding: var(--spacing-md);
@@ -1772,12 +1772,9 @@ body {
         font-size: 1rem;
     }
 
+    /* 移动端搜索表单保持同一行 */
     .web-search-form {
-        flex-direction: column;
-    }
-
-    .engine-btn {
-        justify-content: center;
+        flex-direction: row;
     }
 
     .category-nav {
