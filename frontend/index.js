@@ -34,6 +34,13 @@ let DOM = {};
 // 初始化
 // ========================================
 async function init() {
+    // 阻止浏览器自动恢复滚动位置
+    if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+    // 确保页面从顶部开始
+    window.scrollTo(0, 0);
+
     cacheDOMElements();
     loadCollapsedState(); // 加载折叠状态
     await loadData();

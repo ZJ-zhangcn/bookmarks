@@ -126,6 +126,7 @@ body {
     inset: 0;
     z-index: -2;
     display: none;
+    overflow: hidden;
 }
 
 .wallpaper-layer.active {
@@ -135,22 +136,11 @@ body {
 .wallpaper-image {
     position: absolute;
     inset: 0;
+    width: 100%;
+    height: 100%;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    /* 桌面端使用 fixed 效果 */
-    background-attachment: fixed;
-}
-
-/* 移动端壁纸优化 */
-@media (max-width: 768px), (hover: none) and (pointer: coarse) {
-    .wallpaper-image {
-        /* 移动端不使用 fixed，改用 scroll 避免 iOS 问题 */
-        background-attachment: scroll;
-        /* 使用 100% 高度确保覆盖 */
-        min-height: 100vh;
-        min-height: 100dvh; /* 动态视口高度，更好支持移动端 */
-    }
 }
 
 .wallpaper-overlay {
@@ -3256,5 +3246,58 @@ select:focus {
         .engine-dropdown {
             padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
         }
+    }
+}
+
+/* ========================================
+   移动端性能优化
+   ======================================== */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+    /* 禁用背景装饰动画，减少性能消耗 */
+    .bg-orb {
+        animation: none !important;
+    }
+
+    /* 禁用 logo 弹跳动画 */
+    .logo-icon {
+        animation: none !important;
+    }
+
+    /* 简化模糊效果，使用半透明背景替代 */
+    .category-nav,
+    .engine-btn,
+    .search-box,
+    .bookmark-card,
+    .fixed-btn {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    /* 壁纸遮罩层也禁用模糊 */
+    .wallpaper-overlay {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    /* 启用 GPU 加速 */
+    .bookmarks-container,
+    .category-nav,
+    .bookmark-card {
+        transform: translateZ(0);
+        will-change: auto;
+    }
+
+    /* 简化过渡效果 */
+    .bookmark-card {
+        transition: transform 0.15s ease, opacity 0.15s ease !important;
+    }
+
+    /* 简化阴影效果 */
+    .bookmark-card {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .category-btn.active {
+        box-shadow: 0 2px 8px hsla(var(--primary-hue), 100%, 65%, 0.3) !important;
     }
 }
