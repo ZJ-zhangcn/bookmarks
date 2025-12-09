@@ -2834,8 +2834,8 @@ select:focus {
         height: 100vh !important;
         margin: 0 !important;
         border-radius: 0 !important;
-        /* 支持安全区域 */
-        padding-top: env(safe-area-inset-top) !important;
+        /* 安全区域由 modal-header 处理 */
+        padding-top: 0 !important;
         padding-bottom: env(safe-area-inset-bottom) !important;
     }
 
@@ -2846,6 +2846,7 @@ select:focus {
         z-index: 10 !important;
         background: var(--bg-secondary) !important;
         padding: var(--spacing-md) !important;
+        padding-top: calc(var(--spacing-md) + env(safe-area-inset-top)) !important;
         border-bottom: 1px solid var(--glass-border) !important;
     }
 
