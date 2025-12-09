@@ -1484,77 +1484,78 @@ async function renderIconLibrary() {
                  data-index="${index}"
                  data-id="${icon.id || ''}"
                  data-icon="${encodeURIComponent(icon.data)}"
-                 title="${icon.source || '未知来源'}${icon.uploaded ? ' (已上传)' : ''}">
-                ${icon.uploaded ? '<input type="checkbox" class="icon-checkbox" data-id="' + icon.id + '"' + (selectedIcons.has(icon.id) ? ' checked' : '') + '>' : ''}
+                 title="${icon.source || '未知来源'}${icon.uploaded ? ' (已上传)' : ''}"
+                 onclick="handleIconItemClick(event, '${icon.id || ''}')">
+                ${icon.uploaded ? '<input type="checkbox" class="icon-checkbox" data-id="' + icon.id + '"' + (selectedIcons.has(icon.id) ? ' checked' : '') + ' onclick="event.stopPropagation()" onchange="handleIconCheckboxChange(event, \'' + icon.id + '\')">' : ''}
                 <img src="${icon.data}" alt="图标" onerror="this.parentElement.style.display='none'">
-                ${icon.uploaded ? '<button class="icon-delete-btn" data-id="' + icon.id + '" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' : ''}
+                ${icon.uploaded ? '<button class="icon-delete-btn" data-id="' + icon.id + '" title="删除" onclick="event.stopPropagation(); handleIconDelete(\'' + icon.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' : ''}
             </div>
         `).join('');
-
-        // 绑定事件 - 每次重新渲染后都需要重新绑定
-        bindIconLibraryItemEvents();
     } catch (err) {
         console.error('加载图标库失败:', err);
         DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-empty">加载图标库失败</div>';
     }
 }
 
-// 绑定图标库项目事件（每次渲染后调用）
-function bindIconLibraryItemEvents() {
-    const grid = DOM.settingsIconLibraryGrid;
-    if (!grid) return;
+// 全局图标库事件处理函数（供内联事件调用）
+window.handleIconCheckboxChange = function(event, iconId) {
+    const checkbox = event.target;
+    const item = checkbox.closest('.icon-library-item');
 
-    // 直接给每个复选框绑定 change 事件
-    grid.querySelectorAll('.icon-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', (e) => {
-            e.stopPropagation();
-            const iconId = checkbox.dataset.id;
-            const item = checkbox.closest('.icon-library-item');
+    if (iconId) {
+        if (checkbox.checked) {
+            selectedIcons.add(iconId);
+            if (item) item.classList.add('selected');
+        } else {
+            selectedIcons.delete(iconId);
+            if (item) item.classList.remove('selected');
+        }
+        updateBatchDeleteButton();
+    }
+};
 
-            if (iconId) {
-                if (checkbox.checked) {
-                    selectedIcons.add(iconId);
-                    if (item) item.classList.add('selected');
-                } else {
-                    selectedIcons.delete(iconId);
-                    if (item) item.classList.remove('selected');
-                }
-                updateBatchDeleteButton();
-            }
-        });
+window.handleIconDelete = async function(iconId) {
+    if (iconId && confirm('确定要删除此图标吗？')) {
+        await deleteIconFromLibrary(iconId);
+    }
+};
+
+window.handleIconItemClick = async function(event, iconId) {
+    // 复制图标数据到剪贴板
+    const item = event.currentTarget;
+    const iconData = decodeURIComponent(item.dataset.icon);
+    try {
+        await navigator.clipboard.writeText(iconData);
+        item.classList.add('copied');
+        setTimeout(() => item.classList.remove('copied'), 1000);
+    } catch {
+        console.log('复制失败');
+    }
+};
+
+// 全选图标
+window.selectAllIcons = function(checked) {
+    selectedIcons.clear();
+
+    const checkboxes = DOM.settingsIconLibraryGrid?.querySelectorAll('.icon-checkbox');
+    if (!checkboxes) return;
+
+    checkboxes.forEach(checkbox => {
+        const iconId = checkbox.dataset.id;
+        const item = checkbox.closest('.icon-library-item');
+
+        checkbox.checked = checked;
+
+        if (checked && iconId) {
+            selectedIcons.add(iconId);
+            if (item) item.classList.add('selected');
+        } else {
+            if (item) item.classList.remove('selected');
+        }
     });
 
-    // 给每个删除按钮绑定点击事件
-    grid.querySelectorAll('.icon-delete-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const iconId = btn.dataset.id;
-            if (iconId && confirm('确定要删除此图标吗？')) {
-                await deleteIconFromLibrary(iconId);
-            }
-        });
-    });
-
-    // 给每个图标项绑定点击事件（复制到剪贴板）
-    grid.querySelectorAll('.icon-library-item').forEach(item => {
-        item.addEventListener('click', async (e) => {
-            // 如果点击的是复选框或删除按钮，不处理
-            if (e.target.closest('.icon-checkbox') || e.target.closest('.icon-delete-btn')) {
-                return;
-            }
-
-            const iconData = decodeURIComponent(item.dataset.icon);
-            try {
-                await navigator.clipboard.writeText(iconData);
-                item.classList.add('copied');
-                setTimeout(() => item.classList.remove('copied'), 1000);
-            } catch {
-                console.log('复制失败，但图标数据可用');
-            }
-        });
-    });
-}
+    updateBatchDeleteButton();
+};
 
 function updateIconLibraryCount() {
     const countEl = document.getElementById('iconLibraryCount');
@@ -1722,34 +1723,7 @@ function bindIconLibraryManageEvents() {
         };
     }
 
-    // 全选复选框
-    const selectAllCheckbox = document.getElementById('iconSelectAll');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.onchange = () => {
-            const checked = selectAllCheckbox.checked;
-            selectedIcons.clear();
-
-            // 获取所有复选框并更新状态
-            const checkboxes = DOM.settingsIconLibraryGrid?.querySelectorAll('.icon-checkbox');
-            if (!checkboxes) return;
-
-            checkboxes.forEach(checkbox => {
-                const iconId = checkbox.dataset.id;
-                const item = checkbox.closest('.icon-library-item');
-
-                checkbox.checked = checked;
-
-                if (checked && iconId) {
-                    selectedIcons.add(iconId);
-                    if (item) item.classList.add('selected');
-                } else {
-                    if (item) item.classList.remove('selected');
-                }
-            });
-
-            updateBatchDeleteButton();
-        };
-    }
+    // 全选复选框 - 使用内联事件处理，这里不需要绑定
 
     // 批量删除按钮
     const batchDeleteBtn = document.getElementById('iconBatchDeleteBtn');
