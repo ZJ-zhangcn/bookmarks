@@ -1384,6 +1384,13 @@ body {
     margin-top: var(--spacing-md);
 }
 
+/* 设置面板中的图标库 - 更大的显示区域 */
+#settingsIconLibraryGrid {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+}
+
 .icon-library-item {
     display: flex;
     align-items: center;
