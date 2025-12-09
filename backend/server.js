@@ -86,7 +86,7 @@ try {
 
 // 中间件
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
 // ========================================
