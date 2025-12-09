@@ -1,0 +1,25 @@
+services:
+  bookmark-nav:
+    # 使用 GitHub Container Registry 镜像
+    image: ghcr.io/zj145013/bookmarks:latest
+    # 如需本地构建，取消注释下面一行并注释上面的 image
+    # build: .
+    container_name: bookmark-nav
+    ports:
+      - "8080:3000"
+    volumes:
+      # 数据持久化
+      - bookmark-data:/app/backend/data
+      # Docker 管理功能（可选，如不需要可删除）
+      - /var/run/docker.sock:/var/run/docker.sock
+      # 系统状态监控（可选，如不需要可删除）
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys
+
+volumes:
+  bookmark-data:

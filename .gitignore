@@ -1,0 +1,23 @@
+# 依赖
+node_modules/
+
+# 数据文件
+backend/data/
+
+# 日志
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# 环境变量
+.env
+.env.local
+
+# Serena
+.serena/
