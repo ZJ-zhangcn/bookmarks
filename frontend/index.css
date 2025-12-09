@@ -2795,25 +2795,9 @@ select:focus {
         height: 40px !important;
     }
 
-    /* 书签操作按钮 - 移动端放到底部避免遮挡图标 */
+    /* 书签操作按钮 - 移动端隐藏 */
     .bookmark-actions {
-        opacity: 1 !important;
-        top: auto !important;
-        bottom: var(--spacing-xs) !important;
-        right: var(--spacing-xs) !important;
-        background: var(--bg-secondary) !important;
-        border-radius: var(--radius-sm) !important;
-        padding: 2px !important;
-    }
-
-    .bookmark-action-btn {
-        width: 24px !important;
-        height: 24px !important;
-    }
-
-    .bookmark-action-btn svg {
-        width: 12px !important;
-        height: 12px !important;
+        display: none !important;
     }
 
     /* 图标库适配 */
@@ -2895,25 +2879,9 @@ select:focus {
 
 /* 触摸设备优化 */
 @media (hover: none) and (pointer: coarse) {
-    /* 触摸设备上始终显示操作按钮，放到底部避免遮挡图标 */
+    /* 触摸设备上隐藏书签编辑删除按钮 */
     .bookmark-actions {
-        opacity: 1 !important;
-        top: auto !important;
-        bottom: var(--spacing-xs) !important;
-        right: var(--spacing-xs) !important;
-        background: var(--bg-secondary) !important;
-        border-radius: var(--radius-sm) !important;
-        padding: 2px !important;
-    }
-
-    .bookmark-action-btn {
-        width: 24px !important;
-        height: 24px !important;
-    }
-
-    .bookmark-action-btn svg {
-        width: 12px !important;
-        height: 12px !important;
+        display: none !important;
     }
 
     .header-action-btn {
