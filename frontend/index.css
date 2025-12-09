@@ -1748,380 +1748,6 @@ body {
 }
 
 /* ========================================
-   平板适配 (iPad等)
-   ======================================== */
-@media (min-width: 769px) and (max-width: 1024px) {
-    .container {
-        padding: var(--spacing-lg);
-    }
-
-    .bookmarks-grid {
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    }
-
-    .modal.modal-xl {
-        max-width: 95%;
-    }
-
-    .settings-sidebar {
-        width: 160px;
-    }
-}
-
-/* ========================================
-   移动端设置面板适配
-   ======================================== */
-@media (max-width: 768px) {
-    /* 设置面板改为垂直布局 */
-    .settings-container {
-        flex-direction: column;
-        min-height: auto;
-        max-height: 80vh;
-    }
-
-    .settings-sidebar {
-        width: 100%;
-        flex-direction: row;
-        overflow-x: auto;
-        border-right: none;
-        border-bottom: 1px solid var(--glass-border);
-        padding: var(--spacing-sm);
-        gap: var(--spacing-xs);
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .settings-sidebar::-webkit-scrollbar {
-        height: 0;
-        display: none;
-    }
-
-    .settings-tab {
-        flex-shrink: 0;
-        padding: var(--spacing-sm);
-        flex-direction: column;
-        gap: 4px;
-        font-size: 0.75rem;
-        min-width: 70px;
-        text-align: center;
-    }
-
-    .settings-tab svg {
-        width: 20px;
-        height: 20px;
-    }
-
-    .settings-content {
-        padding: var(--spacing-md);
-        flex: 1;
-        overflow-y: auto;
-    }
-
-    .modal.modal-xl {
-        width: 95%;
-        max-width: none;
-        max-height: 90vh;
-        margin: var(--spacing-sm);
-    }
-
-    /* 设置行在小屏幕上垂直排列 */
-    .setting-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-    }
-
-    .setting-row .setting-info {
-        width: 100%;
-    }
-
-    .setting-input,
-    .setting-select {
-        width: 100%;
-    }
-
-    /* WebDAV 设置优化 */
-    .form-group input[type="url"],
-    .form-group input[type="text"],
-    .form-group input[type="password"] {
-        width: 100%;
-    }
-
-    /* 分类折叠按钮增大触摸区域 */
-    .collapse-btn {
-        width: 36px;
-        height: 36px;
-        margin: -6px;
-        padding: 6px;
-    }
-
-    .collapse-btn svg {
-        width: 20px;
-        height: 20px;
-    }
-
-    /* 分类标题操作按钮始终显示 */
-    .header-action-btn {
-        opacity: 1;
-        width: 36px;
-        height: 36px;
-    }
-
-    .header-action-btn svg {
-        width: 18px;
-        height: 18px;
-    }
-}
-
-/* ========================================
-   移动端书签卡片操作按钮
-   ======================================== */
-@media (max-width: 768px) {
-    /* 书签操作按钮始终显示 */
-    .bookmark-actions {
-        opacity: 1;
-    }
-
-    .bookmark-action-btn {
-        width: 32px;
-        height: 32px;
-    }
-
-    /* 书签卡片增加触摸区域 */
-    .bookmark-card {
-        min-height: 100px;
-    }
-}
-
-/* ========================================
-   移动端图标库管理适配
-   ======================================== */
-@media (max-width: 768px) {
-    .icon-upload-methods {
-        flex-direction: column;
-    }
-
-    .upload-method.url-method {
-        min-width: 100%;
-        flex-direction: column;
-        gap: var(--spacing-sm);
-    }
-
-    .upload-method.url-method input {
-        width: 100%;
-    }
-
-    .upload-method.url-method button {
-        width: 100%;
-    }
-
-    .icon-library-toolbar {
-        flex-direction: column;
-        gap: var(--spacing-sm);
-        align-items: flex-start;
-    }
-
-    .toolbar-left,
-    .toolbar-right {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .icon-library-grid {
-        grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
-    }
-
-    .icon-library-item {
-        width: 50px;
-        height: 50px;
-    }
-
-    .icon-library-item img {
-        width: 28px;
-        height: 28px;
-    }
-
-    /* 图标删除按钮始终显示 */
-    .icon-delete-btn {
-        opacity: 1;
-    }
-}
-
-/* ========================================
-   移动端模态框适配
-   ======================================== */
-@media (max-width: 768px) {
-    .modal {
-        width: 95%;
-        max-height: 90vh;
-        margin: var(--spacing-sm);
-    }
-
-    .modal-body {
-        padding: var(--spacing-md);
-    }
-
-    .modal-header {
-        padding: var(--spacing-md);
-    }
-
-    /* 搜索引擎弹窗适配 */
-    .engine-list-item {
-        padding: var(--spacing-sm);
-    }
-
-    .engine-icon-row {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .engine-icon-inputs {
-        width: 100%;
-    }
-
-    .engine-icon-actions {
-        width: 100%;
-        display: flex;
-        gap: var(--spacing-sm);
-    }
-
-    .engine-icon-actions button {
-        flex: 1;
-    }
-
-    /* 图标选择器适配 */
-    .icon-tabs {
-        flex-wrap: wrap;
-    }
-
-    .icon-tab {
-        flex: 1;
-        min-width: 60px;
-        padding: var(--spacing-xs) var(--spacing-sm);
-        font-size: 0.8rem;
-    }
-}
-
-/* ========================================
-   移动端搜索引擎下拉菜单
-   ======================================== */
-@media (max-width: 768px) {
-    .engine-dropdown {
-        position: fixed;
-        left: var(--spacing-md);
-        right: var(--spacing-md);
-        top: auto;
-        bottom: var(--spacing-md);
-        max-height: 60vh;
-        border-radius: var(--radius-lg);
-    }
-
-    .engine-dropdown::before {
-        display: none;
-    }
-}
-
-/* ========================================
-   触摸设备优化
-   ======================================== */
-@media (hover: none) and (pointer: coarse) {
-    /* 触摸设备上始终显示操作按钮 */
-    .bookmark-actions {
-        opacity: 1;
-    }
-
-    .header-action-btn {
-        opacity: 1;
-    }
-
-    .icon-delete-btn {
-        opacity: 1;
-    }
-
-    /* 增加触摸目标大小 */
-    .btn {
-        min-height: 44px;
-        min-width: 44px;
-    }
-
-    .btn-sm {
-        min-height: 36px;
-        min-width: 36px;
-    }
-
-    /* 添加触摸反馈 */
-    .bookmark-card:active {
-        transform: scale(0.98);
-    }
-
-    .btn:active {
-        transform: scale(0.95);
-    }
-
-    .category-btn:active {
-        transform: scale(0.95);
-    }
-
-    .icon-library-item:active {
-        transform: scale(0.95);
-    }
-
-    /* 禁用 hover 效果，避免触摸后状态卡住 */
-    .bookmark-card:hover {
-        transform: none;
-    }
-
-    .bookmark-card:active {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px hsla(0, 0%, 0%, 0.3);
-    }
-}
-
-/* ========================================
-   小屏手机适配 (< 380px)
-   ======================================== */
-@media (max-width: 380px) {
-    .container {
-        padding: var(--spacing-sm);
-    }
-
-    .logo {
-        font-size: 1.5rem;
-    }
-
-    .logo-icon {
-        font-size: 1.8rem;
-    }
-
-    .bookmarks-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: var(--spacing-xs);
-    }
-
-    .bookmark-card {
-        padding: var(--spacing-sm);
-    }
-
-    .bookmark-icon {
-        width: 40px;
-        height: 40px;
-    }
-
-    .bookmark-name {
-        font-size: 0.85rem;
-    }
-
-    .settings-tab {
-        min-width: 60px;
-        font-size: 0.7rem;
-    }
-
-    .settings-tab svg {
-        width: 18px;
-        height: 18px;
-    }
-}
-
-/* ========================================
    滚动条样式
    ======================================== */
 ::-webkit-scrollbar {
@@ -2911,4 +2537,429 @@ select:focus {
 .btn-sm {
     padding: var(--spacing-xs) var(--spacing-sm);
     font-size: 0.8rem;
+}
+
+/* ========================================
+   移动端响应式适配（放在文件末尾确保优先级）
+   ======================================== */
+
+/* 平板适配 (iPad等) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .container {
+        padding: var(--spacing-lg);
+    }
+
+    .bookmarks-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+
+    .modal.modal-xl {
+        max-width: 95%;
+    }
+
+    .settings-sidebar {
+        width: 160px;
+    }
+}
+
+/* 移动端主要适配 */
+@media (max-width: 768px) {
+    /* 设置弹窗全屏化 */
+    .modal.modal-xl {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 100vh !important;
+        height: 100vh !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    /* 设置面板改为垂直布局 */
+    .settings-container {
+        flex-direction: column !important;
+        min-height: auto !important;
+        max-height: calc(100vh - 60px) !important;
+        height: calc(100vh - 60px) !important;
+    }
+
+    .settings-sidebar {
+        width: 100% !important;
+        height: auto !important;
+        flex-direction: row !important;
+        flex-shrink: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        border-right: none !important;
+        border-bottom: 1px solid var(--glass-border) !important;
+        padding: var(--spacing-xs) !important;
+        gap: 2px !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .settings-sidebar::-webkit-scrollbar {
+        height: 0 !important;
+        display: none !important;
+    }
+
+    .settings-tab {
+        flex-shrink: 0 !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: var(--spacing-xs) var(--spacing-sm) !important;
+        gap: 2px !important;
+        font-size: 0.65rem !important;
+        min-width: 52px !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+    }
+
+    .settings-tab svg {
+        width: 18px !important;
+        height: 18px !important;
+    }
+
+    .settings-tab span {
+        display: block !important;
+        max-width: 50px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .settings-content {
+        padding: var(--spacing-sm) !important;
+        flex: 1 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* 设置面板内容优化 */
+    .panel-title {
+        font-size: 1rem !important;
+        margin-bottom: var(--spacing-md) !important;
+    }
+
+    .setting-card {
+        padding: var(--spacing-sm) !important;
+        margin-bottom: var(--spacing-sm) !important;
+    }
+
+    .card-subtitle {
+        font-size: 0.85rem !important;
+        margin-bottom: var(--spacing-sm) !important;
+    }
+
+    /* 设置行在小屏幕上垂直排列 */
+    .setting-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: var(--spacing-xs) !important;
+    }
+
+    .setting-row .setting-info {
+        width: 100% !important;
+    }
+
+    .setting-input,
+    .setting-select {
+        width: 100% !important;
+    }
+
+    /* WebDAV 设置优化 */
+    .form-group {
+        margin-bottom: var(--spacing-sm) !important;
+    }
+
+    .form-group input[type="url"],
+    .form-group input[type="text"],
+    .form-group input[type="password"] {
+        width: 100% !important;
+        padding: var(--spacing-sm) !important;
+        font-size: 16px !important; /* 防止iOS缩放 */
+    }
+
+    /* 普通模态框适配 */
+    .modal {
+        width: 95% !important;
+        max-height: 90vh !important;
+        margin: auto !important;
+    }
+
+    .modal-body {
+        padding: var(--spacing-md) !important;
+    }
+
+    .modal-header {
+        padding: var(--spacing-md) !important;
+    }
+
+    /* 搜索引擎下拉菜单改为底部弹出 */
+    .engine-dropdown {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        max-height: 70vh !important;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+        padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+    }
+
+    .engine-dropdown::before {
+        display: none !important;
+    }
+
+    /* 分类折叠按钮增大触摸区域 */
+    .collapse-btn {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+    }
+
+    .collapse-btn svg {
+        width: 22px !important;
+        height: 22px !important;
+    }
+
+    /* 分类标题操作按钮始终显示 */
+    .header-action-btn {
+        opacity: 1 !important;
+        width: 40px !important;
+        height: 40px !important;
+    }
+
+    /* 书签操作按钮始终显示 */
+    .bookmark-actions {
+        opacity: 1 !important;
+    }
+
+    .bookmark-action-btn {
+        width: 36px !important;
+        height: 36px !important;
+    }
+
+    /* 图标库适配 */
+    .icon-upload-methods {
+        flex-direction: column !important;
+        gap: var(--spacing-sm) !important;
+    }
+
+    .upload-method.url-method {
+        width: 100% !important;
+        flex-direction: column !important;
+        gap: var(--spacing-sm) !important;
+    }
+
+    .upload-method.url-method input,
+    .upload-method.url-method button {
+        width: 100% !important;
+    }
+
+    .icon-library-toolbar {
+        flex-direction: column !important;
+        gap: var(--spacing-sm) !important;
+        align-items: stretch !important;
+    }
+
+    .toolbar-left,
+    .toolbar-right {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+
+    .icon-delete-btn {
+        opacity: 1 !important;
+    }
+
+    /* 搜索引擎弹窗适配 */
+    .engine-icon-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .engine-icon-inputs {
+        width: 100% !important;
+    }
+
+    .engine-icon-actions {
+        width: 100% !important;
+        display: flex !important;
+        gap: var(--spacing-sm) !important;
+    }
+
+    .engine-icon-actions button {
+        flex: 1 !important;
+    }
+
+    /* 图标选择器适配 */
+    .icon-tabs {
+        flex-wrap: wrap !important;
+    }
+
+    .icon-tab {
+        flex: 1 !important;
+        min-width: 55px !important;
+        padding: var(--spacing-xs) !important;
+        font-size: 0.75rem !important;
+    }
+
+    /* 信息框适配 */
+    .info-box {
+        flex-direction: column !important;
+        text-align: center !important;
+        gap: var(--spacing-xs) !important;
+    }
+
+    .info-box svg {
+        flex-shrink: 0 !important;
+    }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+    /* 触摸设备上始终显示操作按钮 */
+    .bookmark-actions {
+        opacity: 1 !important;
+    }
+
+    .header-action-btn {
+        opacity: 1 !important;
+    }
+
+    .icon-delete-btn {
+        opacity: 1 !important;
+    }
+
+    /* 增加触摸目标大小 */
+    .btn {
+        min-height: 44px;
+        padding-left: var(--spacing-md);
+        padding-right: var(--spacing-md);
+    }
+
+    .btn-sm {
+        min-height: 40px;
+    }
+
+    /* 输入框增大 */
+    input, select, textarea {
+        font-size: 16px !important; /* 防止iOS自动缩放 */
+    }
+
+    /* 添加触摸反馈 */
+    .bookmark-card:active {
+        transform: scale(0.98);
+        opacity: 0.9;
+    }
+
+    .btn:active {
+        transform: scale(0.95);
+        opacity: 0.9;
+    }
+
+    .category-btn:active {
+        transform: scale(0.95);
+    }
+
+    .settings-tab:active {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+
+    .icon-library-item:active {
+        transform: scale(0.9);
+    }
+}
+
+/* 小屏手机适配 (< 480px) */
+@media (max-width: 480px) {
+    .settings-tab {
+        min-width: 48px !important;
+        padding: var(--spacing-xs) !important;
+        font-size: 0.6rem !important;
+    }
+
+    .settings-tab svg {
+        width: 16px !important;
+        height: 16px !important;
+    }
+
+    .settings-tab span {
+        max-width: 45px;
+    }
+
+    .panel-title {
+        font-size: 0.95rem !important;
+    }
+
+    .icon-library-grid {
+        grid-template-columns: repeat(auto-fill, minmax(45px, 1fr)) !important;
+    }
+
+    .icon-library-item {
+        width: 45px !important;
+        height: 45px !important;
+    }
+
+    .icon-library-item img {
+        width: 24px !important;
+        height: 24px !important;
+    }
+}
+
+/* 超小屏手机适配 (< 380px) */
+@media (max-width: 380px) {
+    .container {
+        padding: var(--spacing-xs) !important;
+    }
+
+    .logo {
+        font-size: 1.4rem !important;
+    }
+
+    .logo-icon {
+        font-size: 1.6rem !important;
+    }
+
+    .bookmarks-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: var(--spacing-xs) !important;
+    }
+
+    .bookmark-card {
+        padding: var(--spacing-sm) !important;
+    }
+
+    .bookmark-icon {
+        width: 36px !important;
+        height: 36px !important;
+    }
+
+    .bookmark-name {
+        font-size: 0.8rem !important;
+    }
+
+    .settings-tab {
+        min-width: 44px !important;
+        font-size: 0.55rem !important;
+    }
+
+    .settings-tab span {
+        max-width: 40px;
+    }
+}
+
+/* iOS 安全区域适配 */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    @media (max-width: 768px) {
+        .modal.modal-xl {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .engine-dropdown {
+            padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+        }
+    }
 }
