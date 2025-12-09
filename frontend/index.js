@@ -135,7 +135,7 @@ function cacheDOMElements() {
         savePersonalization: document.getElementById('savePersonalization'),
         dockerList: document.getElementById('dockerList'),
         refreshDockerBtn: document.getElementById('refreshDockerBtn'),
-        iconLibraryGrid: document.getElementById('iconLibraryGrid'),
+        settingsIconLibraryGrid: document.getElementById('settingsIconLibraryGrid'),
         settingsTabs: document.querySelectorAll('.settings-tab'),
         settingsPanels: document.querySelectorAll('.settings-panel'),
     };
@@ -1299,13 +1299,13 @@ async function saveCategoryOrder() {
 }
 
 // ========================================
-// 图标库
+// 图标库（设置面板）
 // ========================================
 async function renderIconLibrary() {
-    if (!DOM.iconLibraryGrid) return;
+    if (!DOM.settingsIconLibraryGrid) return;
 
     // 显示加载状态
-    DOM.iconLibraryGrid.innerHTML = '<div class="icon-library-loading">加载中...</div>';
+    DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-loading">加载中...</div>';
 
     try {
         // 使用缓存或从 API 获取图标数据
@@ -1318,18 +1318,18 @@ async function renderIconLibrary() {
         }
 
         if (!iconLibraryCache || iconLibraryCache.length === 0) {
-            DOM.iconLibraryGrid.innerHTML = '<div class="icon-library-empty">暂无缓存的图标</div>';
+            DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-empty">暂无缓存的图标</div>';
             return;
         }
 
-        DOM.iconLibraryGrid.innerHTML = iconLibraryCache.map((icon, index) => `
+        DOM.settingsIconLibraryGrid.innerHTML = iconLibraryCache.map((icon, index) => `
             <div class="icon-library-item" data-index="${index}" data-icon="${encodeURIComponent(icon.data)}" title="${icon.source || '未知来源'}">
                 <img src="${icon.data}" alt="图标" onerror="this.parentElement.style.display='none'">
             </div>
         `).join('');
 
         // 点击图标复制到剪贴板
-        DOM.iconLibraryGrid.onclick = async (e) => {
+        DOM.settingsIconLibraryGrid.onclick = async (e) => {
             const item = e.target.closest('.icon-library-item');
             if (!item) return;
 
@@ -1345,7 +1345,7 @@ async function renderIconLibrary() {
         };
     } catch (err) {
         console.error('加载图标库失败:', err);
-        DOM.iconLibraryGrid.innerHTML = '<div class="icon-library-empty">加载图标库失败</div>';
+        DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-empty">加载图标库失败</div>';
     }
 }
 
