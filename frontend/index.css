@@ -2915,6 +2915,14 @@ select:focus {
         text-overflow: ellipsis;
     }
 
+    /* 移动端隐藏 Docker 和图标库标签 */
+    .settings-tab[data-tab="docker"],
+    .settings-tab[data-tab="icons"],
+    .settings-panel[data-panel="docker"],
+    .settings-panel[data-panel="icons"] {
+        display: none !important;
+    }
+
     .settings-content {
         padding: var(--spacing-sm) !important;
         padding-bottom: calc(var(--spacing-xl) + 80px) !important; /* 额外底部间距，防止被浏览器工具栏遮挡 */
