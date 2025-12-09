@@ -1776,16 +1776,14 @@ body {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .category-btn span:not(.category-icon) {
-        display: none;
-    }
-
+    /* 分类按钮 - 移动端保持显示文字 */
     .category-btn {
-        padding: var(--spacing-sm);
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: 0.8rem;
     }
 
     .category-icon {
-        font-size: 1.3rem;
+        font-size: 1.1rem;
     }
 }
 
@@ -2990,11 +2988,9 @@ select:focus {
         height: 22px !important;
     }
 
-    /* 分类标题操作按钮始终显示 */
+    /* 分类标题操作按钮 - 移动端隐藏添加和排序按钮 */
     .header-action-btn {
-        opacity: 1 !important;
-        width: 40px !important;
-        height: 40px !important;
+        display: none !important;
     }
 
     /* 书签操作按钮 - 移动端隐藏 */
@@ -3081,13 +3077,13 @@ select:focus {
 
 /* 触摸设备优化 */
 @media (hover: none) and (pointer: coarse) {
-    /* 触摸设备上隐藏书签编辑删除按钮 */
+    /* 触摸设备上隐藏书签编辑删除按钮和分类操作按钮 */
     .bookmark-actions {
         display: none !important;
     }
 
     .header-action-btn {
-        opacity: 1 !important;
+        display: none !important;
     }
 
     .icon-delete-btn {
