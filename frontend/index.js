@@ -1098,12 +1098,14 @@ async function saveBookmark() {
                         icon_type = 'base64';
                         icon_data = convertData.data;
                     } else {
-                        icon_type = 'url';
-                        icon_data = selectedImg.src;
+                        // 转换失败，使用默认 emoji 图标，不保存无法访问的 URL
+                        icon_type = 'emoji';
+                        icon_data = '';
                     }
                 } catch {
-                    icon_type = 'url';
-                    icon_data = selectedImg.src;
+                    // 转换失败，使用默认 emoji 图标
+                    icon_type = 'emoji';
+                    icon_data = '';
                 }
             }
         } else if (editingBookmark && editingBookmark.icon_data) {

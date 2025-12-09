@@ -800,6 +800,59 @@ app.post('/api/icon/convert', async (req, res) => {
     }
 });
 
+// 批量修复 URL 类型图标（转换为 base64）
+app.post('/api/icon/fix-all', async (req, res) => {
+    try {
+        // 获取所有 URL 类型的图标
+        const bookmarks = db.prepare(`
+            SELECT id, icon_data FROM bookmarks
+            WHERE icon_type = 'url' AND icon_data IS NOT NULL AND icon_data != ''
+        `).all();
+
+        let fixed = 0;
+        let failed = 0;
+        const update = db.prepare('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?');
+
+        for (const bm of bookmarks) {
+            try {
+                const response = await fetch(bm.icon_data, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    },
+                    timeout: 5000
+                });
+
+                if (response.ok) {
+                    const buffer = await response.arrayBuffer();
+                    const contentType = response.headers.get('content-type') || 'image/png';
+                    const base64 = Buffer.from(buffer).toString('base64');
+                    const dataUrl = `data:${contentType.split(';')[0]};base64,${base64}`;
+                    update.run('base64', dataUrl, bm.id);
+                    fixed++;
+                } else {
+                    // 无法访问，清除图标使用默认
+                    update.run('emoji', '', bm.id);
+                    failed++;
+                }
+            } catch {
+                // 转换失败，清除图标使用默认
+                update.run('emoji', '', bm.id);
+                failed++;
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `修复完成：${fixed} 个成功，${failed} 个使用默认图标`,
+            fixed,
+            failed,
+            total: bookmarks.length
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // ========================================
 // 配置导入导出
 // ========================================
