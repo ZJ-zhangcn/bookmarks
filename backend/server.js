@@ -294,14 +294,69 @@ app.post('/api/categories/sort', (req, res) => {
 // ========================================
 // 书签 API
 // ========================================
+
+// 获取书签列表（不含图标数据，用于快速加载）
 app.get('/api/bookmarks', (req, res) => {
-    const bookmarks = db.prepare(`
-        SELECT b.*, c.name as category_name, c.icon as category_icon 
-        FROM bookmarks b 
-        LEFT JOIN categories c ON b.category_id = c.id 
-        ORDER BY c.sort_order, b.sort_order, b.created_at
-    `).all();
+    const includeIcons = req.query.includeIcons === 'true';
+
+    let sql;
+    if (includeIcons) {
+        sql = `
+            SELECT b.*, c.name as category_name, c.icon as category_icon
+            FROM bookmarks b
+            LEFT JOIN categories c ON b.category_id = c.id
+            ORDER BY c.sort_order, b.sort_order, b.created_at
+        `;
+    } else {
+        // 不包含 icon_data，大幅减少数据量
+        sql = `
+            SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
+                   b.item_type, b.component_type, b.sort_order, b.created_at,
+                   c.name as category_name, c.icon as category_icon
+            FROM bookmarks b
+            LEFT JOIN categories c ON b.category_id = c.id
+            ORDER BY c.sort_order, b.sort_order, b.created_at
+        `;
+    }
+
+    const bookmarks = db.prepare(sql).all();
     res.json({ success: true, data: bookmarks });
+});
+
+// 获取单个书签的图标数据
+app.get('/api/bookmarks/:id/icon', (req, res) => {
+    try {
+        const bookmark = db.prepare('SELECT icon_data, icon_type FROM bookmarks WHERE id = ?').get(req.params.id);
+        if (bookmark) {
+            res.json({ success: true, data: bookmark });
+        } else {
+            res.status(404).json({ success: false, error: '书签不存在' });
+        }
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 批量获取书签图标数据
+app.post('/api/bookmarks/icons', (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.json({ success: true, data: {} });
+    }
+
+    try {
+        const placeholders = ids.map(() => '?').join(',');
+        const bookmarks = db.prepare(`SELECT id, icon_data, icon_type FROM bookmarks WHERE id IN (${placeholders})`).all(...ids);
+        const iconMap = {};
+        bookmarks.forEach(b => {
+            if (b.icon_data) {
+                iconMap[b.id] = { icon_data: b.icon_data, icon_type: b.icon_type };
+            }
+        });
+        res.json({ success: true, data: iconMap });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 app.get('/api/bookmarks/grouped', (req, res) => {

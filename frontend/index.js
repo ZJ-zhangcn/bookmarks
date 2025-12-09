@@ -39,6 +39,19 @@ async function init() {
     await loadData();
     renderAll();
     bindAllEvents();
+    // 隐藏加载遮罩
+    hideLoadingOverlay();
+}
+
+function hideLoadingOverlay() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.add('hidden');
+        // 动画完成后移除元素
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
+    }
 }
 
 function cacheDOMElements() {
@@ -146,11 +159,15 @@ function cacheDOMElements() {
 // ========================================
 // 数据加载
 // ========================================
+const iconCache = new Map(); // 图标缓存
+let iconLoadQueue = []; // 待加载图标队列
+let isLoadingIcons = false; // 是否正在加载图标
+
 async function loadData() {
     try {
         const [catRes, bmRes, engRes] = await Promise.all([
             fetch(`${API_BASE}/api/categories`),
-            fetch(`${API_BASE}/api/bookmarks`),
+            fetch(`${API_BASE}/api/bookmarks`), // 不含图标数据，快速加载
             fetch(`${API_BASE}/api/engines`)
         ]);
 
@@ -177,6 +194,89 @@ async function loadData() {
         }
     } catch (e) {
         console.error('加载数据失败:', e);
+    }
+}
+
+// 延迟加载可见书签的图标
+function lazyLoadVisibleIcons() {
+    if (isLoadingIcons) return;
+
+    const visibleBookmarkIds = [];
+    const bookmarkElements = document.querySelectorAll('.bookmark-card[data-id]');
+
+    bookmarkElements.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        // 检查是否在视口内或即将进入视口
+        if (rect.top < window.innerHeight + 200 && rect.bottom > -200) {
+            const id = el.dataset.id;
+            if (id && !iconCache.has(id)) {
+                visibleBookmarkIds.push(id);
+            }
+        }
+    });
+
+    if (visibleBookmarkIds.length > 0) {
+        loadIconsBatch(visibleBookmarkIds);
+    }
+}
+
+// 批量加载图标
+async function loadIconsBatch(ids) {
+    if (ids.length === 0 || isLoadingIcons) return;
+
+    isLoadingIcons = true;
+    const idsToLoad = ids.filter(id => !iconCache.has(id)).slice(0, 20); // 每次最多加载20个
+
+    if (idsToLoad.length === 0) {
+        isLoadingIcons = false;
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/api/bookmarks/icons`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: idsToLoad })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            // 更新缓存并渲染图标
+            Object.entries(data.data).forEach(([id, iconInfo]) => {
+                iconCache.set(id, iconInfo);
+                updateBookmarkIcon(id, iconInfo);
+            });
+
+            // 标记没有图标数据的书签
+            idsToLoad.forEach(id => {
+                if (!data.data[id]) {
+                    iconCache.set(id, null); // 标记为已检查但无数据
+                }
+            });
+        }
+    } catch (e) {
+        console.error('加载图标失败:', e);
+    } finally {
+        isLoadingIcons = false;
+        // 继续加载剩余图标
+        setTimeout(lazyLoadVisibleIcons, 100);
+    }
+}
+
+// 更新单个书签的图标显示
+function updateBookmarkIcon(bookmarkId, iconInfo) {
+    const card = document.querySelector(`.bookmark-card[data-id="${bookmarkId}"]`);
+    if (!card || !iconInfo || !iconInfo.icon_data) return;
+
+    const iconContainer = card.querySelector('.bookmark-icon');
+    if (iconContainer) {
+        const existingImg = iconContainer.querySelector('img');
+        if (existingImg) {
+            existingImg.src = iconInfo.icon_data;
+        } else {
+            // 替换 emoji 为图片
+            iconContainer.innerHTML = `<img src="${iconInfo.icon_data}" alt="图标" loading="lazy">`;
+        }
     }
 }
 
@@ -267,6 +367,11 @@ function renderBookmarks() {
 
     DOM.emptyState.style.display = hasResults ? 'none' : 'block';
     DOM.bookmarksContainer.style.display = hasResults ? 'flex' : 'none';
+
+    // 渲染完成后延迟加载可见图标
+    requestAnimationFrame(() => {
+        setTimeout(lazyLoadVisibleIcons, 50);
+    });
 }
 
 function createBookmarkCard(item, searchTerm) {
@@ -279,11 +384,16 @@ function createBookmarkCard(item, searchTerm) {
     const desc = highlightText(item.description || '', searchTerm);
 
     let iconHtml;
-    if (item.icon_type === 'base64' && item.icon_data) {
+    // 检查缓存中是否有图标数据
+    const cachedIcon = iconCache.get(item.id);
+    if (cachedIcon && cachedIcon.icon_data) {
+        iconHtml = `<img src="${cachedIcon.icon_data}" alt="${item.name}">`;
+    } else if (item.icon_type === 'base64' && item.icon_data) {
         iconHtml = `<img src="${item.icon_data}" alt="${item.name}">`;
     } else if (item.icon_type === 'url' && item.icon_data) {
         iconHtml = `<img src="${item.icon_data}" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
     } else if (item.url) {
+        // 没有图标数据时，先用 Google favicon 占位，等待延迟加载
         try {
             const domain = new URL(item.url).hostname;
             iconHtml = `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" alt="${item.name}" onerror="this.outerHTML='${item.icon || '🌐'}'">`;
@@ -626,6 +736,19 @@ function bindAllEvents() {
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); DOM.searchInput.focus(); }
         if (e.key === 'Escape') closeAllModals();
     });
+
+    // 滚动时延迟加载图标
+    let scrollTimeout = null;
+    window.addEventListener('scroll', () => {
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(lazyLoadVisibleIcons, 100);
+    }, { passive: true });
+
+    // 窗口大小变化时重新检查可见图标
+    window.addEventListener('resize', () => {
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(lazyLoadVisibleIcons, 200);
+    }, { passive: true });
 }
 
 // ========================================
