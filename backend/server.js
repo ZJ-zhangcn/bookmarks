@@ -938,13 +938,22 @@ app.post('/api/webdav/download', async (req, res) => {
         });
 
         if (response.ok) {
-            const data = await response.json();
-            res.json({ success: true, data });
+            const text = await response.text();
+            try {
+                const data = JSON.parse(text);
+                res.json({ success: true, data });
+            } catch (parseErr) {
+                res.status(400).json({ success: false, error: '文件内容不是有效的 JSON 格式' });
+            }
+        } else if (response.status === 404) {
+            res.status(404).json({ success: false, error: '文件不存在，请先上传备份' });
+        } else if (response.status === 401) {
+            res.status(401).json({ success: false, error: '认证失败，请检查用户名和密码' });
         } else {
             res.status(response.status).json({ success: false, error: `下载失败: ${response.status}` });
         }
     } catch (e) {
-        res.status(500).json({ success: false, error: e.message });
+        res.status(500).json({ success: false, error: '连接 WebDAV 服务器失败: ' + e.message });
     }
 });
 
