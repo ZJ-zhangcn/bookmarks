@@ -22,8 +22,14 @@
         <div class="loading-text">加载中...</div>
     </div>
 
+    <!-- 壁纸层 -->
+    <div class="wallpaper-layer" id="wallpaperLayer">
+        <div class="wallpaper-image" id="wallpaperImage"></div>
+        <div class="wallpaper-overlay" id="wallpaperOverlay"></div>
+    </div>
+
     <!-- 背景装饰 -->
-    <div class="bg-decoration">
+    <div class="bg-decoration" id="bgDecoration">
         <div class="bg-orb bg-orb-1"></div>
         <div class="bg-orb bg-orb-2"></div>
         <div class="bg-orb bg-orb-3"></div>
@@ -134,24 +140,22 @@
         </footer>
     </div>
 
-    <!-- 固定按钮组 -->
-    <div class="fixed-buttons">
-        <!-- 书签搜索按钮 -->
-        <button class="fixed-btn search-btn" id="bookmarkSearchBtn" title="搜索书签">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-            </svg>
-        </button>
-        <!-- 设置按钮 -->
-        <button class="fixed-btn settings-btn" id="settingsBtn" title="设置">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3" />
-                <path
-                    d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-            </svg>
-        </button>
-    </div>
+    <!-- 书签搜索按钮 - 左上角 -->
+    <button class="fixed-btn fixed-btn-left" id="bookmarkSearchBtn" title="搜索书签">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+        </svg>
+    </button>
+
+    <!-- 设置按钮 - 右上角 -->
+    <button class="fixed-btn fixed-btn-right" id="settingsBtn" title="设置">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path
+                d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+        </svg>
+    </button>
 
     <!-- 书签搜索浮层 -->
     <div class="bookmark-search-overlay" id="bookmarkSearchOverlay">

@@ -2164,11 +2164,40 @@ function applyPersonalization(config) {
     }
 
     // 壁纸
+    const wallpaperLayer = document.getElementById('wallpaperLayer');
+    const wallpaperImage = document.getElementById('wallpaperImage');
+    const wallpaperOverlay = document.getElementById('wallpaperOverlay');
+    const bgDecoration = document.getElementById('bgDecoration');
+
     if (config.wallpaperUrl) {
-        document.body.style.backgroundImage = `url(${config.wallpaperUrl})`;
-        document.body.style.backgroundSize = 'cover';
-        document.body.style.backgroundPosition = 'center';
-        document.body.style.backgroundAttachment = 'fixed';
+        // 显示壁纸层
+        wallpaperLayer.classList.add('active');
+        wallpaperImage.style.backgroundImage = `url(${config.wallpaperUrl})`;
+
+        // 应用模糊效果
+        const blur = config.wallpaperBlur || 0;
+        wallpaperOverlay.style.backdropFilter = `blur(${blur}px)`;
+        wallpaperOverlay.style.webkitBackdropFilter = `blur(${blur}px)`;
+
+        // 应用暗化效果
+        const dim = config.wallpaperDim || 30;
+        wallpaperOverlay.style.background = `rgba(0, 0, 0, ${dim / 100})`;
+
+        // 隐藏默认背景装饰
+        if (bgDecoration) bgDecoration.style.display = 'none';
+
+        // 清除 body 上可能存在的旧样式
+        document.body.style.backgroundImage = '';
+    } else {
+        // 隐藏壁纸层
+        wallpaperLayer.classList.remove('active');
+        wallpaperImage.style.backgroundImage = '';
+
+        // 显示默认背景装饰
+        if (bgDecoration) bgDecoration.style.display = '';
+
+        // 清除 body 上可能存在的旧样式
+        document.body.style.backgroundImage = '';
     }
 
     // 内容区域最大宽度

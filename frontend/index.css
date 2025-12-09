@@ -119,6 +119,49 @@ body {
 }
 
 /* ========================================
+   壁纸层
+   ======================================== */
+.wallpaper-layer {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    display: none;
+}
+
+.wallpaper-layer.active {
+    display: block;
+}
+
+.wallpaper-image {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    /* 桌面端使用 fixed 效果 */
+    background-attachment: fixed;
+}
+
+/* 移动端壁纸优化 */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+    .wallpaper-image {
+        /* 移动端不使用 fixed，改用 scroll 避免 iOS 问题 */
+        background-attachment: scroll;
+        /* 使用 100% 高度确保覆盖 */
+        min-height: 100vh;
+        min-height: 100dvh; /* 动态视口高度，更好支持移动端 */
+    }
+}
+
+.wallpaper-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+}
+
+/* ========================================
    背景装饰
    ======================================== */
 .bg-decoration {
@@ -1852,20 +1895,10 @@ body {
     background: var(--bg-tertiary);
 }
 
-/* 固定按钮组 - 右上角 */
-.fixed-buttons {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-    display: flex;
-    gap: 10px;
-    /* 支持安全区域 */
-    top: calc(20px + env(safe-area-inset-top));
-    right: calc(20px + env(safe-area-inset-right));
-}
-
+/* 固定按钮 - 左上角和右上角 */
 .fixed-btn {
+    position: fixed;
+    z-index: 1000;
     width: 44px;
     height: 44px;
     display: flex;
@@ -1882,6 +1915,16 @@ body {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
+.fixed-btn-left {
+    top: calc(20px + env(safe-area-inset-top));
+    left: calc(20px + env(safe-area-inset-left));
+}
+
+.fixed-btn-right {
+    top: calc(20px + env(safe-area-inset-top));
+    right: calc(20px + env(safe-area-inset-right));
+}
+
 .fixed-btn svg {
     width: 22px;
     height: 22px;
@@ -1893,11 +1936,11 @@ body {
     background: var(--bg-tertiary);
 }
 
-.fixed-btn.settings-btn:hover {
+.fixed-btn-right:hover {
     transform: rotate(45deg);
 }
 
-.fixed-btn.search-btn:hover {
+.fixed-btn-left:hover {
     transform: scale(1.05);
 }
 
