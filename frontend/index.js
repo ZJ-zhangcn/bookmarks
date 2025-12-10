@@ -162,6 +162,9 @@ function cacheDOMElements() {
         wallpaperDim: document.getElementById('wallpaperDim'),
         wallpaperDimValue: document.getElementById('wallpaperDimValue'),
         contentMaxWidth: document.getElementById('contentMaxWidth'),
+        footerShow: document.getElementById('footerShow'),
+        footerText: document.getElementById('footerText'),
+        footer: document.querySelector('.footer'),
         savePersonalization: document.getElementById('savePersonalization'),
         dockerList: document.getElementById('dockerList'),
         refreshDockerBtn: document.getElementById('refreshDockerBtn'),
@@ -606,7 +609,10 @@ function bindAllEvents() {
     DOM.webSearchForm.addEventListener('submit', e => {
         e.preventDefault();
         const q = DOM.webSearchInput.value.trim();
-        if (q) window.open(currentEngine.url + encodeURIComponent(q), '_blank');
+        if (q) {
+            window.open(currentEngine.url + encodeURIComponent(q), '_blank');
+            DOM.webSearchInput.value = ''; // 搜索后清空输入框
+        }
     });
 
     // 搜索引擎管理
@@ -1640,17 +1646,57 @@ async function batchDeleteIcons() {
     if (!confirm(`确定要删除选中的 ${selectedIcons.size} 个图标吗？`)) return;
 
     try {
-        const res = await fetch(`${API_BASE}/api/icons/library/batch-delete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids: [...selectedIcons] })
-        });
-        const data = await res.json();
-        if (data.success) {
+        // 分离真实 ID 和临时 ID（来自书签的图标）
+        const realIds = [];
+        const tempIconsData = [];
+
+        for (const iconId of selectedIcons) {
+            if (iconId.startsWith('temp_')) {
+                // 临时 ID，需要获取图标数据来清除书签中的图标
+                const item = document.querySelector(`.icon-library-item[data-id="${iconId}"]`);
+                if (item) {
+                    const iconData = decodeURIComponent(item.dataset.icon);
+                    tempIconsData.push(iconData);
+                }
+            } else {
+                realIds.push(iconId);
+            }
+        }
+
+        let hasError = false;
+
+        // 删除真实图标（从图标库表中删除）
+        if (realIds.length > 0) {
+            const res = await fetch(`${API_BASE}/api/icons/library/batch-delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: realIds })
+            });
+            const data = await res.json();
+            if (!data.success) {
+                hasError = true;
+                alert('删除图标库图标失败: ' + data.error);
+            }
+        }
+
+        // 清除来自书签的图标（从书签中清除图标数据）
+        if (tempIconsData.length > 0) {
+            const res = await fetch(`${API_BASE}/api/icons/batch-clear-from-bookmarks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ iconDataList: tempIconsData })
+            });
+            const data = await res.json();
+            if (!data.success) {
+                hasError = true;
+                alert('清除书签图标失败: ' + data.error);
+            }
+        }
+
+        if (!hasError) {
             selectedIcons.clear();
             await renderIconLibrary();
-        } else {
-            alert('删除失败: ' + data.error);
+            updateBatchDeleteButton();
         }
     } catch (e) {
         alert('删除失败: ' + e.message);
@@ -2117,6 +2163,8 @@ async function loadPersonalization() {
             if (DOM.wallpaperDim) DOM.wallpaperDim.value = config.wallpaperDim || 30;
             if (DOM.wallpaperDimValue) DOM.wallpaperDimValue.textContent = (config.wallpaperDim || 30) + '%';
             if (DOM.contentMaxWidth) DOM.contentMaxWidth.value = config.contentMaxWidth || 1200;
+            if (DOM.footerShow) DOM.footerShow.checked = config.footerShow !== false;
+            if (DOM.footerText) DOM.footerText.value = config.footerText || '© 2024 书签导航 · 快捷访问常用网站';
             applyPersonalization(config);
         }
     } catch (e) {
@@ -2134,7 +2182,9 @@ async function savePersonalization() {
         wallpaperUrl: DOM.wallpaperUrl ? DOM.wallpaperUrl.value : '',
         wallpaperBlur: DOM.wallpaperBlur ? parseInt(DOM.wallpaperBlur.value) : 0,
         wallpaperDim: DOM.wallpaperDim ? parseInt(DOM.wallpaperDim.value) : 30,
-        contentMaxWidth: DOM.contentMaxWidth ? parseInt(DOM.contentMaxWidth.value) : 1200
+        contentMaxWidth: DOM.contentMaxWidth ? parseInt(DOM.contentMaxWidth.value) : 1200,
+        footerShow: DOM.footerShow ? DOM.footerShow.checked : true,
+        footerText: DOM.footerText ? DOM.footerText.value : '© 2024 书签导航 · 快捷访问常用网站'
     };
 
     try {
@@ -2215,6 +2265,15 @@ function applyPersonalization(config) {
     // 内容区域最大宽度
     const container = document.querySelector('.container');
     if (container) container.style.maxWidth = (config.contentMaxWidth || 1200) + 'px';
+
+    // 页脚版权信息
+    if (DOM.footer) {
+        DOM.footer.style.display = config.footerShow !== false ? '' : 'none';
+        const footerP = DOM.footer.querySelector('p');
+        if (footerP) {
+            footerP.textContent = config.footerText || '© 2024 书签导航 · 快捷访问常用网站';
+        }
+    }
 }
 
 // 时钟功能
