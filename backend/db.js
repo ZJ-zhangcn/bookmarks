@@ -21,13 +21,18 @@ async function initDatabase() {
     if (USE_MYSQL) {
         console.log('📦 使用 MySQL 数据库模式');
         const mysql = require('mysql2/promise');
+
+        // 移除 ssl-mode 参数，改用 mysql2 原生 ssl 配置
+        let connectionString = DATABASE_URL.replace(/[?&]ssl-mode=[^&]*/gi, '');
+
         mysqlPool = mysql.createPool({
-            uri: DATABASE_URL,
+            uri: connectionString,
             waitForConnections: true,
             connectionLimit: 10,
             queueLimit: 0,
             enableKeepAlive: true,
-            keepAliveInitialDelay: 0
+            keepAliveInitialDelay: 0,
+            ssl: { rejectUnauthorized: false }
         });
 
         // 测试连接
