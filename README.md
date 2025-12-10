@@ -7,7 +7,7 @@
 
 一个简洁美观的个人书签导航页面，支持自定义分类、搜索引擎、Docker 管理等功能。
 
-![预览图](https://via.placeholder.com/800x450?text=书签导航预览图)
+![预览图](https://github.com/ZJ145013/bookmarks/blob/main/%E9%A2%84%E8%A7%88%E5%9B%BE.png?raw=true)
 
 ## ✨ 功能特点
 
