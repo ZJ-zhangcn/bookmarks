@@ -1,6 +1,10 @@
 /**
  * 书签导航后端服务
- * Express + SQLite + Favicon 代理
+ * Express + SQLite/MySQL + Favicon 代理
+ *
+ * 数据库模式：
+ * - 默认使用 SQLite（本地文件存储）
+ * - 设置 DATABASE_URL 环境变量后使用 MySQL
  */
 
 const express = require('express');
@@ -8,87 +12,11 @@ const cors = require('cors');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
-const Database = require('better-sqlite3');
 const cheerio = require('cheerio');
+const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// 确保数据目录存在
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-}
-
-// 初始化数据库
-const db = new Database(path.join(__dirname, 'data', 'bookmarks.db'));
-
-// 创建表
-db.exec(`
-    CREATE TABLE IF NOT EXISTS categories (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        icon TEXT DEFAULT '📁',
-        sort_order INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS bookmarks (
-        id TEXT PRIMARY KEY,
-        category_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        url TEXT,
-        description TEXT,
-        icon TEXT DEFAULT '🌐',
-        icon_type TEXT DEFAULT 'auto',
-        icon_data TEXT,
-        item_type TEXT DEFAULT 'bookmark',
-        component_type TEXT,
-        sort_order INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (category_id) REFERENCES categories(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS search_engines (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        icon TEXT DEFAULT '🔍',
-        url TEXT NOT NULL,
-        is_default INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS config (
-        key TEXT PRIMARY KEY,
-        value TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS icon_library (
-        id TEXT PRIMARY KEY,
-        name TEXT,
-        data TEXT NOT NULL,
-        type TEXT DEFAULT 'url',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-`);
-
-// 添加新列（如果不存在）
-try {
-    db.exec(`ALTER TABLE bookmarks ADD COLUMN item_type TEXT DEFAULT 'bookmark'`);
-} catch (e) { /* 列已存在 */ }
-try {
-    db.exec(`ALTER TABLE bookmarks ADD COLUMN component_type TEXT`);
-} catch (e) { /* 列已存在 */ }
-try {
-    db.exec(`ALTER TABLE search_engines ADD COLUMN sort_order INTEGER DEFAULT 0`);
-
-    // 只有新添加列时才初始化排序
-    const engines = db.prepare('SELECT id, is_default FROM search_engines ORDER BY is_default DESC, created_at ASC').all();
-    const updateStmt = db.prepare('UPDATE search_engines SET sort_order = ? WHERE id = ?');
-    engines.forEach((e, i) => {
-        updateStmt.run(i, e.id);
-    });
-} catch (e) { /* 列已存在，不需要初始化排序 */ }
 
 // 中间件
 app.use(cors());
@@ -124,7 +52,6 @@ function getCpuUsageFromProc() {
         if (totalDiff === 0) return 0;
         return Math.round((1 - idleDiff / totalDiff) * 100 * 100) / 100;
     } catch (e) {
-        // 回退到 Node.js os 模块
         const cpus = os.cpus();
         let totalIdle = 0, totalTick = 0;
         cpus.forEach(cpu => {
@@ -144,7 +71,7 @@ function getMemoryFromProc() {
 
         lines.forEach(line => {
             const match = line.match(/^(\w+):\s+(\d+)/);
-            if (match) memInfo[match[1]] = parseInt(match[2]) * 1024; // kB to bytes
+            if (match) memInfo[match[1]] = parseInt(match[2]) * 1024;
         });
 
         const total = memInfo.MemTotal || 0;
@@ -156,7 +83,6 @@ function getMemoryFromProc() {
 
         return { total, used, free: available, usagePercent: Math.round((used / total) * 100 * 100) / 100 };
     } catch (e) {
-        // 回退到 Node.js os 模块
         const total = os.totalmem();
         const free = os.freemem();
         const used = total - free;
@@ -166,14 +92,10 @@ function getMemoryFromProc() {
 
 app.get('/api/system/stats', async (req, res) => {
     try {
-        // CPU
         const cpuUsage = getCpuUsageFromProc();
         const cpuCores = os.cpus().length;
-
-        // 内存
         const memory = getMemoryFromProc();
 
-        // 磁盘
         let diskInfo = { total: 0, used: 0, free: 0 };
         try {
             const { execSync } = require('child_process');
@@ -189,7 +111,6 @@ app.get('/api/system/stats', async (req, res) => {
                 });
                 diskInfo.used = diskInfo.total - diskInfo.free;
             } else {
-                // 尝试读取宿主机磁盘信息
                 const hostRoot = process.env.HOST_PROC ? '/host' : '/';
                 const output = execSync(`df -B1 ${hostRoot} 2>/dev/null || df -B1 / | tail -1 | awk '{print $2,$3,$4}'`, { encoding: 'utf8' });
                 const lastLine = output.trim().split('\n').pop();
@@ -207,10 +128,7 @@ app.get('/api/system/stats', async (req, res) => {
         res.json({
             success: true,
             data: {
-                cpu: {
-                    usage: cpuUsage,
-                    cores: cpuCores
-                },
+                cpu: { usage: cpuUsage, cores: cpuCores },
                 memory: memory,
                 disk: {
                     total: diskInfo.total,
@@ -228,12 +146,16 @@ app.get('/api/system/stats', async (req, res) => {
 // ========================================
 // 分类 API
 // ========================================
-app.get('/api/categories', (req, res) => {
-    const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order, created_at').all();
-    res.json({ success: true, data: categories });
+app.get('/api/categories', async (req, res) => {
+    try {
+        const categories = await db.queryAll('SELECT * FROM categories ORDER BY sort_order, created_at');
+        res.json({ success: true, data: categories });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
-app.post('/api/categories', (req, res) => {
+app.post('/api/categories', async (req, res) => {
     const { id, name, icon } = req.body;
     const categoryId = id || `cat_${Date.now()}`;
     const isNewCategory = !id;
@@ -241,48 +163,52 @@ app.post('/api/categories', (req, res) => {
     try {
         let sortOrder = 0;
         if (isNewCategory) {
-            // 新分类获取最大排序值，确保添加到末尾
-            const maxOrder = db.prepare('SELECT MAX(sort_order) as max_order FROM categories').get();
+            const maxOrder = await db.queryOne('SELECT MAX(sort_order) as max_order FROM categories');
             sortOrder = (maxOrder?.max_order ?? -1) + 1;
         } else {
-            // 编辑时保持原有排序
-            const existing = db.prepare('SELECT sort_order FROM categories WHERE id = ?').get(categoryId);
+            const existing = await db.queryOne('SELECT sort_order FROM categories WHERE id = ?', [categoryId]);
             sortOrder = existing?.sort_order ?? 0;
         }
 
-        db.prepare('INSERT OR REPLACE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)')
-            .run(categoryId, name, icon || '📁', sortOrder);
+        if (db.USE_MYSQL) {
+            await db.execute(
+                'INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), sort_order = VALUES(sort_order)',
+                [categoryId, name, icon || '📁', sortOrder]
+            );
+        } else {
+            await db.execute(
+                'INSERT OR REPLACE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)',
+                [categoryId, name, icon || '📁', sortOrder]
+            );
+        }
         res.json({ success: true, data: { id: categoryId, name, icon: icon || '📁' } });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
 });
 
-app.delete('/api/categories/:id', (req, res) => {
+app.delete('/api/categories/:id', async (req, res) => {
     try {
-        db.prepare('DELETE FROM bookmarks WHERE category_id = ?').run(req.params.id);
-        db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
+        await db.execute('DELETE FROM bookmarks WHERE category_id = ?', [req.params.id]);
+        await db.execute('DELETE FROM categories WHERE id = ?', [req.params.id]);
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// 分类排序
-app.post('/api/categories/sort', (req, res) => {
+app.post('/api/categories/sort', async (req, res) => {
     const { order } = req.body;
     if (!Array.isArray(order)) {
         return res.status(400).json({ success: false, error: '无效的排序数据' });
     }
 
     try {
-        const stmt = db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?');
-        const transaction = db.transaction(() => {
-            order.forEach(item => {
-                stmt.run(item.sort_order, item.id);
-            });
+        await db.transaction(async (conn) => {
+            for (const item of order) {
+                await conn.execute('UPDATE categories SET sort_order = ? WHERE id = ?', [item.sort_order, item.id]);
+            }
         });
-        transaction();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -292,40 +218,40 @@ app.post('/api/categories/sort', (req, res) => {
 // ========================================
 // 书签 API
 // ========================================
+app.get('/api/bookmarks', async (req, res) => {
+    try {
+        const includeIcons = req.query.includeIcons === 'true';
 
-// 获取书签列表（不含图标数据，用于快速加载）
-app.get('/api/bookmarks', (req, res) => {
-    const includeIcons = req.query.includeIcons === 'true';
+        let sql;
+        if (includeIcons) {
+            sql = `
+                SELECT b.*, c.name as category_name, c.icon as category_icon
+                FROM bookmarks b
+                LEFT JOIN categories c ON b.category_id = c.id
+                ORDER BY c.sort_order, b.sort_order, b.created_at
+            `;
+        } else {
+            sql = `
+                SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
+                       CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
+                       b.item_type, b.component_type, b.sort_order, b.created_at,
+                       c.name as category_name, c.icon as category_icon
+                FROM bookmarks b
+                LEFT JOIN categories c ON b.category_id = c.id
+                ORDER BY c.sort_order, b.sort_order, b.created_at
+            `;
+        }
 
-    let sql;
-    if (includeIcons) {
-        sql = `
-            SELECT b.*, c.name as category_name, c.icon as category_icon
-            FROM bookmarks b
-            LEFT JOIN categories c ON b.category_id = c.id
-            ORDER BY c.sort_order, b.sort_order, b.created_at
-        `;
-    } else {
-        // URL 类型图标直接返回（URL 字符串很小），base64 图标懒加载
-        sql = `
-            SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
-                   CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
-                   b.item_type, b.component_type, b.sort_order, b.created_at,
-                   c.name as category_name, c.icon as category_icon
-            FROM bookmarks b
-            LEFT JOIN categories c ON b.category_id = c.id
-            ORDER BY c.sort_order, b.sort_order, b.created_at
-        `;
+        const bookmarks = await db.queryAll(sql);
+        res.json({ success: true, data: bookmarks });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
     }
-
-    const bookmarks = db.prepare(sql).all();
-    res.json({ success: true, data: bookmarks });
 });
 
-// 获取单个书签的图标数据
-app.get('/api/bookmarks/:id/icon', (req, res) => {
+app.get('/api/bookmarks/:id/icon', async (req, res) => {
     try {
-        const bookmark = db.prepare('SELECT icon_data, icon_type FROM bookmarks WHERE id = ?').get(req.params.id);
+        const bookmark = await db.queryOne('SELECT icon_data, icon_type FROM bookmarks WHERE id = ?', [req.params.id]);
         if (bookmark) {
             res.json({ success: true, data: bookmark });
         } else {
@@ -336,8 +262,7 @@ app.get('/api/bookmarks/:id/icon', (req, res) => {
     }
 });
 
-// 批量获取书签图标数据
-app.post('/api/bookmarks/icons', (req, res) => {
+app.post('/api/bookmarks/icons', async (req, res) => {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) {
         return res.json({ success: true, data: {} });
@@ -345,7 +270,7 @@ app.post('/api/bookmarks/icons', (req, res) => {
 
     try {
         const placeholders = ids.map(() => '?').join(',');
-        const bookmarks = db.prepare(`SELECT id, icon_data, icon_type FROM bookmarks WHERE id IN (${placeholders})`).all(...ids);
+        const bookmarks = await db.queryAll(`SELECT id, icon_data, icon_type FROM bookmarks WHERE id IN (${placeholders})`, ids);
         const iconMap = {};
         bookmarks.forEach(b => {
             if (b.icon_data) {
@@ -358,68 +283,69 @@ app.post('/api/bookmarks/icons', (req, res) => {
     }
 });
 
-app.get('/api/bookmarks/grouped', (req, res) => {
-    const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order, created_at').all();
-    const bookmarks = db.prepare('SELECT * FROM bookmarks ORDER BY sort_order, created_at').all();
+app.get('/api/bookmarks/grouped', async (req, res) => {
+    try {
+        const categories = await db.queryAll('SELECT * FROM categories ORDER BY sort_order, created_at');
+        const bookmarks = await db.queryAll('SELECT * FROM bookmarks ORDER BY sort_order, created_at');
 
-    const grouped = categories.map(cat => ({
-        ...cat,
-        items: bookmarks.filter(b => b.category_id === cat.id)
-    }));
+        const grouped = categories.map(cat => ({
+            ...cat,
+            items: bookmarks.filter(b => b.category_id === cat.id)
+        }));
 
-    res.json({ success: true, data: grouped });
+        res.json({ success: true, data: grouped });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
-app.post('/api/bookmarks', (req, res) => {
+app.post('/api/bookmarks', async (req, res) => {
     const { id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type } = req.body;
     const bookmarkId = id || `bm_${Date.now()}`;
     const isNewBookmark = !id;
 
     try {
-        // 检查分类是否存在，不存在则创建
-        const existingCat = db.prepare('SELECT id FROM categories WHERE id = ?').get(category_id);
+        // 检查分类是否存在
+        let finalCategoryId = category_id;
+        const existingCat = await db.queryOne('SELECT id FROM categories WHERE id = ?', [category_id]);
         if (!existingCat) {
-            // 如果 category_id 看起来像名称，创建新分类
             const newCatId = `cat_${Date.now()}`;
-            // 获取当前最大的分类排序值，确保新分类排在末尾
-            const maxCatOrder = db.prepare('SELECT MAX(sort_order) as max_order FROM categories').get();
+            const maxCatOrder = await db.queryOne('SELECT MAX(sort_order) as max_order FROM categories');
             const catSortOrder = (maxCatOrder?.max_order ?? -1) + 1;
-            db.prepare('INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)')
-                .run(newCatId, category_id, '📁', catSortOrder);
-            req.body.category_id = newCatId;
+            await db.execute(
+                'INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)',
+                [newCatId, category_id, '📁', catSortOrder]
+            );
+            finalCategoryId = newCatId;
         }
 
-        const finalCategoryId = req.body.category_id || category_id;
-
-        // 新书签时获取当前分类的最大 sort_order，确保添加到末尾
         let sortOrder = 0;
         if (isNewBookmark) {
-            const maxOrder = db.prepare('SELECT MAX(sort_order) as max_order FROM bookmarks WHERE category_id = ?')
-                .get(finalCategoryId);
+            const maxOrder = await db.queryOne('SELECT MAX(sort_order) as max_order FROM bookmarks WHERE category_id = ?', [finalCategoryId]);
             sortOrder = (maxOrder?.max_order ?? -1) + 1;
         } else {
-            // 编辑时保持原有排序
-            const existing = db.prepare('SELECT sort_order FROM bookmarks WHERE id = ?').get(bookmarkId);
+            const existing = await db.queryOne('SELECT sort_order FROM bookmarks WHERE id = ?', [bookmarkId]);
             sortOrder = existing?.sort_order ?? 0;
         }
 
-        db.prepare(`
-            INSERT OR REPLACE INTO bookmarks
-            (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-            bookmarkId,
-            finalCategoryId,
-            name,
-            url || '',
-            description || '',
-            icon || '🌐',
-            icon_type || 'auto',
-            icon_data || '',
-            item_type || 'bookmark',
-            component_type || null,
-            sortOrder
-        );
+        if (db.USE_MYSQL) {
+            await db.execute(
+                `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                 category_id = VALUES(category_id), name = VALUES(name), url = VALUES(url),
+                 description = VALUES(description), icon = VALUES(icon), icon_type = VALUES(icon_type),
+                 icon_data = VALUES(icon_data), item_type = VALUES(item_type), component_type = VALUES(component_type),
+                 sort_order = VALUES(sort_order)`,
+                [bookmarkId, finalCategoryId, name, url || '', description || '', icon || '🌐', icon_type || 'auto', icon_data || '', item_type || 'bookmark', component_type || null, sortOrder]
+            );
+        } else {
+            await db.execute(
+                `INSERT OR REPLACE INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [bookmarkId, finalCategoryId, name, url || '', description || '', icon || '🌐', icon_type || 'auto', icon_data || '', item_type || 'bookmark', component_type || null, sortOrder]
+            );
+        }
 
         res.json({ success: true, data: { id: bookmarkId } });
     } catch (e) {
@@ -427,30 +353,27 @@ app.post('/api/bookmarks', (req, res) => {
     }
 });
 
-app.delete('/api/bookmarks/:id', (req, res) => {
+app.delete('/api/bookmarks/:id', async (req, res) => {
     try {
-        db.prepare('DELETE FROM bookmarks WHERE id = ?').run(req.params.id);
+        await db.execute('DELETE FROM bookmarks WHERE id = ?', [req.params.id]);
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// 书签排序
-app.post('/api/bookmarks/sort', (req, res) => {
+app.post('/api/bookmarks/sort', async (req, res) => {
     const { order } = req.body;
     if (!Array.isArray(order)) {
         return res.status(400).json({ success: false, error: '无效的排序数据' });
     }
 
     try {
-        const stmt = db.prepare('UPDATE bookmarks SET sort_order = ? WHERE id = ?');
-        const transaction = db.transaction(() => {
-            order.forEach(item => {
-                stmt.run(item.sort_order, item.id);
-            });
+        await db.transaction(async (conn) => {
+            for (const item of order) {
+                await conn.execute('UPDATE bookmarks SET sort_order = ? WHERE id = ?', [item.sort_order, item.id]);
+            }
         });
-        transaction();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -460,26 +383,78 @@ app.post('/api/bookmarks/sort', (req, res) => {
 // ========================================
 // 搜索引擎 API
 // ========================================
-app.get('/api/engines', (req, res) => {
-    const engines = db.prepare('SELECT * FROM search_engines ORDER BY sort_order ASC, created_at ASC').all();
-    res.json({ success: true, data: engines });
+app.get('/api/engines', async (req, res) => {
+    try {
+        const engines = await db.queryAll('SELECT * FROM search_engines ORDER BY sort_order ASC, created_at ASC');
+        res.json({ success: true, data: engines });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/engines', async (req, res) => {
+    const { id, name, icon, url, sort_order } = req.body;
+    const engineId = id || `eng_${Date.now()}`;
+
+    try {
+        let order = sort_order;
+        if (order === undefined || order === null) {
+            const maxOrder = await db.queryOne('SELECT MAX(sort_order) as max FROM search_engines');
+            order = (maxOrder?.max ?? 0) + 1;
+        }
+
+        if (db.USE_MYSQL) {
+            await db.execute(
+                'INSERT INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), url = VALUES(url), sort_order = VALUES(sort_order)',
+                [engineId, name, icon || '🔍', url, order]
+            );
+        } else {
+            await db.execute(
+                'INSERT OR REPLACE INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)',
+                [engineId, name, icon || '🔍', url, order]
+            );
+        }
+        res.json({ success: true, data: { id: engineId } });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.put('/api/engines/sort', async (req, res) => {
+    const { orders } = req.body;
+    try {
+        await db.transaction(async (conn) => {
+            for (const item of orders) {
+                await conn.execute('UPDATE search_engines SET sort_order = ? WHERE id = ?', [item.sort_order, item.id]);
+            }
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.delete('/api/engines/:id', async (req, res) => {
+    try {
+        await db.execute('DELETE FROM search_engines WHERE id = ?', [req.params.id]);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 // ========================================
 // 图标库 API
 // ========================================
-
-// 获取图标库（合并手动上传的图标和书签/搜索引擎中的图标）
-app.get('/api/icons/library', (req, res) => {
+app.get('/api/icons/library', async (req, res) => {
     try {
         const icons = [];
 
-        // 获取手动上传的图标
-        const uploadedIcons = db.prepare(`
+        const uploadedIcons = await db.queryAll(`
             SELECT id, name, data, type, created_at
             FROM icon_library
             ORDER BY created_at DESC
-        `).all();
+        `);
 
         uploadedIcons.forEach(icon => {
             icons.push({
@@ -491,21 +466,18 @@ app.get('/api/icons/library', (req, res) => {
             });
         });
 
-        // 获取所有书签的图标（base64 和 url 类型）
-        const bookmarkIcons = db.prepare(`
+        const bookmarkIcons = await db.queryAll(`
             SELECT DISTINCT icon_data, icon_type, name
             FROM bookmarks
             WHERE icon_type IN ('base64', 'url') AND icon_data IS NOT NULL AND icon_data != ''
-        `).all();
+        `);
 
-        // 获取所有搜索引擎的图标
-        const engineIcons = db.prepare(`
+        const engineIcons = await db.queryAll(`
             SELECT DISTINCT icon, name
             FROM search_engines
-            WHERE icon IS NOT NULL AND icon != '' AND icon LIKE 'http%' OR icon LIKE 'data:%'
-        `).all();
+            WHERE icon IS NOT NULL AND icon != '' AND (icon LIKE 'http%' OR icon LIKE 'data:%')
+        `);
 
-        // 处理书签图标
         bookmarkIcons.forEach(b => {
             if (b.icon_data && !icons.find(i => i.data === b.icon_data)) {
                 icons.push({
@@ -517,7 +489,6 @@ app.get('/api/icons/library', (req, res) => {
             }
         });
 
-        // 处理搜索引擎图标
         engineIcons.forEach(e => {
             if (e.icon && !icons.find(i => i.data === e.icon)) {
                 icons.push({
@@ -535,8 +506,7 @@ app.get('/api/icons/library', (req, res) => {
     }
 });
 
-// 上传图标到图标库
-app.post('/api/icons/library', (req, res) => {
+app.post('/api/icons/library', async (req, res) => {
     const { name, data, type } = req.body;
 
     if (!data) {
@@ -545,15 +515,16 @@ app.post('/api/icons/library', (req, res) => {
 
     try {
         const iconId = `icon_${Date.now()}`;
-        db.prepare('INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)')
-            .run(iconId, name || '', data, type || 'base64');
+        await db.execute(
+            'INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)',
+            [iconId, name || '', data, type || 'base64']
+        );
         res.json({ success: true, data: { id: iconId } });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// 从 URL 添加图标到图标库（直接存储 URL）
 app.post('/api/icons/library/from-url', async (req, res) => {
     const { name, url } = req.body;
 
@@ -562,33 +533,29 @@ app.post('/api/icons/library/from-url', async (req, res) => {
     }
 
     try {
-        // 验证 URL 是否可访问
         const response = await fetch(url, {
             method: 'HEAD',
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            },
-            timeout: 5000
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
         });
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
 
-        // 直接存储 URL
         const iconId = `icon_${Date.now()}`;
-        db.prepare('INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)')
-            .run(iconId, name || '', url, 'url');
+        await db.execute(
+            'INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)',
+            [iconId, name || '', url, 'url']
+        );
         res.json({ success: true, data: { id: iconId, data: url } });
     } catch (e) {
         res.status(500).json({ success: false, error: '无法访问该 URL: ' + e.message });
     }
 });
 
-// 删除图标库中的图标
-app.delete('/api/icons/library/:id', (req, res) => {
+app.delete('/api/icons/library/:id', async (req, res) => {
     try {
-        const result = db.prepare('DELETE FROM icon_library WHERE id = ?').run(req.params.id);
+        const result = await db.execute('DELETE FROM icon_library WHERE id = ?', [req.params.id]);
         if (result.changes > 0) {
             res.json({ success: true });
         } else {
@@ -599,8 +566,7 @@ app.delete('/api/icons/library/:id', (req, res) => {
     }
 });
 
-// 批量删除图标
-app.post('/api/icons/library/batch-delete', (req, res) => {
+app.post('/api/icons/library/batch-delete', async (req, res) => {
     const { ids } = req.body;
 
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -609,15 +575,14 @@ app.post('/api/icons/library/batch-delete', (req, res) => {
 
     try {
         const placeholders = ids.map(() => '?').join(',');
-        const result = db.prepare(`DELETE FROM icon_library WHERE id IN (${placeholders})`).run(...ids);
+        const result = await db.execute(`DELETE FROM icon_library WHERE id IN (${placeholders})`, ids);
         res.json({ success: true, deleted: result.changes });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// 从书签中清除指定图标
-app.post('/api/icons/clear-from-bookmarks', (req, res) => {
+app.post('/api/icons/clear-from-bookmarks', async (req, res) => {
     const { iconData } = req.body;
 
     if (!iconData) {
@@ -625,28 +590,18 @@ app.post('/api/icons/clear-from-bookmarks', (req, res) => {
     }
 
     try {
-        // 清除书签中使用此图标的数据
-        const result = db.prepare(`
-            UPDATE bookmarks
-            SET icon_type = 'emoji', icon_data = ''
-            WHERE icon_data = ?
-        `).run(iconData);
-
-        // 同时清除搜索引擎中使用此图标的数据
-        db.prepare(`
-            UPDATE search_engines
-            SET icon = '🔍'
-            WHERE icon = ?
-        `).run(iconData);
-
+        const result = await db.execute(
+            `UPDATE bookmarks SET icon_type = 'emoji', icon_data = '' WHERE icon_data = ?`,
+            [iconData]
+        );
+        await db.execute(`UPDATE search_engines SET icon = '🔍' WHERE icon = ?`, [iconData]);
         res.json({ success: true, cleared: result.changes });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// 批量从书签中清除指定图标
-app.post('/api/icons/batch-clear-from-bookmarks', (req, res) => {
+app.post('/api/icons/batch-clear-from-bookmarks', async (req, res) => {
     const { iconDataList } = req.body;
 
     if (!Array.isArray(iconDataList) || iconDataList.length === 0) {
@@ -655,70 +610,15 @@ app.post('/api/icons/batch-clear-from-bookmarks', (req, res) => {
 
     try {
         let totalCleared = 0;
-
         for (const iconData of iconDataList) {
-            // 清除书签中使用此图标的数据
-            const result = db.prepare(`
-                UPDATE bookmarks
-                SET icon_type = 'emoji', icon_data = ''
-                WHERE icon_data = ?
-            `).run(iconData);
+            const result = await db.execute(
+                `UPDATE bookmarks SET icon_type = 'emoji', icon_data = '' WHERE icon_data = ?`,
+                [iconData]
+            );
             totalCleared += result.changes;
-
-            // 同时清除搜索引擎中使用此图标的数据
-            db.prepare(`
-                UPDATE search_engines
-                SET icon = '🔍'
-                WHERE icon = ?
-            `).run(iconData);
+            await db.execute(`UPDATE search_engines SET icon = '🔍' WHERE icon = ?`, [iconData]);
         }
-
         res.json({ success: true, cleared: totalCleared });
-    } catch (e) {
-        res.status(500).json({ success: false, error: e.message });
-    }
-});
-
-app.post('/api/engines', (req, res) => {
-    const { id, name, icon, url, sort_order } = req.body;
-    const engineId = id || `eng_${Date.now()}`;
-
-    try {
-        // 如果是新增，获取当前最大 sort_order
-        let order = sort_order;
-        if (order === undefined || order === null) {
-            const maxOrder = db.prepare('SELECT MAX(sort_order) as max FROM search_engines').get();
-            order = (maxOrder.max || 0) + 1;
-        }
-        db.prepare('INSERT OR REPLACE INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)')
-            .run(engineId, name, icon || '🔍', url, order);
-        res.json({ success: true, data: { id: engineId } });
-    } catch (e) {
-        res.status(500).json({ success: false, error: e.message });
-    }
-});
-
-// 搜索引擎排序 API
-app.put('/api/engines/sort', (req, res) => {
-    const { orders } = req.body; // [{ id: 'xxx', sort_order: 0 }, ...]
-    try {
-        const updateStmt = db.prepare('UPDATE search_engines SET sort_order = ? WHERE id = ?');
-        const transaction = db.transaction(() => {
-            orders.forEach(item => {
-                updateStmt.run(item.sort_order, item.id);
-            });
-        });
-        transaction();
-        res.json({ success: true });
-    } catch (e) {
-        res.status(500).json({ success: false, error: e.message });
-    }
-});
-
-app.delete('/api/engines/:id', (req, res) => {
-    try {
-        db.prepare('DELETE FROM search_engines WHERE id = ?').run(req.params.id);
-        res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
@@ -727,8 +627,6 @@ app.delete('/api/engines/:id', (req, res) => {
 // ========================================
 // Favicon 代理 API
 // ========================================
-
-// 判断是否为内网/本地地址
 function isPrivateOrLocalAddress(hostname) {
     if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
     const privatePatterns = [
@@ -754,20 +652,14 @@ app.post('/api/favicon', async (req, res) => {
         const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
         const isPrivate = isPrivateOrLocalAddress(parsedUrl.hostname);
 
-        // 尝试获取页面 HTML
         const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            },
-            timeout: 5000
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
         });
 
         const html = await response.text();
         const $ = cheerio.load(html);
 
         const icons = [];
-
-        // 解析各种 favicon 来源
         const selectors = [
             'link[rel="icon"]',
             'link[rel="shortcut icon"]',
@@ -780,7 +672,6 @@ app.post('/api/favicon', async (req, res) => {
             $(selector).each((_, el) => {
                 let href = $(el).attr('href') || $(el).attr('content');
                 if (href) {
-                    // 转换为绝对 URL
                     if (href.startsWith('//')) {
                         href = parsedUrl.protocol + href;
                     } else if (href.startsWith('/')) {
@@ -788,7 +679,6 @@ app.post('/api/favicon', async (req, res) => {
                     } else if (!href.startsWith('http')) {
                         href = baseUrl + '/' + href;
                     }
-
                     if (!icons.includes(href)) {
                         icons.push(href);
                     }
@@ -796,33 +686,23 @@ app.post('/api/favicon', async (req, res) => {
             });
         });
 
-        // 添加默认 favicon.ico
         const defaultFavicon = `${baseUrl}/favicon.ico`;
         if (!icons.includes(defaultFavicon)) {
             icons.push(defaultFavicon);
         }
 
-        // 只有外网地址才添加 Google 备用
         if (!isPrivate) {
             icons.push(`https://www.google.com/s2/favicons?domain=${parsedUrl.host}&sz=64`);
         }
 
         res.json({ success: true, icons });
     } catch (e) {
-        // 失败时：外网返回 Google favicon，内网返回空
         try {
             const parsedUrl = new URL(url);
             if (isPrivateOrLocalAddress(parsedUrl.hostname)) {
-                // 内网地址，尝试直接返回 /favicon.ico
-                res.json({
-                    success: true,
-                    icons: [`${parsedUrl.protocol}//${parsedUrl.host}/favicon.ico`]
-                });
+                res.json({ success: true, icons: [`${parsedUrl.protocol}//${parsedUrl.host}/favicon.ico`] });
             } else {
-                res.json({
-                    success: true,
-                    icons: [`https://www.google.com/s2/favicons?domain=${parsedUrl.host}&sz=64`]
-                });
+                res.json({ success: true, icons: [`https://www.google.com/s2/favicons?domain=${parsedUrl.host}&sz=64`] });
             }
         } catch {
             res.status(500).json({ success: false, error: e.message });
@@ -830,7 +710,6 @@ app.post('/api/favicon', async (req, res) => {
     }
 });
 
-// 将图标 URL 转换为 base64
 app.post('/api/icon/convert', async (req, res) => {
     const { url } = req.body;
     if (!url) {
@@ -838,12 +717,8 @@ app.post('/api/icon/convert', async (req, res) => {
     }
 
     try {
-        // 使用 fetch 替代 http/https 模块，更简洁可靠
         const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            },
-            timeout: 5000
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
         });
 
         if (!response.ok) {
@@ -859,26 +734,20 @@ app.post('/api/icon/convert', async (req, res) => {
     }
 });
 
-// 批量修复 URL 类型图标（转换为 base64）
 app.post('/api/icon/fix-all', async (req, res) => {
     try {
-        // 获取所有 URL 类型的图标
-        const bookmarks = db.prepare(`
+        const bookmarks = await db.queryAll(`
             SELECT id, icon_data FROM bookmarks
             WHERE icon_type = 'url' AND icon_data IS NOT NULL AND icon_data != ''
-        `).all();
+        `);
 
         let fixed = 0;
         let failed = 0;
-        const update = db.prepare('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?');
 
         for (const bm of bookmarks) {
             try {
                 const response = await fetch(bm.icon_data, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    },
-                    timeout: 5000
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
                 });
 
                 if (response.ok) {
@@ -886,61 +755,47 @@ app.post('/api/icon/fix-all', async (req, res) => {
                     const contentType = response.headers.get('content-type') || 'image/png';
                     const base64 = Buffer.from(buffer).toString('base64');
                     const dataUrl = `data:${contentType.split(';')[0]};base64,${base64}`;
-                    update.run('base64', dataUrl, bm.id);
+                    await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['base64', dataUrl, bm.id]);
                     fixed++;
                 } else {
-                    // 无法访问，清除图标使用默认
-                    update.run('emoji', '', bm.id);
+                    await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['emoji', '', bm.id]);
                     failed++;
                 }
             } catch {
-                // 转换失败，清除图标使用默认
-                update.run('emoji', '', bm.id);
+                await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['emoji', '', bm.id]);
                 failed++;
             }
         }
 
-        res.json({
-            success: true,
-            message: `修复完成：${fixed} 个成功，${failed} 个使用默认图标`,
-            fixed,
-            failed,
-            total: bookmarks.length
-        });
+        res.json({ success: true, message: `修复完成：${fixed} 个成功，${failed} 个使用默认图标`, fixed, failed, total: bookmarks.length });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// 批量为没有图标的书签获取图标
 app.post('/api/icon/fetch-all', async (req, res) => {
     try {
-        // 获取所有没有图标数据的书签
-        const bookmarks = db.prepare(`
+        const bookmarks = await db.queryAll(`
             SELECT id, url FROM bookmarks
             WHERE url IS NOT NULL AND url != ''
             AND (icon_data IS NULL OR icon_data = '' OR icon_type = 'auto')
-        `).all();
+        `);
 
         let success = 0;
         let failed = 0;
-        const update = db.prepare('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?');
 
         for (const bm of bookmarks) {
             try {
                 const parsedUrl = new URL(bm.url);
                 const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
 
-                // 先尝试获取页面 HTML 解析 favicon
                 let iconUrl = null;
                 try {
                     const pageRes = await fetch(bm.url, {
-                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                        timeout: 5000
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
                     });
                     if (pageRes.ok) {
                         const html = await pageRes.text();
-                        // 查找 <link rel="icon" 或 <link rel="shortcut icon"
                         const iconMatch = html.match(/<link[^>]*rel=["'](?:shortcut )?icon["'][^>]*href=["']([^"']+)["']/i)
                             || html.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["'](?:shortcut )?icon["']/i);
                         if (iconMatch) {
@@ -952,15 +807,12 @@ app.post('/api/icon/fetch-all', async (req, res) => {
                     }
                 } catch { }
 
-                // 如果没找到，尝试默认 /favicon.ico
                 if (!iconUrl) {
                     iconUrl = baseUrl + '/favicon.ico';
                 }
 
-                // 下载图标并转为 base64
                 const iconRes = await fetch(iconUrl, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                    timeout: 5000
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
                 });
 
                 if (iconRes.ok) {
@@ -969,7 +821,7 @@ app.post('/api/icon/fetch-all', async (req, res) => {
                         const contentType = iconRes.headers.get('content-type') || 'image/x-icon';
                         const base64 = Buffer.from(buffer).toString('base64');
                         const dataUrl = `data:${contentType.split(';')[0]};base64,${base64}`;
-                        update.run('base64', dataUrl, bm.id);
+                        await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['base64', dataUrl, bm.id]);
                         success++;
                         continue;
                     }
@@ -980,13 +832,7 @@ app.post('/api/icon/fetch-all', async (req, res) => {
             }
         }
 
-        res.json({
-            success: true,
-            message: `获取完成：${success} 个成功，${failed} 个失败`,
-            fetched: success,
-            failed,
-            total: bookmarks.length
-        });
+        res.json({ success: true, message: `获取完成：${success} 个成功，${failed} 个失败`, fetched: success, failed, total: bookmarks.length });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
@@ -995,72 +841,103 @@ app.post('/api/icon/fetch-all', async (req, res) => {
 // ========================================
 // 配置导入导出
 // ========================================
-app.get('/api/export', (req, res) => {
-    const includeIcons = req.query.includeIcons !== 'false'; // 默认包含图标
-
-    const categories = db.prepare('SELECT * FROM categories').all();
-    let bookmarks = db.prepare('SELECT * FROM bookmarks').all();
-    let engines = db.prepare('SELECT * FROM search_engines').all();
-
-    // 获取个性化设置
-    let personalization = null;
+app.get('/api/export', async (req, res) => {
     try {
-        const row = db.prepare('SELECT value FROM config WHERE key = ?').get('personalization');
+        const includeIcons = req.query.includeIcons !== 'false';
+
+        const categories = await db.queryAll('SELECT * FROM categories');
+        let bookmarks = await db.queryAll('SELECT * FROM bookmarks');
+        let engines = await db.queryAll('SELECT * FROM search_engines');
+
+        let personalization = null;
+        const row = await db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization']);
         if (row) {
             personalization = JSON.parse(row.value);
         }
+
+        if (!includeIcons) {
+            bookmarks = bookmarks.map(b => ({
+                ...b,
+                icon_data: b.icon_type === 'emoji' ? b.icon_data : ''
+            }));
+            engines = engines.map(e => ({
+                ...e,
+                icon: (e.icon && !e.icon.startsWith('data:') && !e.icon.startsWith('http')) ? e.icon : '🔍'
+            }));
+        }
+
+        res.json({
+            version: '1.0',
+            exportTime: new Date().toISOString(),
+            includeIcons,
+            categories,
+            bookmarks,
+            engines,
+            personalization
+        });
     } catch (e) {
-        console.error('导出个性化设置失败:', e);
+        res.status(500).json({ success: false, error: e.message });
     }
-
-    // 如果不包含图标，清除 icon_data 字段
-    if (!includeIcons) {
-        bookmarks = bookmarks.map(b => ({
-            ...b,
-            icon_data: b.icon_type === 'emoji' ? b.icon_data : '' // 保留 emoji，清除 base64/url
-        }));
-        engines = engines.map(e => ({
-            ...e,
-            icon: (e.icon && !e.icon.startsWith('data:') && !e.icon.startsWith('http')) ? e.icon : '🔍'
-        }));
-    }
-
-    res.json({
-        version: '1.0',
-        exportTime: new Date().toISOString(),
-        includeIcons,
-        categories,
-        bookmarks,
-        engines,
-        personalization
-    });
 });
 
-app.post('/api/import', (req, res) => {
+app.post('/api/import', async (req, res) => {
     const { categories, bookmarks, engines, personalization } = req.body;
 
     try {
-        const insertCat = db.prepare('INSERT OR REPLACE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)');
-        const insertBm = db.prepare('INSERT OR REPLACE INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-        const insertEng = db.prepare('INSERT OR REPLACE INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)');
-
-        const transaction = db.transaction(() => {
+        await db.transaction(async (conn) => {
             if (categories) {
-                categories.forEach((c, i) => insertCat.run(c.id, c.name, c.icon, c.sort_order || i));
+                for (let i = 0; i < categories.length; i++) {
+                    const c = categories[i];
+                    if (db.USE_MYSQL) {
+                        await conn.execute(
+                            'INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), sort_order = VALUES(sort_order)',
+                            [c.id, c.name, c.icon, c.sort_order ?? i]
+                        );
+                    } else {
+                        await conn.execute('INSERT OR REPLACE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)', [c.id, c.name, c.icon, c.sort_order ?? i]);
+                    }
+                }
             }
             if (bookmarks) {
-                bookmarks.forEach((b, i) => insertBm.run(b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '🌐', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order !== undefined ? b.sort_order : i));
+                for (let i = 0; i < bookmarks.length; i++) {
+                    const b = bookmarks[i];
+                    if (db.USE_MYSQL) {
+                        await conn.execute(
+                            `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             ON DUPLICATE KEY UPDATE category_id = VALUES(category_id), name = VALUES(name), url = VALUES(url),
+                             description = VALUES(description), icon = VALUES(icon), icon_type = VALUES(icon_type),
+                             icon_data = VALUES(icon_data), item_type = VALUES(item_type), component_type = VALUES(component_type), sort_order = VALUES(sort_order)`,
+                            [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '🌐', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order ?? i]
+                        );
+                    } else {
+                        await conn.execute('INSERT OR REPLACE INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                            [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '🌐', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order ?? i]);
+                    }
+                }
             }
             if (engines) {
-                engines.forEach((e, i) => insertEng.run(e.id, e.name, e.icon, e.url, e.sort_order !== undefined ? e.sort_order : i));
+                for (let i = 0; i < engines.length; i++) {
+                    const e = engines[i];
+                    if (db.USE_MYSQL) {
+                        await conn.execute(
+                            'INSERT INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), url = VALUES(url), sort_order = VALUES(sort_order)',
+                            [e.id, e.name, e.icon, e.url, e.sort_order ?? i]
+                        );
+                    } else {
+                        await conn.execute('INSERT OR REPLACE INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)', [e.id, e.name, e.icon, e.url, e.sort_order ?? i]);
+                    }
+                }
             }
-            // 导入个性化设置
             if (personalization) {
-                db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run('personalization', JSON.stringify(personalization));
+                if (db.USE_MYSQL) {
+                    await conn.execute('INSERT INTO config (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)', ['personalization', JSON.stringify(personalization)]);
+                } else {
+                    await conn.execute('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)', ['personalization', JSON.stringify(personalization)]);
+                }
             }
         });
 
-        transaction();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -1080,16 +957,13 @@ app.post('/api/webdav/upload', async (req, res) => {
     try {
         const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
 
-        // 确保目录存在（创建目录）
         const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
         if (dirPath) {
             const dirUrl = url.endsWith('/') ? url + dirPath : url + '/' + dirPath;
             await fetch(dirUrl, {
                 method: 'MKCOL',
-                headers: {
-                    'Authorization': 'Basic ' + Buffer.from(username + ':' + password).toString('base64')
-                }
-            }).catch(() => { }); // 忽略目录已存在的错误
+                headers: { 'Authorization': 'Basic ' + Buffer.from(username + ':' + password).toString('base64') }
+            }).catch(() => { });
         }
 
         const response = await fetch(fullUrl, {
@@ -1124,9 +998,7 @@ app.post('/api/webdav/download', async (req, res) => {
 
         const response = await fetch(fullUrl, {
             method: 'GET',
-            headers: {
-                'Authorization': 'Basic ' + Buffer.from(username + ':' + password).toString('base64')
-            }
+            headers: { 'Authorization': 'Basic ' + Buffer.from(username + ':' + password).toString('base64') }
         });
 
         if (response.ok) {
@@ -1150,63 +1022,11 @@ app.post('/api/webdav/download', async (req, res) => {
 });
 
 // ========================================
-// 初始化默认数据
-// ========================================
-function initDefaultData() {
-    const catCount = db.prepare('SELECT COUNT(*) as count FROM categories').get().count;
-    if (catCount > 0) return;
-
-    console.log('初始化默认数据...');
-
-    const defaultCategories = [
-        { id: 'cat_search', name: '搜索引擎', icon: '🔍' },
-        { id: 'cat_dev', name: '开发工具', icon: '💻' },
-        { id: 'cat_video', name: '视频娱乐', icon: '📺' },
-        { id: 'cat_ai', name: 'AI 工具', icon: '🤖' },
-    ];
-
-    const defaultBookmarks = [
-        { category_id: 'cat_search', name: 'Google', url: 'https://www.google.com', description: '全球最大的搜索引擎', icon: '🌐' },
-        { category_id: 'cat_search', name: '百度', url: 'https://www.baidu.com', description: '中文搜索引擎', icon: '🔎' },
-        { category_id: 'cat_dev', name: 'GitHub', url: 'https://github.com', description: '代码托管平台', icon: '🐙' },
-        { category_id: 'cat_dev', name: 'Stack Overflow', url: 'https://stackoverflow.com', description: '程序员问答社区', icon: '📚' },
-        { category_id: 'cat_video', name: 'YouTube', url: 'https://www.youtube.com', description: '全球视频平台', icon: '▶️' },
-        { category_id: 'cat_video', name: '哔哩哔哩', url: 'https://www.bilibili.com', description: '年轻人的视频社区', icon: '📺' },
-        { category_id: 'cat_ai', name: 'ChatGPT', url: 'https://chat.openai.com', description: 'OpenAI 智能对话', icon: '💬' },
-        { category_id: 'cat_ai', name: 'Claude', url: 'https://claude.ai', description: 'Anthropic AI 助手', icon: '🧠' },
-    ];
-
-    const defaultEngines = [
-        { id: 'eng_google', name: 'Google', icon: '🌐', url: 'https://www.google.com/search?q=' },
-        { id: 'eng_baidu', name: '百度', icon: '🔎', url: 'https://www.baidu.com/s?wd=' },
-        { id: 'eng_bing', name: 'Bing', icon: '🔷', url: 'https://www.bing.com/search?q=' },
-    ];
-
-    const insertCat = db.prepare('INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)');
-    const insertBm = db.prepare('INSERT INTO bookmarks (id, category_id, name, url, description, icon) VALUES (?, ?, ?, ?, ?, ?)');
-    const insertEng = db.prepare('INSERT INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)');
-
-    const transaction = db.transaction(() => {
-        defaultCategories.forEach((c, i) => insertCat.run(c.id, c.name, c.icon, i));
-        defaultBookmarks.forEach((b, i) => insertBm.run(`bm_default_${i}`, b.category_id, b.name, b.url, b.description, b.icon));
-        defaultEngines.forEach((e, i) => insertEng.run(e.id, e.name, e.icon, e.url, i));
-    });
-
-    transaction();
-    console.log('默认数据初始化完成');
-}
-
-
-
-// 初始化默认数据
-initDefaultData();
-
-// ========================================
 // 个性化配置 API
 // ========================================
-app.get('/api/config/personalization', (req, res) => {
+app.get('/api/config/personalization', async (req, res) => {
     try {
-        const row = db.prepare('SELECT value FROM config WHERE key = ?').get('personalization');
+        const row = await db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization']);
         if (row) {
             res.json({ success: true, data: JSON.parse(row.value) });
         } else {
@@ -1217,10 +1037,14 @@ app.get('/api/config/personalization', (req, res) => {
     }
 });
 
-app.post('/api/config/personalization', (req, res) => {
+app.post('/api/config/personalization', async (req, res) => {
     try {
         const value = JSON.stringify(req.body);
-        db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run('personalization', value);
+        if (db.USE_MYSQL) {
+            await db.execute('INSERT INTO config (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)', ['personalization', value]);
+        } else {
+            await db.execute('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)', ['personalization', value]);
+        }
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -1232,7 +1056,6 @@ app.post('/api/config/personalization', (req, res) => {
 // ========================================
 const http = require('http');
 
-// Docker socket 路径
 const DOCKER_SOCKET = process.platform === 'win32'
     ? '//./pipe/docker_engine'
     : '/var/run/docker.sock';
@@ -1259,13 +1082,11 @@ async function dockerRequest(path, method = 'GET', body = null) {
         });
 
         req.on('error', reject);
-
         if (body) req.write(JSON.stringify(body));
         req.end();
     });
 }
 
-// 获取容器列表
 app.get('/api/docker/containers', async (req, res) => {
     try {
         const result = await dockerRequest('/containers/json?all=true');
@@ -1286,7 +1107,6 @@ app.get('/api/docker/containers', async (req, res) => {
     }
 });
 
-// 容器操作
 app.post('/api/docker/containers/:id/:action', async (req, res) => {
     const { id, action } = req.params;
 
@@ -1317,12 +1137,79 @@ app.post('/api/docker/containers/:id/:action', async (req, res) => {
     }
 });
 
+// ========================================
+// 初始化默认数据
+// ========================================
+async function initDefaultData() {
+    const catCount = await db.queryOne('SELECT COUNT(*) as count FROM categories');
+    if (catCount?.count > 0) return;
+
+    console.log('📦 初始化默认数据...');
+
+    const defaultCategories = [
+        { id: 'cat_search', name: '搜索引擎', icon: '🔍' },
+        { id: 'cat_dev', name: '开发工具', icon: '💻' },
+        { id: 'cat_video', name: '视频娱乐', icon: '📺' },
+        { id: 'cat_ai', name: 'AI 工具', icon: '🤖' },
+    ];
+
+    const defaultBookmarks = [
+        { category_id: 'cat_search', name: 'Google', url: 'https://www.google.com', description: '全球最大的搜索引擎', icon: '🌐' },
+        { category_id: 'cat_search', name: '百度', url: 'https://www.baidu.com', description: '中文搜索引擎', icon: '🔎' },
+        { category_id: 'cat_dev', name: 'GitHub', url: 'https://github.com', description: '代码托管平台', icon: '🐙' },
+        { category_id: 'cat_dev', name: 'Stack Overflow', url: 'https://stackoverflow.com', description: '程序员问答社区', icon: '📚' },
+        { category_id: 'cat_video', name: 'YouTube', url: 'https://www.youtube.com', description: '全球视频平台', icon: '▶️' },
+        { category_id: 'cat_video', name: '哔哩哔哩', url: 'https://www.bilibili.com', description: '年轻人的视频社区', icon: '📺' },
+        { category_id: 'cat_ai', name: 'ChatGPT', url: 'https://chat.openai.com', description: 'OpenAI 智能对话', icon: '💬' },
+        { category_id: 'cat_ai', name: 'Claude', url: 'https://claude.ai', description: 'Anthropic AI 助手', icon: '🧠' },
+    ];
+
+    const defaultEngines = [
+        { id: 'eng_google', name: 'Google', icon: '🌐', url: 'https://www.google.com/search?q=' },
+        { id: 'eng_baidu', name: '百度', icon: '🔎', url: 'https://www.baidu.com/s?wd=' },
+        { id: 'eng_bing', name: 'Bing', icon: '🔷', url: 'https://www.bing.com/search?q=' },
+    ];
+
+    for (let i = 0; i < defaultCategories.length; i++) {
+        const c = defaultCategories[i];
+        await db.execute('INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)', [c.id, c.name, c.icon, i]);
+    }
+
+    for (let i = 0; i < defaultBookmarks.length; i++) {
+        const b = defaultBookmarks[i];
+        await db.execute('INSERT INTO bookmarks (id, category_id, name, url, description, icon) VALUES (?, ?, ?, ?, ?, ?)',
+            [`bm_default_${i}`, b.category_id, b.name, b.url, b.description, b.icon]);
+    }
+
+    for (let i = 0; i < defaultEngines.length; i++) {
+        const e = defaultEngines[i];
+        await db.execute('INSERT INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)',
+            [e.id, e.name, e.icon, e.url, i]);
+    }
+
+    console.log('✅ 默认数据初始化完成');
+}
+
 // 前端路由
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
 });
 
 // 启动服务器
-app.listen(PORT, () => {
-    console.log(`🚀 书签导航服务已启动: http://localhost:${PORT}`);
-});
+async function start() {
+    try {
+        await db.initDatabase();
+        await db.createTables();
+        await initDefaultData();
+
+        app.listen(PORT, () => {
+            console.log(`🚀 书签导航服务已启动: http://localhost:${PORT}`);
+            console.log(`📦 数据库模式: ${db.getDatabaseType().toUpperCase()}`);
+        });
+    } catch (err) {
+        console.error('❌ 启动失败:', err.message);
+        process.exit(1);
+    }
+}
+
+start();

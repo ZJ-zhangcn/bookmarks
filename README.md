@@ -24,7 +24,41 @@
 
 ## 🚀 快速部署
 
-### 使用 Docker Compose（推荐）
+### 方式一：Vercel 部署（推荐新手）
+
+一键部署到 Vercel，需要外部 MySQL 数据库（如 Aiven、PlanetScale）：
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/ZJ145013/bookmarks)
+
+**部署步骤：**
+
+1. 点击上方按钮，Fork 并部署到 Vercel
+2. 在 Vercel 项目设置中添加环境变量：
+   ```
+   DATABASE_URL=mysql://用户名:密码@主机:端口/bookmarks?ssl-mode=REQUIRED
+   ```
+3. 初始化数据库（首次部署需要）：
+   ```bash
+   # 克隆项目
+   git clone https://github.com/ZJ145013/bookmarks.git
+   cd bookmarks
+
+   # 安装依赖
+   npm install
+
+   # 设置环境变量并初始化
+   export DATABASE_URL="你的MySQL连接字符串"
+   npm run db:init
+   ```
+4. 重新部署 Vercel 项目
+
+> ⚠️ **注意**：Vercel 部署不支持系统监控和 Docker 管理功能，如需这些功能请使用 Docker 部署。
+
+---
+
+### 方式二：Docker Compose（推荐自建服务器）
+
+#### SQLite 模式（默认，数据存储在本地）
 
 ```bash
 # 创建目录
@@ -37,9 +71,22 @@ curl -O https://raw.githubusercontent.com/ZJ145013/bookmarks/main/docker-compose
 docker compose up -d
 ```
 
+#### MySQL 模式（多实例共享数据）
+
+```bash
+# 下载 MySQL 配置
+curl -O https://raw.githubusercontent.com/ZJ145013/bookmarks/main/docker-compose.mysql.yml
+
+# 编辑配置，设置 DATABASE_URL
+vim docker-compose.mysql.yml
+
+# 启动服务
+docker compose -f docker-compose.mysql.yml up -d
+```
+
 访问 http://localhost:8080 即可使用。
 
-### 使用 Docker 命令
+### 方式三：Docker 命令
 
 ```bash
 docker run -d \
@@ -53,7 +100,7 @@ docker run -d \
   ghcr.io/zj145013/bookmarks:latest
 ```
 
-### 本地开发
+### 方式四：本地开发
 
 ```bash
 # 克隆仓库
@@ -71,20 +118,31 @@ npm start
 
 ```
 bookmarks/
-├── backend/               # 后端服务 (Express + SQLite)
+├── api/                   # Vercel Serverless Functions
+│   ├── _lib/              # 共享库
+│   │   └── db.js          # MySQL 数据库连接
+│   ├── bookmarks.js       # 书签 API
+│   ├── categories.js      # 分类 API
+│   ├── engines.js         # 搜索引擎 API
+│   └── ...
+├── backend/               # Docker 后端服务 (Express + SQLite/MySQL)
 │   ├── server.js          # 主服务文件
-│   ├── data/              # 数据存储目录
+│   ├── db.js              # 数据库抽象层（支持双模式）
+│   ├── data/              # SQLite 数据存储
 │   └── package.json
 ├── frontend/              # 前端页面
 │   ├── index.html
 │   ├── index.css
 │   ├── index.js
 │   └── i18n.js            # 国际化
+├── scripts/               # 工具脚本
+│   ├── init-mysql.js      # MySQL 初始化
+│   └── migrate-to-mysql.js # SQLite → MySQL 迁移
 ├── .github/
 │   └── workflows/         # GitHub Actions
-│       └── docker-publish.yml
-├── Dockerfile
-├── docker-compose.yml
+├── Dockerfile             # Docker 构建
+├── docker-compose.yml     # Docker Compose 配置
+├── vercel.json            # Vercel 部署配置
 └── README.md
 ```
 
@@ -118,12 +176,21 @@ ports:
 
 ### 环境变量
 
+#### Docker 部署
+
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `PORT` | `3000` | 服务端口 |
 | `NODE_ENV` | `production` | 运行环境 |
 | `HOST_PROC` | `/host/proc` | 宿主机 /proc 挂载路径 |
 | `HOST_SYS` | `/host/sys` | 宿主机 /sys 挂载路径 |
+| `DATABASE_URL` | - | MySQL 连接字符串（可选，不设置则使用 SQLite） |
+
+#### Vercel 部署
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `DATABASE_URL` | ✅ | MySQL 连接字符串，格式：`mysql://user:pass@host:port/bookmarks?ssl-mode=REQUIRED` |
 
 ## 🔄 数据备份与恢复
 
@@ -147,10 +214,11 @@ docker run --rm -v bookmark-data:/data -v $(pwd):/backup alpine tar xzf /backup/
 
 ## 🛠️ 技术栈
 
-- **前端**：原生 HTML/CSS/JavaScript
-- **后端**：Node.js + Express
-- **数据库**：SQLite (better-sqlite3)
-- **容器化**：Docker + GitHub Actions
+| 部署方式 | 前端 | 后端 | 数据库 |
+|---------|------|------|--------|
+| **Docker (默认)** | 原生 HTML/CSS/JS | Express | SQLite |
+| **Docker (MySQL)** | 原生 HTML/CSS/JS | Express | MySQL |
+| **Vercel** | 原生 HTML/CSS/JS | Serverless Functions | MySQL |
 
 ## 📝 更新日志
 

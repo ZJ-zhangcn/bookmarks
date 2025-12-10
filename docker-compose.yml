@@ -8,7 +8,7 @@ services:
     ports:
       - "8080:3000"
     volumes:
-      # 数据持久化
+      # 数据持久化（SQLite 模式使用，MySQL 模式可删除）
       - bookmark-data:/app/backend/data
       # Docker 管理功能（可选，如不需要可删除）
       - /var/run/docker.sock:/var/run/docker.sock
@@ -20,6 +20,8 @@ services:
       - NODE_ENV=production
       - HOST_PROC=/host/proc
       - HOST_SYS=/host/sys
+      # MySQL 数据库连接（可选，不设置则使用 SQLite）
+      # - DATABASE_URL=mysql://user:password@host:3306/bookmarks?ssl-mode=REQUIRED
 
 volumes:
   bookmark-data:

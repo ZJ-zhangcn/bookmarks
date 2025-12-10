@@ -18,6 +18,10 @@ Thumbs.db
 # 环境变量
 .env
 .env.local
+.env.production.local
 
 # Serena
 .serena/
+
+# Vercel
+.vercel/
