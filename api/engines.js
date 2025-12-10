@@ -1,12 +1,16 @@
 /**
- * 搜索引擎 API - GET/POST /api/engines
+ * 搜索引擎 API - 合并所有搜索引擎相关操作
+ * GET /api/engines - 获取所有搜索引擎
+ * POST /api/engines - 创建/更新搜索引擎
+ * PUT /api/engines - 排序
+ * DELETE /api/engines?id=xxx - 删除搜索引擎
  */
 
-const { query, execute, queryOne } = require('./_lib/db');
+const { query, execute, queryOne, transaction } = require('./_lib/db');
 
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
@@ -14,11 +18,13 @@ module.exports = async function handler(req, res) {
     }
 
     try {
+        // GET - 获取所有搜索引擎
         if (req.method === 'GET') {
             const engines = await query('SELECT * FROM search_engines ORDER BY sort_order ASC, created_at ASC');
             return res.json({ success: true, data: engines });
         }
 
+        // POST - 创建/更新搜索引擎
         if (req.method === 'POST') {
             const { id, name, icon, url, sort_order } = req.body;
             const engineId = id || `eng_${Date.now()}`;
@@ -37,6 +43,31 @@ module.exports = async function handler(req, res) {
             );
 
             return res.json({ success: true, data: { id: engineId } });
+        }
+
+        // PUT - 排序
+        if (req.method === 'PUT') {
+            const { orders } = req.body;
+
+            await transaction(async (connection) => {
+                for (const item of orders) {
+                    await connection.execute(
+                        'UPDATE search_engines SET sort_order = ? WHERE id = ?',
+                        [item.sort_order, item.id]
+                    );
+                }
+            });
+            return res.json({ success: true });
+        }
+
+        // DELETE - 删除搜索引擎
+        if (req.method === 'DELETE') {
+            const { id } = req.query;
+            if (!id) {
+                return res.status(400).json({ success: false, error: '缺少引擎 ID' });
+            }
+            await execute('DELETE FROM search_engines WHERE id = ?', [id]);
+            return res.json({ success: true });
         }
 
         res.status(405).json({ success: false, error: 'Method not allowed' });

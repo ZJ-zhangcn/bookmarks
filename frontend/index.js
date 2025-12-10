@@ -255,7 +255,7 @@ async function loadIconsBatch(ids) {
     }
 
     try {
-        const res = await fetch(`${API_BASE}/api/bookmarks/icons`, {
+        const res = await fetch(`${API_BASE}/api/bookmarks?action=icons`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: idsToLoad })
@@ -1133,7 +1133,7 @@ async function deleteBookmark(id) {
     if (!confirm('确定删除此书签？')) return;
 
     try {
-        await fetch(`${API_BASE}/api/bookmarks/${id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE}/api/bookmarks?id=${id}`, { method: 'DELETE' });
         await loadData();
         renderAll();
     } catch (e) {
@@ -1222,8 +1222,8 @@ async function saveBookmarkOrder(categoryId) {
     }));
 
     try {
-        await fetch(`${API_BASE}/api/bookmarks/sort`, {
-            method: 'POST',
+        await fetch(`${API_BASE}/api/bookmarks`, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ order })
         });
@@ -1265,7 +1265,7 @@ async function loadIconLibrary(target = 'bookmark') {
     try {
         // 使用缓存或重新加载
         if (!iconLibraryCache) {
-            const res = await fetch(`${API_BASE}/api/icons/library`);
+            const res = await fetch(`${API_BASE}/api/icons`);
             const data = await res.json();
             if (data.success) {
                 iconLibraryCache = data.data;
@@ -1379,7 +1379,7 @@ async function deleteCategory(id) {
     if (!confirm('确定删除此分类？分类下的书签也将被删除。')) return;
 
     try {
-        await fetch(`${API_BASE}/api/categories/${id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE}/api/categories?id=${id}`, { method: 'DELETE' });
         await loadData();
         renderAll();
         renderCategoryList();
@@ -1446,8 +1446,8 @@ async function saveCategoryOrder() {
     }));
 
     try {
-        await fetch(`${API_BASE}/api/categories/sort`, {
-            method: 'POST',
+        await fetch(`${API_BASE}/api/categories`, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ order })
         });
@@ -1472,7 +1472,7 @@ async function renderIconLibrary() {
 
     try {
         // 从 API 获取图标数据（每次都刷新）
-        const res = await fetch(`${API_BASE}/api/icons/library`);
+        const res = await fetch(`${API_BASE}/api/icons`);
         const data = await res.json();
         if (data.success) {
             iconLibraryCache = data.data;
@@ -1542,7 +1542,7 @@ window.handleIconDelete = async function(iconId, isTemp) {
         const iconData = decodeURIComponent(item.dataset.icon);
 
         try {
-            const res = await fetch(`${API_BASE}/api/icons/clear-from-bookmarks`, {
+            const res = await fetch(`${API_BASE}/api/icons?action=clear-from-bookmarks`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ iconData })
@@ -1627,7 +1627,7 @@ function updateBatchDeleteButton() {
 
 async function deleteIconFromLibrary(iconId) {
     try {
-        const res = await fetch(`${API_BASE}/api/icons/library/${iconId}`, { method: 'DELETE' });
+        const res = await fetch(`${API_BASE}/api/icons?id=${iconId}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
             selectedIcons.delete(iconId);
@@ -1667,7 +1667,7 @@ async function batchDeleteIcons() {
 
         // 删除真实图标（从图标库表中删除）
         if (realIds.length > 0) {
-            const res = await fetch(`${API_BASE}/api/icons/library/batch-delete`, {
+            const res = await fetch(`${API_BASE}/api/icons?action=batch-delete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids: realIds })
@@ -1681,7 +1681,7 @@ async function batchDeleteIcons() {
 
         // 清除来自书签的图标（从书签中清除图标数据）
         if (tempIconsData.length > 0) {
-            const res = await fetch(`${API_BASE}/api/icons/batch-clear-from-bookmarks`, {
+            const res = await fetch(`${API_BASE}/api/icons?action=batch-clear-from-bookmarks`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ iconDataList: tempIconsData })
@@ -1708,7 +1708,7 @@ async function uploadIconToLibrary(file) {
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
-                const res = await fetch(`${API_BASE}/api/icons/library`, {
+                const res = await fetch(`${API_BASE}/api/icons`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1734,7 +1734,7 @@ async function uploadIconToLibrary(file) {
 
 async function uploadIconFromUrl(url) {
     try {
-        const res = await fetch(`${API_BASE}/api/icons/library/from-url`, {
+        const res = await fetch(`${API_BASE}/api/icons?action=from-url`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url })
@@ -1930,7 +1930,7 @@ async function saveEngine() {
 async function deleteEngine(id) {
     if (!confirm('确定删除？')) return;
     try {
-        await fetch(`${API_BASE}/api/engines/${id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE}/api/engines?id=${id}`, { method: 'DELETE' });
         await loadData();
         renderEngineDropdown();
         renderEngineList();
@@ -1996,7 +1996,7 @@ async function saveEngineOrder() {
     });
 
     try {
-        await fetch(`${API_BASE}/api/engines/sort`, {
+        await fetch(`${API_BASE}/api/engines`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ orders })
@@ -2148,7 +2148,7 @@ async function restartContainer(id) {
 // ========================================
 async function loadPersonalization() {
     try {
-        const res = await fetch(`${API_BASE}/api/config/personalization`);
+        const res = await fetch(`${API_BASE}/api/config`);
         const result = await res.json();
         if (result.success && result.data) {
             const config = result.data;
@@ -2188,7 +2188,7 @@ async function savePersonalization() {
     };
 
     try {
-        await fetch(`${API_BASE}/api/config/personalization`, {
+        await fetch(`${API_BASE}/api/config`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config)
@@ -2309,7 +2309,7 @@ function startClock() {
 async function exportConfig() {
     try {
         const includeIcons = DOM.includeIconsExport?.checked ?? true;
-        const res = await fetch(`${API_BASE}/api/export?includeIcons=${includeIcons}`);
+        const res = await fetch(`${API_BASE}/api/data?includeIcons=${includeIcons}`);
         const data = await res.json();
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -2332,7 +2332,7 @@ async function importConfig(e) {
     reader.onload = async () => {
         try {
             const data = JSON.parse(reader.result);
-            await fetch(`${API_BASE}/api/import`, {
+            await fetch(`${API_BASE}/api/data`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -2374,11 +2374,11 @@ async function webdavUpload() {
 
     try {
         showWebdavStatus('正在上传...', 'success');
-        const exportRes = await fetch(`${API_BASE}/api/export?includeIcons=${includeIcons}`);
+        const exportRes = await fetch(`${API_BASE}/api/data?includeIcons=${includeIcons}`);
         const data = await exportRes.json();
 
         // 使用后端代理
-        const response = await fetch(`${API_BASE}/api/webdav/upload`, {
+        const response = await fetch(`${API_BASE}/api/webdav?action=upload`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url, username: user, password: pass, path: filePath, data })
@@ -2407,7 +2407,7 @@ async function webdavDownload() {
         showWebdavStatus('正在下载...', 'success');
 
         // 使用后端代理
-        const response = await fetch(`${API_BASE}/api/webdav/download`, {
+        const response = await fetch(`${API_BASE}/api/webdav?action=download`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url, username: user, password: pass, path: filePath })
@@ -2415,7 +2415,7 @@ async function webdavDownload() {
 
         const result = await response.json();
         if (result.success && result.data) {
-            await fetch(`${API_BASE}/api/import`, {
+            await fetch(`${API_BASE}/api/data`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(result.data)

@@ -1,5 +1,7 @@
 /**
- * Favicon 代理 API - POST /api/favicon
+ * Favicon API - 获取网站图标 + 图标转换
+ * POST /api/favicon - 获取网站 favicon
+ * POST /api/favicon?action=convert - 将图标 URL 转为 base64
  */
 
 const cheerio = require('cheerio');
@@ -37,6 +39,30 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'URL is required' });
     }
 
+    // 图标转换功能
+    if (req.query.action === 'convert') {
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                signal: AbortSignal.timeout(5000)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const buffer = await response.arrayBuffer();
+            const contentType = response.headers.get('content-type') || 'image/png';
+            const base64 = Buffer.from(buffer).toString('base64');
+            return res.json({ success: true, data: `data:${contentType.split(';')[0]};base64,${base64}` });
+        } catch (e) {
+            return res.status(500).json({ success: false, error: e.message });
+        }
+    }
+
+    // 获取网站 favicon
     try {
         const parsedUrl = new URL(url);
         const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;

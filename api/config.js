@@ -1,8 +1,10 @@
 /**
- * 个性化配置 API - GET/POST /api/config/personalization
+ * 配置 API
+ * GET /api/config - 获取个性化配置
+ * POST /api/config - 保存个性化配置
  */
 
-const { query, execute, queryOne } = require('../_lib/db');
+const { execute, queryOne } = require('./_lib/db');
 
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -34,7 +36,7 @@ module.exports = async function handler(req, res) {
 
         res.status(405).json({ success: false, error: 'Method not allowed' });
     } catch (e) {
-        console.error('Personalization API error:', e);
+        console.error('Config API error:', e);
         res.status(500).json({ success: false, error: e.message });
     }
 };
