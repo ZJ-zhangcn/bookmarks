@@ -13,10 +13,13 @@ let pool = null;
  */
 function getPool() {
     if (!pool) {
-        const connectionString = process.env.DATABASE_URL;
+        let connectionString = process.env.DATABASE_URL;
         if (!connectionString) {
             throw new Error('DATABASE_URL 环境变量未设置');
         }
+
+        // 移除 ssl-mode 参数，改用 mysql2 原生 ssl 配置
+        connectionString = connectionString.replace(/[?&]ssl-mode=[^&]*/gi, '');
 
         pool = mysql.createPool({
             uri: connectionString,
@@ -24,7 +27,8 @@ function getPool() {
             connectionLimit: 10,
             queueLimit: 0,
             enableKeepAlive: true,
-            keepAliveInitialDelay: 0
+            keepAliveInitialDelay: 0,
+            ssl: { rejectUnauthorized: false }
         });
     }
     return pool;
