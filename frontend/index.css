@@ -1112,8 +1112,9 @@ body {
 }
 
 .category-section {
-    animation: fadeInUp 0.5s ease forwards;
-    opacity: 0;
+    animation: fadeInUp 0.5s ease both;
+    /* 使用 animation-fill-mode: both 而非 forwards + opacity: 0 */
+    /* 确保动画在所有浏览器中正确触发 */
 }
 
 @keyframes fadeInUp {
