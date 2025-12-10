@@ -1134,8 +1134,22 @@ body {
     align-items: center;
     gap: var(--spacing-md);
     margin-bottom: var(--spacing-lg);
-    padding-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+    padding-top: var(--spacing-md);
     border-bottom: 1px solid var(--glass-border);
+    /* Sticky 定位 - 滚动时固定在顶部 */
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    /* 玻璃态背景效果 */
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: var(--radius-md);
+    margin-left: calc(-1 * var(--spacing-md));
+    margin-right: calc(-1 * var(--spacing-md));
+    /* 添加阴影增强层次感 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* 折叠按钮 */
@@ -1172,6 +1186,9 @@ body {
 .category-section.collapsed .category-header {
     margin-bottom: 0;
     border-bottom-color: transparent;
+    /* 折叠状态下不需要 sticky，因为没有内容 */
+    position: relative;
+    box-shadow: none;
 }
 
 .category-title {
@@ -1780,6 +1797,16 @@ body {
     .bookmarks-grid {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: var(--spacing-sm);
+    }
+
+    /* 移动端 sticky header 优化 */
+    .category-header {
+        margin-left: calc(-1 * var(--spacing-md));
+        margin-right: calc(-1 * var(--spacing-md));
+        padding: var(--spacing-sm) var(--spacing-md);
+        border-radius: 0;
+        /* 增强背景不透明度，确保内容不透出 */
+        background: hsla(230, 30%, 12%, 0.95);
     }
 
     .bookmark-card {
@@ -3241,6 +3268,22 @@ select:focus {
     .settings-tab span {
         max-width: 40px;
     }
+
+    /* 超小屏 sticky header 优化 */
+    .category-header {
+        margin-left: calc(-1 * var(--spacing-xs)) !important;
+        margin-right: calc(-1 * var(--spacing-xs)) !important;
+        padding: var(--spacing-xs) var(--spacing-sm) !important;
+    }
+
+    .category-title {
+        font-size: 1rem !important;
+    }
+
+    .category-count {
+        font-size: 0.75rem !important;
+        padding: 1px 6px !important;
+    }
 }
 
 /* iOS 安全区域适配 */
@@ -3279,7 +3322,8 @@ select:focus {
     .engine-btn,
     .search-box,
     .bookmark-card,
-    .fixed-btn {
+    .fixed-btn,
+    .category-header {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
     }
@@ -3293,7 +3337,8 @@ select:focus {
     /* 启用 GPU 加速 */
     .bookmarks-container,
     .category-nav,
-    .bookmark-card {
+    .bookmark-card,
+    .category-header {
         transform: translateZ(0);
         will-change: auto;
     }
