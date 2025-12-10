@@ -2332,11 +2332,15 @@ async function importConfig(e) {
     reader.onload = async () => {
         try {
             const data = JSON.parse(reader.result);
-            await fetch(`${API_BASE}/api/data`, {
+            const res = await fetch(`${API_BASE}/api/data`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
+            const result = await res.json();
+            if (!res.ok || !result.success) {
+                throw new Error(result.error || `HTTP ${res.status}`);
+            }
             await loadData();
             renderAll();
             // 导入后重新加载个性化设置
