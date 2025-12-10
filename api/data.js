@@ -10,17 +10,7 @@
 
 const { query, queryOne, transaction } = require('./_lib/db');
 
-// Vercel Serverless Function 配置
-// Hobby: 最大 4.5MB, Pro: 最大 50MB
-module.exports.config = {
-    api: {
-        bodyParser: {
-            sizeLimit: '50mb'
-        }
-    }
-};
-
-module.exports = async function handler(req, res) {
+async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -129,4 +119,6 @@ module.exports = async function handler(req, res) {
         console.error('Data API error:', e);
         res.status(500).json({ success: false, error: e.message });
     }
-};
+}
+
+module.exports = handler;
