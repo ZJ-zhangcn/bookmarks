@@ -2,9 +2,23 @@
  * 数据导入导出 API
  * GET /api/data - 导出数据
  * POST /api/data - 导入数据
+ *
+ * 注意：Vercel Hobby 计划最大请求体限制为 4.5MB
+ * 如果导入数据较大（含图标），建议使用不含图标的导出文件
+ * 或升级到 Vercel Pro 计划（50MB 限制）
  */
 
 const { query, queryOne, transaction } = require('./_lib/db');
+
+// Vercel Serverless Function 配置
+// Hobby: 最大 4.5MB, Pro: 最大 50MB
+module.exports.config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '50mb'
+        }
+    }
+};
 
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
