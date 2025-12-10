@@ -2332,6 +2332,37 @@ async function importConfig(e) {
     reader.onload = async () => {
         try {
             const data = JSON.parse(reader.result);
+
+            // 检查文件大小，如果超过 4MB，自动清理图标数据
+            const jsonStr = JSON.stringify(data);
+            const sizeInMB = new Blob([jsonStr]).size / (1024 * 1024);
+
+            if (sizeInMB > 4) {
+                const cleanData = confirm(
+                    `导入文件较大 (${sizeInMB.toFixed(1)}MB)，可能超出服务器限制。\n\n` +
+                    `是否自动清理图标数据后再导入？\n` +
+                    `（清理后可在导入完成后使用"批量获取图标"功能重新获取）`
+                );
+
+                if (cleanData) {
+                    // 清理书签图标数据
+                    if (data.bookmarks) {
+                        data.bookmarks = data.bookmarks.map(b => ({
+                            ...b,
+                            icon_data: '',
+                            icon_type: 'auto'
+                        }));
+                    }
+                    // 清理搜索引擎图标
+                    if (data.engines) {
+                        data.engines = data.engines.map(e => ({
+                            ...e,
+                            icon: '🔍'
+                        }));
+                    }
+                }
+            }
+
             const res = await fetch(`${API_BASE}/api/data`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
