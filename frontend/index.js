@@ -2333,33 +2333,60 @@ async function importConfig(e) {
         try {
             const data = JSON.parse(reader.result);
 
-            // 检查文件大小，如果超过 4MB，自动清理图标数据
+            // 检查文件大小
             const jsonStr = JSON.stringify(data);
             const sizeInMB = new Blob([jsonStr]).size / (1024 * 1024);
 
+            // 如果超过 4MB，需要清理图标或分批导入
             if (sizeInMB > 4) {
-                const cleanData = confirm(
-                    `导入文件较大 (${sizeInMB.toFixed(1)}MB)，可能超出服务器限制。\n\n` +
-                    `是否自动清理图标数据后再导入？\n` +
-                    `（清理后可在导入完成后使用"批量获取图标"功能重新获取）`
+                const choice = confirm(
+                    `导入文件较大 (${sizeInMB.toFixed(1)}MB)，超出 Vercel 免费版 4.5MB 限制。\n\n` +
+                    `点击"确定"：清理 base64 图标后导入（URL 和 emoji 图标会保留）\n` +
+                    `点击"取消"：取消导入\n\n` +
+                    `提示：导入后可使用"批量获取图标"功能重新获取被清理的图标`
                 );
 
-                if (cleanData) {
-                    // 清理书签图标数据
-                    if (data.bookmarks) {
-                        data.bookmarks = data.bookmarks.map(b => ({
-                            ...b,
-                            icon_data: '',
-                            icon_type: 'auto'
-                        }));
-                    }
-                    // 清理搜索引擎图标
-                    if (data.engines) {
-                        data.engines = data.engines.map(e => ({
-                            ...e,
-                            icon: '🔍'
-                        }));
-                    }
+                if (!choice) {
+                    alert('导入已取消');
+                    return;
+                }
+
+                // 只清理 base64 图标数据，保留 URL 和 emoji 图标
+                if (data.bookmarks) {
+                    data.bookmarks = data.bookmarks.map(b => {
+                        // 如果是 base64 类型，清理图标数据
+                        if (b.icon_type === 'base64' || (b.icon_data && b.icon_data.startsWith('data:'))) {
+                            return {
+                                ...b,
+                                icon: b.icon || '🌐',
+                                icon_type: 'auto',
+                                icon_data: ''
+                            };
+                        }
+                        // URL 和 emoji 类型保持不变
+                        return b;
+                    });
+                }
+                // 搜索引擎：只清理 base64 图标，保留 URL 和 emoji
+                if (data.engines) {
+                    data.engines = data.engines.map(e => {
+                        // 如果图标是 base64 格式，清理掉
+                        if (e.icon && e.icon.startsWith('data:')) {
+                            return {
+                                ...e,
+                                icon: '🔍'
+                            };
+                        }
+                        // URL 和 emoji 图标保持不变
+                        return e;
+                    });
+                }
+
+                // 再次检查大小
+                const cleanedSize = new Blob([JSON.stringify(data)]).size / (1024 * 1024);
+                if (cleanedSize > 4) {
+                    alert(`清理后仍然较大 (${cleanedSize.toFixed(1)}MB)，请减少书签数量或联系管理员`);
+                    return;
                 }
             }
 
