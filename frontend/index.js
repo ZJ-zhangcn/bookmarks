@@ -767,10 +767,28 @@ function bindAllEvents() {
 
     // 滚动时延迟加载图标
     let scrollTimeout = null;
+    const backToTopBtn = document.getElementById('backToTop');
+
     window.addEventListener('scroll', () => {
         if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(lazyLoadVisibleIcons, 100);
+
+        // 回到顶部按钮显示/隐藏
+        if (backToTopBtn) {
+            if (window.scrollY > 300) {
+                backToTopBtn.classList.add('visible');
+            } else {
+                backToTopBtn.classList.remove('visible');
+            }
+        }
     }, { passive: true });
+
+    // 回到顶部按钮点击事件
+    if (backToTopBtn) {
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
 
     // 窗口大小变化时重新检查可见图标
     window.addEventListener('resize', () => {

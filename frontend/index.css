@@ -3357,3 +3357,81 @@ select:focus {
         box-shadow: 0 2px 8px hsla(var(--primary-hue), 100%, 65%, 0.3) !important;
     }
 }
+
+/* ========================================
+   回到顶部按钮
+   ======================================== */
+.back-to-top {
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.back-to-top svg {
+    width: 24px;
+    height: 24px;
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.back-to-top:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.back-to-top:active {
+    transform: translateY(-1px);
+}
+
+/* 平板适配 */
+@media (max-width: 1024px) {
+    .back-to-top {
+        bottom: 30px;
+        right: 30px;
+        width: 44px;
+        height: 44px;
+    }
+
+    .back-to-top svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .back-to-top {
+        bottom: 20px;
+        right: 20px;
+        width: 40px;
+        height: 40px;
+    }
+
+    .back-to-top svg {
+        width: 20px;
+        height: 20px;
+    }
+}
