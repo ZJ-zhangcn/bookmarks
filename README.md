@@ -68,6 +68,9 @@ mkdir bookmarks && cd bookmarks
 # 下载 docker-compose.yml
 curl -O https://raw.githubusercontent.com/ZJ145013/bookmarks/main/docker-compose.yml
 
+# 创建环境变量文件（compose 使用 env_file: .env；SQLite 模式可留空）
+touch .env
+
 # 启动服务
 docker compose up -d
 ```
@@ -78,8 +81,18 @@ docker compose up -d
 # 下载 MySQL 配置
 curl -O https://raw.githubusercontent.com/ZJ145013/bookmarks/main/docker-compose.mysql.yml
 
-# 编辑配置，设置 DATABASE_URL
-vim docker-compose.mysql.yml
+# 创建 .env 并写入数据库连接（必填）
+cat > .env <<'EOF'
+DATABASE_URL=mysql://user:password@host:3306/bookmarks?ssl-mode=REQUIRED
+EOF
+
+# （可选）开启 AI（自用场景建议只在 Docker 主站开启）
+# cat >> .env <<'EOF'
+# AI_ENABLED=true
+# AI_PROVIDER=openai   # openai / gemini / claude
+# AI_MODEL=gpt-4o-mini
+# OPENAI_API_KEY=...
+# EOF
 
 # 启动服务
 docker compose -f docker-compose.mysql.yml up -d
