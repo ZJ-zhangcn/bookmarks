@@ -249,13 +249,13 @@ function updateAiSettingsServerHint() {
         return;
     }
 
-    const parts = [];
-    parts.push(`${provider}${serverModel ? ` · 默认模型 ${serverModel}` : ''}`);
-    parts.push(hasServerKey ? '服务器已配置 Key' : '服务器未配置 Key');
-    parts.push(allowKey ? '允许前端传入 Key' : '不允许前端传入 Key');
-    parts.push(allowBaseUrl ? '允许前端覆盖 API 地址' : '不允许前端覆盖 API 地址');
-    parts.push(allowProvider ? '允许前端覆盖 Provider' : '不允许前端覆盖 Provider');
-    DOM.aiSettingsServerHint.textContent = parts.join(' / ');
+    const lines = [];
+    lines.push(`${provider}${serverModel ? ` · 默认模型 ${serverModel}` : ''}`);
+    lines.push(hasServerKey ? '服务器已配置 Key' : '服务器未配置 Key');
+    lines.push(allowKey ? '允许前端传入 Key' : '不允许前端传入 Key');
+    lines.push(allowBaseUrl ? '允许前端覆盖 API 地址' : '不允许前端覆盖 API 地址');
+    lines.push(allowProvider ? '允许前端覆盖 Provider' : '不允许前端覆盖 Provider');
+    DOM.aiSettingsServerHint.textContent = lines.join('\n');
 }
 
 async function loadAiStatus() {

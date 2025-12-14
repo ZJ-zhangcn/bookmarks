@@ -21,12 +21,25 @@ function getAiProvider() {
 }
 
 function getDefaultModelForProvider(provider) {
+    if (provider === 'openai') {
+        const specific = String(process.env.OPENAI_MODEL || '').trim();
+        if (specific) return specific;
+    }
+    if (provider === 'gemini') {
+        const specific = String(process.env.GEMINI_MODEL || '').trim();
+        if (specific) return specific;
+    }
+    if (provider === 'claude') {
+        const specific = String(process.env.ANTHROPIC_MODEL || '').trim();
+        if (specific) return specific;
+    }
+
     const globalModel = String(process.env.AI_MODEL || '').trim();
     if (globalModel) return globalModel;
 
-    if (provider === 'openai') return String(process.env.OPENAI_MODEL || '').trim() || 'gpt-4o-mini';
-    if (provider === 'gemini') return String(process.env.GEMINI_MODEL || '').trim() || 'gemini-1.5-flash';
-    if (provider === 'claude') return String(process.env.ANTHROPIC_MODEL || '').trim() || 'claude-3-5-sonnet-latest';
+    if (provider === 'openai') return 'gpt-4o-mini';
+    if (provider === 'gemini') return 'gemini-1.5-flash';
+    if (provider === 'claude') return 'claude-3-5-sonnet-latest';
     return 'gpt-4o-mini';
 }
 
@@ -270,6 +283,20 @@ function resolveRuntimeConfig(body) {
     return cfg;
 }
 
+function fetchWithTimeout(url, options, timeoutMs) {
+    const ms = Number.isFinite(timeoutMs) ? timeoutMs : 8000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { ...(options || {}), signal: controller.signal })
+        .finally(() => clearTimeout(timer));
+}
+
+function createHttpError(statusCode, message) {
+    const err = new Error(message);
+    err.statusCode = statusCode;
+    return err;
+}
+
 async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKey, model, timeoutMs }) {
 
     const userPayload = {
@@ -288,7 +315,7 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
     ].join('\n');
 
     const endpoint = `${String(baseUrl || '').replace(/\/+$/, '')}/chat/completions`;
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${apiKey}`,
@@ -302,14 +329,14 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
             ],
             temperature: 0.2,
             max_tokens: 220
-        }),
-        signal: AbortSignal.timeout(timeoutMs)
-    });
+        })
+    }, timeoutMs);
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const message = data?.error?.message || `AI 调用失败: HTTP ${response.status}`;
-        throw new Error(message);
+        const detail = data?.error?.message || '';
+        const message = `OpenAI 网关错误（HTTP ${response.status}）${detail ? `：${detail}` : ''}`;
+        throw createHttpError(502, message);
     }
 
     const text = data?.choices?.[0]?.message?.content || '';
@@ -343,7 +370,7 @@ async function geminiGenerateWithConfig({ name, url, description, baseUrl, apiKe
     const base = String(baseUrl || '').replace(/\/+$/, '');
     const endpoint = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -352,14 +379,14 @@ async function geminiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: { temperature: 0.2, maxOutputTokens: 220 }
-        }),
-        signal: AbortSignal.timeout(timeoutMs)
-    });
+        })
+    }, timeoutMs);
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const message = data?.error?.message || `AI 调用失败: HTTP ${response.status}`;
-        throw new Error(message);
+        const detail = data?.error?.message || '';
+        const message = `Gemini 网关错误（HTTP ${response.status}）${detail ? `：${detail}` : ''}`;
+        throw createHttpError(502, message);
     }
 
     const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
@@ -391,7 +418,7 @@ async function claudeGenerateWithConfig({ name, url, description, baseUrl, apiKe
     ].join('\n');
 
     const endpoint = `${String(baseUrl || '').replace(/\/+$/, '')}/messages`;
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -403,14 +430,14 @@ async function claudeGenerateWithConfig({ name, url, description, baseUrl, apiKe
             max_tokens: 220,
             temperature: 0.2,
             messages: [{ role: 'user', content: prompt }]
-        }),
-        signal: AbortSignal.timeout(timeoutMs)
-    });
+        })
+    }, timeoutMs);
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const message = data?.error?.message || `AI 调用失败: HTTP ${response.status}`;
-        throw new Error(message);
+        const detail = data?.error?.message || '';
+        const message = `Claude 网关错误（HTTP ${response.status}）${detail ? `：${detail}` : ''}`;
+        throw createHttpError(502, message);
     }
 
     const text = Array.isArray(data?.content)
@@ -504,6 +531,7 @@ module.exports = async function handler(req, res) {
 
         return res.status(404).json({ success: false, error: '未知操作' });
     } catch (e) {
-        return res.status(500).json({ success: false, error: e.message });
+        const statusCode = Number.isInteger(e?.statusCode) ? e.statusCode : 500;
+        return res.status(statusCode).json({ success: false, error: e.message });
     }
 };

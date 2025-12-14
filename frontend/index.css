@@ -2312,6 +2312,14 @@ body {
     white-space: nowrap;
 }
 
+/* AI 状态提示较长，允许换行 */
+#aiSettingsServerHint {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.35;
+}
+
 .setting-select {
     min-width: 150px;
     max-width: 200px;
