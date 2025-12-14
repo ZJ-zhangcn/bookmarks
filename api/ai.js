@@ -115,6 +115,31 @@ function safeJsonParse(text) {
     return null;
 }
 
+function parseAiTagsAndSummaryFromText(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return { tags: [], summary: '' };
+
+    // 1) JSON 优先
+    const parsed = safeJsonParse(raw);
+    if (parsed && typeof parsed === 'object') {
+        const tags = normalizeTagsInput(parsed.tags);
+        const summary = String(parsed.summary || '').trim().slice(0, 80);
+        return { tags, summary };
+    }
+
+    // 2) 兜底：支持 tags/summary 或 标签/摘要 的行式输出
+    const tagsLine = raw.match(/(?:^|\n)\s*(?:tags|标签)\s*[:：]\s*(.+)\s*(?:\n|$)/i);
+    const summaryLine = raw.match(/(?:^|\n)\s*(?:summary|摘要)\s*[:：]\s*(.+)\s*(?:\n|$)/i);
+
+    const tags = normalizeTagsInput(tagsLine ? tagsLine[1] : '');
+    let summary = summaryLine ? String(summaryLine[1] || '').trim() : '';
+    if (!summary) {
+        summary = raw.split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
+    }
+    summary = summary.slice(0, 80);
+    return { tags, summary };
+}
+
 async function ensureAiTables() {
     await execute(`
         CREATE TABLE IF NOT EXISTS bookmark_ai (
@@ -332,7 +357,10 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         '你是一个书签整理助手。请基于输入生成：',
         '1) tags：3~8 个中文标签（每个标签 2~8 个字，避免重复）',
         '2) summary：一句话中文摘要（<= 40 字）',
-        '只输出 JSON（不要代码块，不要多余文字），格式：{"tags":["..."],"summary":"..."}',
+        '优先只输出 JSON（不要代码块，不要多余文字），格式：{"tags":["..."],"summary":"..."}',
+        '如果无法输出 JSON，则输出两行：',
+        'tags: 标签1,标签2,标签3',
+        'summary: 摘要',
         '',
         JSON.stringify(userPayload)
     ].join('\n');
@@ -371,15 +399,9 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
     }
 
     const text = data?.choices?.[0]?.message?.content || '';
-    const parsed = safeJsonParse(text);
-    if (!parsed || typeof parsed !== 'object') throw createHttpError(502, 'OpenAI 网关返回内容无法解析为 JSON');
-
-    return {
-        tags: normalizeTagsInput(parsed.tags),
-        summary: String(parsed.summary || '').trim().slice(0, 80),
-        provider: 'openai',
-        model
-    };
+    const { tags, summary } = parseAiTagsAndSummaryFromText(text);
+    if (!tags.length && !summary) throw createHttpError(502, 'OpenAI 网关返回内容无法解析（内容为空或格式异常）');
+    return { tags, summary, provider: 'openai', model };
 }
 
 async function geminiGenerateWithConfig({ name, url, description, baseUrl, apiKey, model, timeoutMs }) {
@@ -393,7 +415,10 @@ async function geminiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         '你是一个书签整理助手。请基于输入生成：',
         '1) tags：3~8 个中文标签（每个标签 2~8 个字，避免重复）',
         '2) summary：一句话中文摘要（<= 40 字）',
-        '只输出 JSON（不要代码块，不要多余文字），格式：{"tags":["..."],"summary":"..."}',
+        '优先只输出 JSON（不要代码块，不要多余文字），格式：{"tags":["..."],"summary":"..."}',
+        '如果无法输出 JSON，则输出两行：',
+        'tags: 标签1,标签2,标签3',
+        'summary: 摘要',
         '',
         JSON.stringify(userPayload)
     ].join('\n');
@@ -429,15 +454,9 @@ async function geminiGenerateWithConfig({ name, url, description, baseUrl, apiKe
     }
 
     const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
-    const parsed = safeJsonParse(text);
-    if (!parsed || typeof parsed !== 'object') throw createHttpError(502, 'Gemini 网关返回内容无法解析为 JSON');
-
-    return {
-        tags: normalizeTagsInput(parsed.tags),
-        summary: String(parsed.summary || '').trim().slice(0, 80),
-        provider: 'gemini',
-        model
-    };
+    const { tags, summary } = parseAiTagsAndSummaryFromText(text);
+    if (!tags.length && !summary) throw createHttpError(502, 'Gemini 网关返回内容无法解析（内容为空或格式异常）');
+    return { tags, summary, provider: 'gemini', model };
 }
 
 async function claudeGenerateWithConfig({ name, url, description, baseUrl, apiKey, model, timeoutMs }) {
@@ -451,7 +470,10 @@ async function claudeGenerateWithConfig({ name, url, description, baseUrl, apiKe
         '你是一个书签整理助手。请基于输入生成：',
         '1) tags：3~8 个中文标签（每个标签 2~8 个字，避免重复）',
         '2) summary：一句话中文摘要（<= 40 字）',
-        '只输出 JSON（不要代码块，不要多余文字），格式：{"tags":["..."],"summary":"..."}',
+        '优先只输出 JSON（不要代码块，不要多余文字），格式：{"tags":["..."],"summary":"..."}',
+        '如果无法输出 JSON，则输出两行：',
+        'tags: 标签1,标签2,标签3',
+        'summary: 摘要',
         '',
         JSON.stringify(userPayload)
     ].join('\n');
@@ -490,15 +512,9 @@ async function claudeGenerateWithConfig({ name, url, description, baseUrl, apiKe
     const text = Array.isArray(data?.content)
         ? data.content.map(c => (c && c.type === 'text' ? c.text : '')).filter(Boolean).join('')
         : (data?.content?.text || '');
-    const parsed = safeJsonParse(text);
-    if (!parsed || typeof parsed !== 'object') throw createHttpError(502, 'Claude 网关返回内容无法解析为 JSON');
-
-    return {
-        tags: normalizeTagsInput(parsed.tags),
-        summary: String(parsed.summary || '').trim().slice(0, 80),
-        provider: 'claude',
-        model
-    };
+    const { tags, summary } = parseAiTagsAndSummaryFromText(text);
+    if (!tags.length && !summary) throw createHttpError(502, 'Claude 网关返回内容无法解析（内容为空或格式异常）');
+    return { tags, summary, provider: 'claude', model };
 }
 
 module.exports = async function handler(req, res) {
