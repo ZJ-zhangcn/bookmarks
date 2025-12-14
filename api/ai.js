@@ -315,22 +315,30 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
     ].join('\n');
 
     const endpoint = `${String(baseUrl || '').replace(/\/+$/, '')}/chat/completions`;
-    const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            model,
-            messages: [
-                { role: 'system', content: '你严格按要求输出 JSON。' },
-                { role: 'user', content: prompt }
-            ],
-            temperature: 0.2,
-            max_tokens: 220
-        })
-    }, timeoutMs);
+    let response;
+    try {
+        response = await fetchWithTimeout(endpoint, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model,
+                messages: [
+                    { role: 'system', content: '你严格按要求输出 JSON。' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.2,
+                max_tokens: 220
+            })
+        }, timeoutMs);
+    } catch (e) {
+        if (e?.name === 'AbortError') {
+            throw createHttpError(504, 'OpenAI 网关请求超时');
+        }
+        throw createHttpError(502, `无法连接 OpenAI 网关：${e?.message || 'network error'}`);
+    }
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -341,7 +349,7 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
 
     const text = data?.choices?.[0]?.message?.content || '';
     const parsed = safeJsonParse(text);
-    if (!parsed || typeof parsed !== 'object') throw new Error('AI 返回内容无法解析为 JSON');
+    if (!parsed || typeof parsed !== 'object') throw createHttpError(502, 'OpenAI 网关返回内容无法解析为 JSON');
 
     return {
         tags: normalizeTagsInput(parsed.tags),
@@ -370,17 +378,25 @@ async function geminiGenerateWithConfig({ name, url, description, baseUrl, apiKe
     const base = String(baseUrl || '').replace(/\/+$/, '');
     const endpoint = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey
-        },
-        body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, maxOutputTokens: 220 }
-        })
-    }, timeoutMs);
+    let response;
+    try {
+        response = await fetchWithTimeout(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey
+            },
+            body: JSON.stringify({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.2, maxOutputTokens: 220 }
+            })
+        }, timeoutMs);
+    } catch (e) {
+        if (e?.name === 'AbortError') {
+            throw createHttpError(504, 'Gemini 网关请求超时');
+        }
+        throw createHttpError(502, `无法连接 Gemini 网关：${e?.message || 'network error'}`);
+    }
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -391,7 +407,7 @@ async function geminiGenerateWithConfig({ name, url, description, baseUrl, apiKe
 
     const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
     const parsed = safeJsonParse(text);
-    if (!parsed || typeof parsed !== 'object') throw new Error('AI 返回内容无法解析为 JSON');
+    if (!parsed || typeof parsed !== 'object') throw createHttpError(502, 'Gemini 网关返回内容无法解析为 JSON');
 
     return {
         tags: normalizeTagsInput(parsed.tags),
@@ -418,20 +434,28 @@ async function claudeGenerateWithConfig({ name, url, description, baseUrl, apiKe
     ].join('\n');
 
     const endpoint = `${String(baseUrl || '').replace(/\/+$/, '')}/messages`;
-    const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': process.env.ANTHROPIC_VERSION || '2023-06-01'
-        },
-        body: JSON.stringify({
-            model,
-            max_tokens: 220,
-            temperature: 0.2,
-            messages: [{ role: 'user', content: prompt }]
-        })
-    }, timeoutMs);
+    let response;
+    try {
+        response = await fetchWithTimeout(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': process.env.ANTHROPIC_VERSION || '2023-06-01'
+            },
+            body: JSON.stringify({
+                model,
+                max_tokens: 220,
+                temperature: 0.2,
+                messages: [{ role: 'user', content: prompt }]
+            })
+        }, timeoutMs);
+    } catch (e) {
+        if (e?.name === 'AbortError') {
+            throw createHttpError(504, 'Claude 网关请求超时');
+        }
+        throw createHttpError(502, `无法连接 Claude 网关：${e?.message || 'network error'}`);
+    }
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -444,7 +468,7 @@ async function claudeGenerateWithConfig({ name, url, description, baseUrl, apiKe
         ? data.content.map(c => (c && c.type === 'text' ? c.text : '')).filter(Boolean).join('')
         : (data?.content?.text || '');
     const parsed = safeJsonParse(text);
-    if (!parsed || typeof parsed !== 'object') throw new Error('AI 返回内容无法解析为 JSON');
+    if (!parsed || typeof parsed !== 'object') throw createHttpError(502, 'Claude 网关返回内容无法解析为 JSON');
 
     return {
         tags: normalizeTagsInput(parsed.tags),
