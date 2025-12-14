@@ -123,6 +123,18 @@ async function createTables() {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
+            // AI 标签/摘要（可选）
+            await conn.execute(`
+                CREATE TABLE IF NOT EXISTS bookmark_ai (
+                    bookmark_id VARCHAR(50) PRIMARY KEY,
+                    tags LONGTEXT,
+                    summary TEXT,
+                    provider VARCHAR(50),
+                    model VARCHAR(100),
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+
             console.log('✅ MySQL 数据表创建/检查完成');
         } finally {
             conn.release();
@@ -175,6 +187,16 @@ async function createTables() {
                 data TEXT NOT NULL,
                 type TEXT DEFAULT 'url',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- AI 标签/摘要（可选）
+            CREATE TABLE IF NOT EXISTS bookmark_ai (
+                bookmark_id TEXT PRIMARY KEY,
+                tags TEXT,
+                summary TEXT,
+                provider TEXT,
+                model TEXT,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
         `);
 

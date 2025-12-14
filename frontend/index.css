@@ -864,6 +864,19 @@ body {
     font-size: 0.8rem;
 }
 
+/* AI（可选） */
+.ai-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+    margin-top: var(--spacing-xs);
+}
+
+.ai-hint {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
 .btn {
     display: inline-flex;
     align-items: center;

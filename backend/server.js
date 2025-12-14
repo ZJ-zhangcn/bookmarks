@@ -14,6 +14,7 @@ const os = require('os');
 const fs = require('fs');
 const cheerio = require('cheerio');
 const db = require('./db');
+const { registerAiRoutes } = require('./ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,6 +23,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '1gb' }));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
+
+// AI（可选功能，不影响现有功能）
+registerAiRoutes(app, db);
 
 // ========================================
 // 系统状态 API

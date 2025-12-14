@@ -281,6 +281,14 @@
                     <label for="bookmarkInputDesc">描述</label>
                     <input type="text" id="bookmarkInputDesc" placeholder="简短描述" autocomplete="off" data-form-type="other">
                 </div>
+                <div class="form-group bookmark-only-field" id="bookmarkTagsGroup">
+                    <label for="bookmarkInputTags">标签</label>
+                    <input type="text" id="bookmarkInputTags" placeholder="用逗号分隔：开发,工具,AI" autocomplete="off" data-form-type="other">
+                    <div class="ai-actions" id="bookmarkAiActions" style="display:none;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="aiGenerateBtn">AI 生成描述/标签</button>
+                        <small class="ai-hint" id="aiStatusHint"></small>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label>图标</label>
                     <div class="icon-selector">
@@ -664,9 +672,47 @@
                                 <button class="btn btn-secondary" id="webdavUploadBtn">上传</button>
                                 <button class="btn btn-primary" id="webdavDownloadBtn">下载</button>
                             </div>
-                            <div class="webdav-status" id="webdavStatus"></div>
-                        </div>
-                    </div>
+	                            <div class="webdav-status" id="webdavStatus"></div>
+	                        </div>
+	                        <div class="setting-card">
+	                            <h5 class="card-subtitle">🤖 AI 设置（自用）</h5>
+	                            <div class="setting-row">
+	                                <div class="setting-info">
+	                                    <div class="setting-label">状态</div>
+	                                    <div class="setting-desc" id="aiSettingsServerHint">正在加载...</div>
+	                                </div>
+	                            </div>
+	                            <div class="form-group">
+	                                <label for="aiApiBaseUrl">API 地址</label>
+	                                <input type="url" id="aiApiBaseUrl" placeholder="https://api.openai.com/v1" autocomplete="off" data-form-type="other">
+	                                <small class="setting-hint">填写 OpenAI 兼容接口的基础地址（含 /v1），留空则使用服务器默认值</small>
+	                            </div>
+	                            <div class="form-group">
+	                                <label for="aiProvider">Provider</label>
+	                                <select id="aiProvider" class="setting-select">
+	                                    <option value="">跟随服务器默认</option>
+	                                    <option value="openai">openai</option>
+	                                    <option value="gemini">gemini</option>
+	                                    <option value="claude">claude</option>
+	                                </select>
+	                                <small class="setting-hint">仅在服务器允许覆盖 Provider 时生效（AI_ALLOW_CLIENT_PROVIDER=true）</small>
+	                            </div>
+	                            <div class="form-group">
+	                                <label for="aiModel">Model</label>
+	                                <input type="text" id="aiModel" placeholder="gpt-4o-mini" autocomplete="off" data-form-type="other">
+	                                <small class="setting-hint">留空则使用服务器默认值</small>
+	                            </div>
+	                            <div class="form-group">
+	                                <label for="aiApiKey">API Key</label>
+	                                <input type="password" id="aiApiKey" placeholder="仅保存在本浏览器 localStorage" autocomplete="new-password" data-form-type="other">
+	                                <small class="setting-hint">无登录场景下不建议对外暴露站点；更安全的做法是只在服务器环境变量中配置 Key</small>
+	                            </div>
+	                            <div class="setting-row">
+	                                <button class="btn btn-secondary" id="aiSaveSettingsBtn">保存到浏览器</button>
+	                                <button class="btn btn-danger" id="aiClearSettingsBtn">清除</button>
+	                            </div>
+	                        </div>
+	                    </div>
 
                     <!-- 关于 -->
                     <div class="settings-panel" data-panel="about">

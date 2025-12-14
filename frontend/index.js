@@ -24,6 +24,14 @@ let currentIconType = 'auto';
 let currentIconData = '';
 let editingBookmark = null; // 存储正在编辑的书签原始数据
 let collapsedCategories = new Set(); // 存储折叠状态的分类ID
+let aiStatus = { enabled: false, provider: null, model: null, note: null };
+
+const AI_CLIENT_STORAGE = {
+    apiBaseUrl: 'aiApiBaseUrl',
+    apiKey: 'aiApiKey',
+    model: 'aiModel',
+    provider: 'aiProvider'
+};
 
 // ========================================
 // DOM 元素
@@ -42,7 +50,9 @@ async function init() {
     window.scrollTo(0, 0);
 
     cacheDOMElements();
+    loadAiClientSettingsToUi();
     loadCollapsedState(); // 加载折叠状态
+    await loadAiStatus();
     await loadData();
     renderAll();
     bindAllEvents();
@@ -96,6 +106,10 @@ function cacheDOMElements() {
         bookmarkInputName: document.getElementById('bookmarkInputName'),
         bookmarkInputUrl: document.getElementById('bookmarkInputUrl'),
         bookmarkInputDesc: document.getElementById('bookmarkInputDesc'),
+        bookmarkInputTags: document.getElementById('bookmarkInputTags'),
+        bookmarkAiActions: document.getElementById('bookmarkAiActions'),
+        aiGenerateBtn: document.getElementById('aiGenerateBtn'),
+        aiStatusHint: document.getElementById('aiStatusHint'),
         bookmarkInputCategory: document.getElementById('bookmarkInputCategory'),
         bookmarkItemType: document.getElementById('bookmarkItemType'),
         bookmarkComponentType: document.getElementById('bookmarkComponentType'),
@@ -128,6 +142,14 @@ function cacheDOMElements() {
         importFile: document.getElementById('importFile'),
         includeIconsExport: document.getElementById('includeIconsExport'),
         includeIconsWebdav: document.getElementById('includeIconsWebdav'),
+        // AI（自用设置，保存在浏览器 localStorage）
+        aiSettingsServerHint: document.getElementById('aiSettingsServerHint'),
+        aiApiBaseUrl: document.getElementById('aiApiBaseUrl'),
+        aiProvider: document.getElementById('aiProvider'),
+        aiModel: document.getElementById('aiModel'),
+        aiApiKey: document.getElementById('aiApiKey'),
+        aiSaveSettingsBtn: document.getElementById('aiSaveSettingsBtn'),
+        aiClearSettingsBtn: document.getElementById('aiClearSettingsBtn'),
         categoryList: document.getElementById('categoryList'),
         addCategoryBtn: document.getElementById('addCategoryBtn'),
         webdavUrl: document.getElementById('webdavUrl'),
@@ -172,6 +194,96 @@ function cacheDOMElements() {
         settingsTabs: document.querySelectorAll('.settings-tab'),
         settingsPanels: document.querySelectorAll('.settings-panel'),
     };
+}
+
+function getAiClientSettings() {
+    return {
+        apiBaseUrl: localStorage.getItem(AI_CLIENT_STORAGE.apiBaseUrl) || '',
+        apiKey: localStorage.getItem(AI_CLIENT_STORAGE.apiKey) || '',
+        model: localStorage.getItem(AI_CLIENT_STORAGE.model) || '',
+        provider: localStorage.getItem(AI_CLIENT_STORAGE.provider) || ''
+    };
+}
+
+function loadAiClientSettingsToUi() {
+    const cfg = getAiClientSettings();
+    if (DOM.aiApiBaseUrl) DOM.aiApiBaseUrl.value = cfg.apiBaseUrl;
+    if (DOM.aiProvider) DOM.aiProvider.value = cfg.provider;
+    if (DOM.aiApiKey) DOM.aiApiKey.value = cfg.apiKey;
+    if (DOM.aiModel) DOM.aiModel.value = cfg.model;
+}
+
+function saveAiClientSettingsFromUi() {
+    if (!DOM.aiApiBaseUrl || !DOM.aiApiKey || !DOM.aiModel || !DOM.aiProvider) return;
+    localStorage.setItem(AI_CLIENT_STORAGE.apiBaseUrl, DOM.aiApiBaseUrl.value.trim());
+    localStorage.setItem(AI_CLIENT_STORAGE.apiKey, DOM.aiApiKey.value.trim());
+    localStorage.setItem(AI_CLIENT_STORAGE.model, DOM.aiModel.value.trim());
+    localStorage.setItem(AI_CLIENT_STORAGE.provider, DOM.aiProvider.value.trim());
+    updateAiSettingsServerHint();
+    alert('AI 设置已保存到当前浏览器');
+}
+
+function clearAiClientSettings() {
+    localStorage.removeItem(AI_CLIENT_STORAGE.apiBaseUrl);
+    localStorage.removeItem(AI_CLIENT_STORAGE.apiKey);
+    localStorage.removeItem(AI_CLIENT_STORAGE.model);
+    localStorage.removeItem(AI_CLIENT_STORAGE.provider);
+    loadAiClientSettingsToUi();
+    updateAiSettingsServerHint();
+    alert('AI 设置已清除');
+}
+
+function updateAiSettingsServerHint() {
+    if (!DOM.aiSettingsServerHint) return;
+
+    const enabled = Boolean(aiStatus && aiStatus.enabled);
+    const provider = aiStatus?.provider ? String(aiStatus.provider).toUpperCase() : 'AI';
+    const serverModel = aiStatus?.model ? String(aiStatus.model) : '';
+    const allowKey = Boolean(aiStatus?.allowClientKey);
+    const allowBaseUrl = Boolean(aiStatus?.allowClientBaseUrl);
+    const allowProvider = Boolean(aiStatus?.allowClientProvider);
+    const hasServerKey = Boolean(aiStatus?.hasServerKey);
+
+    if (!enabled) {
+        DOM.aiSettingsServerHint.textContent = '服务器未开启 AI（AI_ENABLED!=true）';
+        return;
+    }
+
+    const parts = [];
+    parts.push(`${provider}${serverModel ? ` · 默认模型 ${serverModel}` : ''}`);
+    parts.push(hasServerKey ? '服务器已配置 Key' : '服务器未配置 Key');
+    parts.push(allowKey ? '允许前端传入 Key' : '不允许前端传入 Key');
+    parts.push(allowBaseUrl ? '允许前端覆盖 API 地址' : '不允许前端覆盖 API 地址');
+    parts.push(allowProvider ? '允许前端覆盖 Provider' : '不允许前端覆盖 Provider');
+    DOM.aiSettingsServerHint.textContent = parts.join(' / ');
+}
+
+async function loadAiStatus() {
+    try {
+        const res = await fetch(`${API_BASE}/api/ai?action=status`);
+        const result = await res.json();
+        if (result && result.success && result.data) {
+            aiStatus = result.data;
+        }
+    } catch (e) {
+        aiStatus = { enabled: false, provider: null, model: null, note: null };
+    } finally {
+        updateAiUiVisibility();
+        updateAiSettingsServerHint();
+    }
+}
+
+function updateAiUiVisibility() {
+    if (!DOM.bookmarkAiActions || !DOM.aiStatusHint) return;
+    const enabled = Boolean(aiStatus && aiStatus.enabled);
+    DOM.bookmarkAiActions.style.display = enabled ? '' : 'none';
+    if (enabled) {
+        const provider = aiStatus.provider ? String(aiStatus.provider).toUpperCase() : 'AI';
+        const model = aiStatus.model ? ` · ${aiStatus.model}` : '';
+        DOM.aiStatusHint.textContent = `${provider}${model}`;
+    } else {
+        DOM.aiStatusHint.textContent = '';
+    }
 }
 
 // ========================================
@@ -633,6 +745,9 @@ function bindAllEvents() {
     DOM.bookmarkModal.addEventListener('click', e => { if (e.target === DOM.bookmarkModal) closeBookmarkModal(); });
     DOM.cancelBookmarkBtn.addEventListener('click', closeBookmarkModal);
     DOM.saveBookmarkBtn.addEventListener('click', saveBookmark);
+    if (DOM.aiGenerateBtn) {
+        DOM.aiGenerateBtn.addEventListener('click', handleAiGenerate);
+    }
 
     // 图标选择
     document.querySelectorAll('.icon-tab').forEach(tab => {
@@ -712,6 +827,10 @@ function bindAllEvents() {
     DOM.webdavSaveBtn.addEventListener('click', saveWebdavSettings);
     DOM.webdavUploadBtn.addEventListener('click', webdavUpload);
     DOM.webdavDownloadBtn.addEventListener('click', webdavDownload);
+
+    // AI（自用设置）
+    if (DOM.aiSaveSettingsBtn) DOM.aiSaveSettingsBtn.addEventListener('click', saveAiClientSettingsFromUi);
+    if (DOM.aiClearSettingsBtn) DOM.aiClearSettingsBtn.addEventListener('click', clearAiClientSettings);
 
     // 设置标签页切换
     DOM.settingsTabs.forEach(tab => {
@@ -951,6 +1070,7 @@ function openBookmarkModal(bookmarkId = null, categoryId = null) {
             DOM.bookmarkInputName.value = bookmark.name;
             DOM.bookmarkInputUrl.value = bookmark.url;
             DOM.bookmarkInputDesc.value = bookmark.description || '';
+            if (DOM.bookmarkInputTags) DOM.bookmarkInputTags.value = '';
             DOM.bookmarkInputCategory.value = bookmark.category_id;
 
             // 根据原图标类型设置当前图标类型，base64 类型显示为 auto
@@ -988,6 +1108,7 @@ function openBookmarkModal(bookmarkId = null, categoryId = null) {
         DOM.bookmarkInputName.value = '';
         DOM.bookmarkInputUrl.value = '';
         DOM.bookmarkInputDesc.value = '';
+        if (DOM.bookmarkInputTags) DOM.bookmarkInputTags.value = '';
         currentIconType = 'auto';
         currentIconData = '';
         DOM.bookmarkInputEmoji.value = '';
@@ -1006,6 +1127,10 @@ function openBookmarkModal(bookmarkId = null, categoryId = null) {
 
     DOM.bookmarkModal.classList.add('open');
     document.body.style.overflow = 'hidden';
+    updateAiUiVisibility();
+    if (DOM.bookmarkInputTags) {
+        loadBookmarkAi(bookmarkId);
+    }
 
     // 监听分类选择变化
     DOM.bookmarkInputCategory.onchange = function () {
@@ -1018,6 +1143,104 @@ function openBookmarkModal(bookmarkId = null, categoryId = null) {
             }
         }
     };
+}
+
+async function loadBookmarkAi(bookmarkId) {
+    if (!DOM.bookmarkInputTags) return;
+    if (!bookmarkId) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/ai?action=bookmark&id=${encodeURIComponent(bookmarkId)}`);
+        const result = await res.json();
+        if (result && result.success && result.data) {
+            const tags = Array.isArray(result.data.tags) ? result.data.tags : [];
+            DOM.bookmarkInputTags.value = tags.join(',');
+            if (result.data.summary && !DOM.bookmarkInputDesc.value) {
+                DOM.bookmarkInputDesc.value = result.data.summary;
+            }
+        }
+    } catch (e) {}
+}
+
+async function saveBookmarkAi(bookmarkId) {
+    if (!DOM.bookmarkInputTags) return;
+    const tagsText = DOM.bookmarkInputTags.value.trim();
+    try {
+        await fetch(`${API_BASE}/api/ai?action=bookmark`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookmarkId, tags: tagsText })
+        });
+    } catch (e) {}
+}
+
+async function handleAiGenerate() {
+    if (!aiStatus || !aiStatus.enabled) {
+        alert('AI 功能未启用（建议仅在 Docker 主站开启）');
+        return;
+    }
+
+    const name = DOM.bookmarkInputName.value.trim();
+    const url = DOM.bookmarkInputUrl.value.trim();
+    const description = DOM.bookmarkInputDesc.value.trim();
+    if (!name && !url) {
+        alert('请先填写名称或网址');
+        return;
+    }
+
+    if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = '生成中...';
+    try {
+        const clientCfg = getAiClientSettings();
+        const payload = { name, url, description };
+
+        const provider = String(clientCfg.provider || '').trim();
+        if (provider && aiStatus.allowClientProvider) payload.provider = provider;
+
+        const model = String(clientCfg.model || '').trim();
+        if (model) payload.model = model;
+
+        const baseUrl = String(clientCfg.apiBaseUrl || '').trim();
+        if (baseUrl && aiStatus.allowClientBaseUrl) payload.apiBaseUrl = baseUrl;
+
+        const apiKey = String(clientCfg.apiKey || '').trim();
+        if (apiKey && aiStatus.allowClientKey) payload.apiKey = apiKey;
+
+        const res = await fetch(`${API_BASE}/api/ai?action=generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+            throw new Error(result.error || `HTTP ${res.status}`);
+        }
+
+        const data = result.data || {};
+        const tags = Array.isArray(data.tags) ? data.tags : [];
+        const summary = String(data.summary || '').trim();
+
+        if (summary) {
+            if (!DOM.bookmarkInputDesc.value) {
+                DOM.bookmarkInputDesc.value = summary;
+            } else {
+                const ok = confirm('AI 已生成摘要，是否覆盖当前“描述”？');
+                if (ok) DOM.bookmarkInputDesc.value = summary;
+            }
+        }
+
+        if (DOM.bookmarkInputTags && tags.length > 0) {
+            const next = tags.join(',');
+            if (!DOM.bookmarkInputTags.value.trim()) {
+                DOM.bookmarkInputTags.value = next;
+            } else {
+                const ok = confirm('AI 已生成标签，是否覆盖当前“标签”？');
+                if (ok) DOM.bookmarkInputTags.value = next;
+            }
+        }
+    } catch (e) {
+        alert('AI 生成失败: ' + e.message);
+    } finally {
+        updateAiUiVisibility();
+    }
 }
 
 async function createCategoryForBookmark(name) {
@@ -1132,15 +1355,18 @@ async function saveBookmark() {
                 category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type
             })
         });
+        const result = await res.json().catch(() => null);
 
-        if (res.ok) {
+        if (res.ok && result && result.success) {
+            const savedId = result?.data?.id || editingBookmarkId;
+            if (savedId) await saveBookmarkAi(savedId);
             await loadData();
             renderAll();
             refreshIconLibraryCache(); // 刷新图标库缓存
             closeBookmarkModal();
         } else {
-            const err = await res.json();
-            alert('保存失败: ' + err.error);
+            const errMsg = result?.error || `HTTP ${res.status}`;
+            alert('保存失败: ' + errMsg);
         }
     } catch (e) {
         alert('保存失败: ' + e.message);

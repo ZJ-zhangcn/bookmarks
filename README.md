@@ -20,6 +20,7 @@
 | 🐳 **Docker 管理** | 查看和控制 Docker 容器状态 |
 | ☁️ **数据同步** | 支持本地导入导出和 WebDAV 云同步 |
 | 🖼️ **图标库** | 自动缓存图标，可复用 |
+| 🤖 **AI 辅助（可选）** | AI 生成书签标签/摘要（建议仅在 Docker 主站开启） |
 | 🌐 **多语言** | 支持简体中文、繁体中文、English |
 
 ## 🚀 快速部署
@@ -185,12 +186,45 @@ ports:
 | `HOST_PROC` | `/host/proc` | 宿主机 /proc 挂载路径 |
 | `HOST_SYS` | `/host/sys` | 宿主机 /sys 挂载路径 |
 | `DATABASE_URL` | - | MySQL 连接字符串（可选，不设置则使用 SQLite） |
+| `AI_ENABLED` | `false` | 是否启用 AI（建议仅 Docker 主站开启） |
+| `AI_PROVIDER` | `openai` | AI 提供商（支持 `openai` / `gemini` / `claude`） |
+| `AI_MODEL` | - | 模型名（不同 Provider 不同，如 `gpt-4o-mini` / `gemini-1.5-flash` / `claude-3-5-sonnet-latest`） |
+| `AI_BASE_URL` | - | API 基础地址（按 Provider 自动默认；也可统一覆盖） |
+| `AI_TIMEOUT_MS` | `8000` | AI 调用超时（毫秒） |
+| `AI_ALLOW_CLIENT_KEY` | `false` | 是否允许前端传入 Key（自用场景可选，不建议对外站点开启） |
+| `AI_ALLOW_CLIENT_BASE_URL` | `false` | 是否允许前端覆盖 API 地址（自用场景可选） |
+| `AI_ALLOW_CLIENT_PROVIDER` | `false` | 是否允许前端覆盖 Provider（自用场景可选） |
+| `AI_ALLOW_PRIVATE_BASE_URL` | `false` | 是否允许内网/本地 API 地址（如 `http://localhost:11434`） |
+| `OPENAI_API_KEY` | - | OpenAI Key（仅在部署平台配置，不写入仓库） |
+| `GEMINI_API_KEY` | - | Gemini Key（Google Generative Language API Key） |
+| `ANTHROPIC_API_KEY` | - | Claude Key（Anthropic API Key） |
+| `ANTHROPIC_VERSION` | `2023-06-01` | Claude API 版本头（一般不用改） |
 
 #### Vercel 部署
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
 | `DATABASE_URL` | ✅ | MySQL 连接字符串，格式：`mysql://user:pass@host:port/bookmarks?ssl-mode=REQUIRED` |
+| `AI_ENABLED` | ❌ | 建议保持关闭（Vercel 免费计划可能受执行时长/资源限制影响） |
+
+## 🤖 AI 辅助（可选）
+
+当前已内置一个最小可用的 AI 能力：在“添加/编辑书签”弹窗里，支持一键生成“描述/标签”。
+
+注意事项：
+- Docker 主站：推荐开启（自用场景更稳定，且不受 Vercel 免费计划限制）
+- Vercel 备用站：推荐默认关闭（保持核心导航可用即可）
+- 自定义 API / Key / Model：在「设置 → 数据同步 → AI 设置」填写并保存到本浏览器（localStorage）
+  - 若要让前端传入 Key：需服务端设置 `AI_ALLOW_CLIENT_KEY=true`
+  - 若要让前端覆盖 API 地址：需服务端设置 `AI_ALLOW_CLIENT_BASE_URL=true`
+  - 若要让前端切换 Provider：需服务端设置 `AI_ALLOW_CLIENT_PROVIDER=true`
+  - 若要使用内网/本地地址（如 Ollama）：还需设置 `AI_ALLOW_PRIVATE_BASE_URL=true`
+
+相关接口（两种部署形态共用）：
+- `GET /api/ai?action=status`
+- `POST /api/ai?action=generate`
+- `GET /api/ai?action=bookmark&id=...`
+- `POST /api/ai?action=bookmark`
 
 ## 🔄 数据备份与恢复
 
