@@ -4,6 +4,8 @@ FROM node:20-alpine
 # 安装 better-sqlite3 编译依赖
 # 使用 --no-cache 并分步执行以提高跨平台构建稳定性
 RUN apk update && \
+    apk add --no-cache ca-certificates && \
+    update-ca-certificates && \
     apk add --no-cache python3 && \
     apk add --no-cache make && \
     apk add --no-cache g++

@@ -297,6 +297,29 @@ function createHttpError(statusCode, message) {
     return err;
 }
 
+function formatFetchCause(err) {
+    const parts = [];
+    const cause = err && typeof err === 'object' ? err.cause : null;
+
+    if (err && typeof err === 'object') {
+        if (err.code) parts.push(`code=${err.code}`);
+        if (err.errno) parts.push(`errno=${err.errno}`);
+        if (err.syscall) parts.push(`syscall=${err.syscall}`);
+    }
+
+    if (cause && typeof cause === 'object') {
+        if (cause.code) parts.push(`cause.code=${cause.code}`);
+        if (cause.errno) parts.push(`cause.errno=${cause.errno}`);
+        if (cause.syscall) parts.push(`cause.syscall=${cause.syscall}`);
+        if (cause.hostname) parts.push(`cause.hostname=${cause.hostname}`);
+        if (cause.address) parts.push(`cause.address=${cause.address}`);
+        if (cause.port) parts.push(`cause.port=${cause.port}`);
+        if (cause.message) parts.push(`cause.message=${cause.message}`);
+    }
+
+    return parts.length ? `（${parts.join(', ')}）` : '';
+}
+
 async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKey, model, timeoutMs }) {
 
     const userPayload = {
@@ -337,7 +360,7 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         if (e?.name === 'AbortError') {
             throw createHttpError(504, 'OpenAI 网关请求超时');
         }
-        throw createHttpError(502, `无法连接 OpenAI 网关：${e?.message || 'network error'}`);
+        throw createHttpError(502, `无法连接 OpenAI 网关（${endpoint}）：${e?.message || 'network error'}${formatFetchCause(e)}`);
     }
 
     const data = await response.json().catch(() => ({}));
@@ -395,7 +418,7 @@ async function geminiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         if (e?.name === 'AbortError') {
             throw createHttpError(504, 'Gemini 网关请求超时');
         }
-        throw createHttpError(502, `无法连接 Gemini 网关：${e?.message || 'network error'}`);
+        throw createHttpError(502, `无法连接 Gemini 网关（${endpoint}）：${e?.message || 'network error'}${formatFetchCause(e)}`);
     }
 
     const data = await response.json().catch(() => ({}));
@@ -454,7 +477,7 @@ async function claudeGenerateWithConfig({ name, url, description, baseUrl, apiKe
         if (e?.name === 'AbortError') {
             throw createHttpError(504, 'Claude 网关请求超时');
         }
-        throw createHttpError(502, `无法连接 Claude 网关：${e?.message || 'network error'}`);
+        throw createHttpError(502, `无法连接 Claude 网关（${endpoint}）：${e?.message || 'network error'}${formatFetchCause(e)}`);
     }
 
     const data = await response.json().catch(() => ({}));
