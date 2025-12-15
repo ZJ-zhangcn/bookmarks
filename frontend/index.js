@@ -150,6 +150,9 @@ function cacheDOMElements() {
         aiRefineBtn: document.getElementById('aiRefineBtn'),
         aiStatusHint: document.getElementById('aiStatusHint'),
         bookmarkInputCategory: document.getElementById('bookmarkInputCategory'),
+        categoryRecommendations: document.getElementById('categoryRecommendations'),
+        categoryRecChips: document.getElementById('categoryRecChips'),
+        categoryRecClose: document.getElementById('categoryRecClose'),
         bookmarkItemType: document.getElementById('bookmarkItemType'),
         bookmarkComponentType: document.getElementById('bookmarkComponentType'),
         componentTypeGroup: document.getElementById('componentTypeGroup'),
@@ -810,6 +813,14 @@ function bindAllEvents() {
         DOM.aiRefineBtn.addEventListener('click', () => handleAiGenerate({ mode: 'refine' }));
     }
 
+    // 分类推荐事件
+    if (DOM.categoryRecChips) {
+        DOM.categoryRecChips.addEventListener('click', handleCategoryRecChipClick);
+    }
+    if (DOM.categoryRecClose) {
+        DOM.categoryRecClose.addEventListener('click', hideCategoryRecommendations);
+    }
+
     // 图标选择
     document.querySelectorAll('.icon-tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -1186,6 +1197,7 @@ function openBookmarkModal(bookmarkId = null, categoryId = null) {
     // 只在书签弹窗内查找面板
     DOM.bookmarkModal.querySelector(`[data-panel="${currentIconType}"]`)?.classList.add('active');
 
+    hideCategoryRecommendations();
     DOM.bookmarkModal.classList.add('open');
     document.body.style.overflow = 'hidden';
     updateAiUiVisibility();
@@ -1302,6 +1314,9 @@ async function handleAiGenerate({ mode }) {
         const apiKey = String(clientCfg.apiKey || '').trim();
         if (apiKey && aiStatus.allowClientKey) payload.apiKey = apiKey;
 
+        // 传入现有分类名称列表供 AI 推荐
+        payload.categories = categories.map(c => c.name);
+
         const res = await fetch(`${API_BASE}/api/ai?action=generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1335,10 +1350,15 @@ async function handleAiGenerate({ mode }) {
             if (!DOM.bookmarkInputTags.value.trim()) {
                 DOM.bookmarkInputTags.value = next;
             } else {
-                const ok = confirm('AI 已生成标签，是否覆盖当前“标签”？');
+                const ok = confirm('AI 已生成标签，是否覆盖当前"标签"？');
                 if (ok) DOM.bookmarkInputTags.value = next;
             }
         }
+
+        // 处理分类推荐
+        const recommendedCategory = String(data.category || '').trim();
+        const suggestedNewCategory = String(data.newCategory || '').trim();
+        showCategoryRecommendations(recommendedCategory, suggestedNewCategory);
     } catch (e) {
         alert('AI 生成失败: ' + e.message);
     } finally {
@@ -1364,9 +1384,92 @@ async function createCategoryForBookmark(name) {
                 `<option value="${c.id}">${c.icon} ${c.name}</option>`
             ).join('') + '<option value="__new__">+ 新建分类...</option>';
             DOM.bookmarkInputCategory.value = data.data.id;
+            return data.data;
         }
     } catch (e) {
         alert('创建分类失败: ' + e.message);
+    }
+    return null;
+}
+
+function showCategoryRecommendations(recommendedCategory, suggestedNewCategory) {
+    if (!DOM.categoryRecommendations || !DOM.categoryRecChips) return;
+
+    DOM.categoryRecChips.innerHTML = '';
+    let hasContent = false;
+
+    // 已有分类推荐（使用 DOM API 避免 XSS）
+    if (recommendedCategory) {
+        const matchedCat = categories.find(c => c.name === recommendedCategory);
+        // 跳过已选中的分类
+        if (matchedCat && DOM.bookmarkInputCategory.value !== matchedCat.id) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'rec-chip existing';
+            btn.dataset.categoryId = matchedCat.id;
+            btn.textContent = `${matchedCat.icon || '📁'} ${matchedCat.name}`;
+            DOM.categoryRecChips.appendChild(btn);
+            hasContent = true;
+        }
+    }
+
+    // 建议新分类（检查是否已存在同名分类）
+    if (suggestedNewCategory) {
+        const normalizedNew = suggestedNewCategory.trim().toLowerCase();
+        const existingCat = categories.find(c => c.name.toLowerCase() === normalizedNew);
+        if (!existingCat) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'rec-chip new-category';
+            btn.dataset.newCategory = suggestedNewCategory;
+            const icon = document.createElement('span');
+            icon.className = 'chip-icon';
+            icon.textContent = '+';
+            btn.appendChild(icon);
+            btn.appendChild(document.createTextNode(suggestedNewCategory));
+            DOM.categoryRecChips.appendChild(btn);
+            hasContent = true;
+        }
+    }
+
+    DOM.categoryRecommendations.style.display = hasContent ? 'flex' : 'none';
+}
+
+function hideCategoryRecommendations() {
+    if (DOM.categoryRecommendations) {
+        DOM.categoryRecommendations.style.display = 'none';
+    }
+}
+
+async function handleCategoryRecChipClick(e) {
+    const chip = e.target.closest('.rec-chip');
+    if (!chip) return;
+
+    if (chip.classList.contains('existing')) {
+        // 选择已有分类
+        const categoryId = chip.dataset.categoryId;
+        if (categoryId && DOM.bookmarkInputCategory) {
+            DOM.bookmarkInputCategory.value = categoryId;
+        }
+        hideCategoryRecommendations();
+    } else if (chip.classList.contains('new-category')) {
+        // 创建新分类（先检查是否已存在同名分类）
+        const newCategoryName = chip.dataset.newCategory;
+        if (newCategoryName) {
+            const normalizedNew = newCategoryName.trim().toLowerCase();
+            const existingCat = categories.find(c => c.name.toLowerCase() === normalizedNew);
+            if (existingCat) {
+                // 已存在同名分类，直接选中
+                DOM.bookmarkInputCategory.value = existingCat.id;
+                hideCategoryRecommendations();
+            } else {
+                // 创建新分类
+                const created = await createCategoryForBookmark(newCategoryName);
+                if (created) {
+                    hideCategoryRecommendations();
+                }
+            }
+        }
     }
 }
 

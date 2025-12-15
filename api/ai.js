@@ -98,13 +98,17 @@ function getAiPublicStatus() {
 
 const DEFAULT_AI_SYSTEM_PROMPT = [
     '你是一个书签整理助手。',
-    '你的任务：根据输入的书签信息生成 tags 与 summary。',
-    '输出必须且只能包含两行（不要 JSON、不要代码块、不要多余文字、不要空行）：',
+    '你的任务：根据输入的书签信息生成 tags、summary 和分类推荐。',
+    '输出必须且只能包含四行（不要 JSON、不要代码块、不要多余文字、不要空行）：',
     'tags: 标签1,标签2,标签3',
     'summary: 一句话摘要（<= 40 字）',
+    'category: 推荐分类名称（从已��分类中选择最匹配的一个，若无合适则留空）',
+    'new_category: 建议新分类名称（仅当已有分类都不合适时给出，否则留空）',
     '规则：',
-    '- tags：3~8 个中文标签，每个 2~8 字，去重，按重要性排序；尽量是“用途/内容类型/领域”，避免泛词（如“官网/网站/主页”）。',
-    '- summary：中文一句话，不要包含“tags:”前缀，不要引号/花括号/JSON，不要换行。',
+    '- tags：3~8 个中文标签，每个 2~8 字，去重，按重要性排序；尽量是"用途/内容类型/领域"，避免泛词（如"官网/网站/主页"）。',
+    '- summary：中文一句话，不要包含"tags:"前缀，不要引号/花括号/JSON，不要换行。',
+    '- category：从用户提供的已有分类列表中选择最匹配的一个分类名称，必须完全匹配列表中的名称。',
+    '- new_category：仅当已有分类都不适合时，建议一个简洁的新分类名称（2~6字）。',
     '若信息不足：给出最保守的用途/领域标签与最保守的用途描述。'
 ].join('\n');
 
@@ -135,6 +139,9 @@ function buildAiUserPrompt(payload, mode) {
     const url = String(payload?.url || '').trim().slice(0, 2000);
     const description = String(payload?.description || '').trim().slice(0, 500);
     const tagsHint = String(payload?.tagsHint || '').trim().slice(0, 200);
+    const categoriesHint = Array.isArray(payload?.categories)
+        ? payload.categories.map(c => String(c || '').trim()).filter(Boolean).slice(0, 50).join('、')
+        : '';
     const normalizedMode = normalizeAiMode(mode);
     return [
         '书签信息如下：',
@@ -142,8 +149,9 @@ function buildAiUserPrompt(payload, mode) {
         `网址: ${url || '-'}`,
         `描述: ${description || '-'}`,
         tagsHint ? `现有标签（可参考，不必照抄）: ${tagsHint}` : '',
+        categoriesHint ? `已有分类列表: ${categoriesHint}` : '',
         '',
-        normalizedMode === 'refine' ? '请严格按系统规则输出两行结果（summary 必须非空）。' : '请按系统规则输出两行结果。'
+        normalizedMode === 'refine' ? '请严格按系统规则输出四行结果（summary 必须非空）。' : '请按系统规则输出四行结果。'
     ].join('\n');
 }
 
@@ -208,13 +216,15 @@ function safeJsonParse(text) {
 
 function parseAiTagsAndSummaryFromText(text) {
     const raw = String(text || '').trim();
-    if (!raw) return { tags: [], summary: '' };
+    if (!raw) return { tags: [], summary: '', category: '', newCategory: '' };
 
     // 1) JSON 优先
     const parsed = safeJsonParse(raw);
     if (parsed && typeof parsed === 'object') {
         let tags = normalizeTagsInput(parsed.tags);
         let summary = String(parsed.summary || '').trim().slice(0, 80);
+        let category = String(parsed.category || parsed.recommended_category || '').trim().slice(0, 50);
+        let newCategory = String(parsed.new_category || parsed.newCategory || parsed.suggested_new_category || '').trim().slice(0, 50);
 
         // 1.1) 兼容：tags/summary 被错误地包成了 JSON 字符串
         if (!tags.length && typeof parsed.tags === 'string') {
@@ -239,7 +249,7 @@ function parseAiTagsAndSummaryFromText(text) {
             }
         }
 
-        return { tags, summary };
+        return { tags, summary, category, newCategory };
     }
 
     // 1.5) 兜底：支持“JSON 片段/非严格 JSON”场景，尽量从文本中提取 tags/summary
@@ -276,22 +286,27 @@ function parseAiTagsAndSummaryFromText(text) {
 
         if (tags.length || summary) {
             summary = summary.slice(0, 80);
-            return { tags, summary };
+            return { tags, summary, category: '', newCategory: '' };
         }
     }
 
-    // 2) 兜底：支持 tags/summary 或 标签/摘要 的行式输出
+    // 2) 兜底：支持 tags/summary/category/new_category 的行式输出
     const tagsLine = raw.match(/(?:^|\n)\s*(?:tags|标签)\s*[:：]\s*(.+)\s*(?:\n|$)/i);
     const summaryLine = raw.match(/(?:^|\n)\s*(?:summary|摘要)\s*[:：]\s*(.+)\s*(?:\n|$)/i);
+    const categoryLine = raw.match(/(?:^|\n)\s*(?:category|分类|推荐分类)\s*[:：]\s*(.+)\s*(?:\n|$)/i);
+    const newCategoryLine = raw.match(/(?:^|\n)\s*(?:new_category|新分类|建议新分类|建议分类)\s*[:：]\s*(.+)\s*(?:\n|$)/i);
 
     let tags = normalizeTagsInput(tagsLine ? tagsLine[1] : '');
     let summary = summaryLine ? String(summaryLine[1] || '').trim() : '';
+    let category = categoryLine ? String(categoryLine[1] || '').trim().slice(0, 50) : '';
+    let newCategory = newCategoryLine ? String(newCategoryLine[1] || '').trim().slice(0, 50) : '';
+
     if (!summary) {
         const firstNonTagsLine = raw
             .split('\n')
             .map(s => String(s || '').trim())
             .filter(Boolean)
-            .find(line => !/^(?:tags|标签)\s*[:：]/i.test(line));
+            .find(line => !/^(?:tags|标签|category|分类|new_category|新分类)\s*[:：]/i.test(line));
         summary = firstNonTagsLine || '';
     }
     summary = summary.slice(0, 80);
@@ -311,7 +326,7 @@ function parseAiTagsAndSummaryFromText(text) {
         const looseSummary = raw.match(/(?:summary|摘要)\s*[:：]\s*([^\n\r]+)/i);
         if (looseSummary && looseSummary[1]) summary = String(looseSummary[1]).trim().slice(0, 80);
     }
-    return { tags, summary };
+    return { tags, summary, category, newCategory };
 }
 
 async function ensureAiTables() {
@@ -858,7 +873,7 @@ module.exports = async function handler(req, res) {
                 await upsertBookmarkAi({ bookmarkId: id, ...result });
             }
 
-            return res.json({ success: true, data: { tags: result.tags, summary: result.summary } });
+            return res.json({ success: true, data: { tags: result.tags, summary: result.summary, category: result.category || '', newCategory: result.newCategory || '' } });
         }
 
         return res.status(404).json({ success: false, error: '未知操作' });

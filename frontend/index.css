@@ -887,6 +887,104 @@ body {
     font-size: 0.8rem;
 }
 
+/* 分类推荐 */
+.category-recommendations {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-top: var(--spacing-sm);
+    animation: fadeSlideIn 0.2s ease;
+}
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.category-recommendations .rec-label {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    padding-top: 2px;
+}
+
+.category-recommendations .rec-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1;
+}
+
+.category-recommendations .rec-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: all 0.15s ease;
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+}
+
+.category-recommendations .rec-chip:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+}
+
+.category-recommendations .rec-chip:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.category-recommendations .rec-chip:active {
+    transform: scale(0.96);
+}
+
+.category-recommendations .rec-chip.new-category {
+    border-style: dashed;
+    border-color: var(--primary);
+    color: var(--primary);
+    background: transparent;
+}
+
+.category-recommendations .rec-chip.new-category:hover {
+    background: var(--primary);
+    color: white;
+    border-style: solid;
+}
+
+.category-recommendations .rec-chip .chip-icon {
+    margin-right: 4px;
+    font-weight: bold;
+}
+
+.category-recommendations .rec-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0 2px;
+    opacity: 0.6;
+}
+
+.category-recommendations .rec-close:hover {
+    opacity: 1;
+    color: var(--text-primary);
+}
+
 .btn {
     display: inline-flex;
     align-items: center;
