@@ -1,16 +1,16 @@
 /**
- * AI API（Vercel Serverless 备用）
+ * AI 相关 API（可选功能）
  *
  * 统一入口：/api/ai?action=...
  * - GET  /api/ai?action=status
  * - GET  /api/ai?action=bookmark&id=...
- * - POST /api/ai?action=bookmark
- * - POST /api/ai?action=generate
+ * - POST /api/ai?action=bookmark   （保存标签/摘要）
+ * - POST /api/ai?action=generate   （AI 生成标签/摘要，可选持久化）
  *
- * 默认建议在 Vercel 关闭（AI_ENABLED!=true），避免免费计划的执行时长/资源限制导致失败。
+ * 说明：
+ * - 默认关闭：需显式设置 AI_ENABLED=true 且配置对应 Provider 的密钥
+ * - 为了不影响现有功能：不改动既有 API 行为，仅新增接口与新表 bookmark_ai
  */
-
-const { queryOne, execute } = require('./_lib/db');
 
 function isAiEnabledFlag() {
     return String(process.env.AI_ENABLED).toLowerCase() === 'true';
@@ -92,7 +92,7 @@ function getAiPublicStatus() {
         allowPrivateBaseUrl: allowPrivateBaseUrl(),
         hasServerKey: hasServerKey(),
         supportedProviders: ['openai', 'gemini', 'claude'],
-        note: 'Vercel 备用站：建议默认关闭 AI，避免免费额度/超时限制'
+        note: '自用场景：建议在 Docker 主站开启，Vercel 备用站默认关闭以规避免费额度/超时限制'
     };
 }
 
@@ -182,6 +182,7 @@ function detectAiUpstreamErrorFromText(text) {
 
     if (!hit) return null;
 
+    // 统一对外提示：避免把上游错误写进书签描述
     if (upper.includes('RESOURCE_EXHAUSTED')) {
         return { statusCode: 429, message: 'AI 网关额度/并发已耗尽（RESOURCE_EXHAUSTED），请稍后再试或更换 Key/网关' };
     }
@@ -197,19 +198,30 @@ function detectAiUpstreamErrorFromText(text) {
 
 function normalizeTagsInput(input) {
     if (Array.isArray(input)) {
-        return input.map(t => String(t || '').trim()).filter(Boolean).slice(0, 20);
+        return input
+            .map(t => String(t || '').trim())
+            .filter(Boolean)
+            .slice(0, 20);
     }
     const text = String(input || '');
-    return text.split(/[,\n，;；|/]+/g).map(t => t.trim()).filter(Boolean).slice(0, 20);
+    return text
+        .split(/[,\n，;；|/]+/g)
+        .map(t => t.trim())
+        .filter(Boolean)
+        .slice(0, 20);
 }
 
 function safeJsonParse(text) {
     if (!text) return null;
-    try { return JSON.parse(text); } catch {}
+    try {
+        return JSON.parse(text);
+    } catch {}
     const first = text.indexOf('{');
     const last = text.lastIndexOf('}');
     if (first >= 0 && last > first) {
-        try { return JSON.parse(text.slice(first, last + 1)); } catch {}
+        try {
+            return JSON.parse(text.slice(first, last + 1));
+        } catch {}
     }
     return null;
 }
@@ -252,7 +264,7 @@ function parseAiTagsAndSummaryFromText(text) {
         return { tags, summary, category, newCategory };
     }
 
-    // 1.5) 兜底：支持“JSON 片段/非严格 JSON”场景，尽量从文本中提取 tags/summary
+    // 1.5) 兜底：支持"JSON 片段/非严格 JSON"场景
     const extractQuotedStrings = (s) => {
         const result = [];
         const re = /"((?:\\.|[^"\\])*)"/g;
@@ -300,6 +312,7 @@ function parseAiTagsAndSummaryFromText(text) {
     let summary = summaryLine ? String(summaryLine[1] || '').trim() : '';
     let category = categoryLine ? String(categoryLine[1] || '').trim().slice(0, 50) : '';
     let newCategory = newCategoryLine ? String(newCategoryLine[1] || '').trim().slice(0, 50) : '';
+
     // 将 "无"、"-"、"空" 等值视为空
     if (/^(无|没有|空|-|none|null|n\/a)$/i.test(category)) category = '';
     if (/^(无|没有|空|-|none|null|n\/a)$/i.test(newCategory)) newCategory = '';
@@ -329,29 +342,89 @@ function parseAiTagsAndSummaryFromText(text) {
         const looseSummary = raw.match(/(?:summary|摘要)\s*[:：]\s*([^\n\r]+)/i);
         if (looseSummary && looseSummary[1]) summary = String(looseSummary[1]).trim().slice(0, 80);
     }
+
     return { tags, summary, category, newCategory };
 }
 
-async function ensureAiTables() {
-    await execute(`
-        CREATE TABLE IF NOT EXISTS bookmark_ai (
-            bookmark_id VARCHAR(50) PRIMARY KEY,
-            tags LONGTEXT,
-            summary TEXT,
-            provider VARCHAR(50),
-            model VARCHAR(100),
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )
-    `);
+function extractTextFromOpenAiLikeResponse(data) {
+    if (!data || typeof data !== 'object') return '';
+
+    // 1) OpenAI Chat Completions: choices[0].message.content
+    const choice0 = Array.isArray(data.choices) ? data.choices[0] : null;
+    const message = choice0 && typeof choice0 === 'object' ? choice0.message : null;
+    const content = message && typeof message === 'object' ? message.content : null;
+    if (typeof content === 'string' && content.trim()) return content;
+    if (content && typeof content === 'object' && typeof content.text === 'string' && content.text.trim()) return content.text;
+    if (Array.isArray(content)) {
+        const joined = content
+            .map(part => {
+                if (!part) return '';
+                if (typeof part === 'string') return part;
+                if (typeof part === 'object') return part.text || part.content || '';
+                return '';
+            })
+            .filter(Boolean)
+            .join('');
+        if (joined.trim()) return joined;
+    }
+
+    // 2) OpenAI legacy Completions: choices[0].text
+    const choiceText = choice0 && typeof choice0.text === 'string' ? choice0.text : '';
+    if (choiceText.trim()) return choiceText;
+
+    // 3) Streaming-ish shapes from some gateways: choices[0].delta.content
+    const delta = choice0 && typeof choice0.delta === 'object' ? choice0.delta : null;
+    const deltaContent = delta && typeof delta.content === 'string' ? delta.content : '';
+    if (deltaContent.trim()) return deltaContent;
+
+    // 4) OpenAI Responses API shape from some gateways: output[].content[].text
+    const output0 = Array.isArray(data.output) ? data.output[0] : null;
+    const outputContent = output0 && typeof output0 === 'object' ? output0.content : null;
+    if (Array.isArray(outputContent)) {
+        const joined = outputContent
+            .map(part => {
+                if (!part || typeof part !== 'object') return '';
+                return part.text || '';
+            })
+            .filter(Boolean)
+            .join('');
+        if (joined.trim()) return joined;
+    }
+
+    // 5) 最后兜底：一些网关直接返回 text/content
+    if (typeof data.text === 'string' && data.text.trim()) return data.text;
+    if (typeof data.content === 'string' && data.content.trim()) return data.content;
+
+    return '';
 }
 
-async function upsertBookmarkAi({ bookmarkId, tags, summary, provider, model }) {
-    await execute(
-        `INSERT INTO bookmark_ai (bookmark_id, tags, summary, provider, model)
-         VALUES (?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE tags = VALUES(tags), summary = VALUES(summary), provider = VALUES(provider), model = VALUES(model)`,
-        [bookmarkId, JSON.stringify(tags || []), summary || '', provider || '', model || '']
-    );
+function extractTextFromOpenAiSse(rawText) {
+    const raw = String(rawText || '').trim();
+    if (!raw) return '';
+    const lines = raw.split(/\r?\n/);
+    let acc = '';
+
+    for (const line of lines) {
+        const trimmed = String(line || '').trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const payload = trimmed.slice('data:'.length).trim();
+        if (!payload || payload === '[DONE]') continue;
+        const obj = safeJsonParse(payload);
+        if (!obj) continue;
+        const piece = extractTextFromOpenAiLikeResponse(obj);
+        if (piece) acc += piece;
+    }
+
+    return acc.trim();
+}
+
+function summarizeOpenAiLikeResponseShape(data) {
+    if (!data || typeof data !== 'object') return 'data=null';
+    const topKeys = Object.keys(data).slice(0, 20);
+    const choice0 = Array.isArray(data.choices) ? data.choices[0] : null;
+    const choiceKeys = choice0 && typeof choice0 === 'object' ? Object.keys(choice0).slice(0, 20) : [];
+    const finishReason = choice0 && typeof choice0 === 'object' ? choice0.finish_reason : undefined;
+    return `keys=${topKeys.join(',') || '-'}; choiceKeys=${choiceKeys.join(',') || '-'}; finish_reason=${finishReason ?? '-'}`;
 }
 
 function isPrivateOrLocalAddress(hostname) {
@@ -456,6 +529,43 @@ function getServerApiKeyForProvider(provider) {
     return '';
 }
 
+function fetchWithTimeout(url, options, timeoutMs) {
+    const ms = Number.isFinite(timeoutMs) ? timeoutMs : 8000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { ...(options || {}), signal: controller.signal })
+        .finally(() => clearTimeout(timer));
+}
+
+function createHttpError(statusCode, message) {
+    const err = new Error(message);
+    err.statusCode = statusCode;
+    return err;
+}
+
+function formatFetchCause(err) {
+    const parts = [];
+    const cause = err && typeof err === 'object' ? err.cause : null;
+
+    if (err && typeof err === 'object') {
+        if (err.code) parts.push(`code=${err.code}`);
+        if (err.errno) parts.push(`errno=${err.errno}`);
+        if (err.syscall) parts.push(`syscall=${err.syscall}`);
+    }
+
+    if (cause && typeof cause === 'object') {
+        if (cause.code) parts.push(`cause.code=${cause.code}`);
+        if (cause.errno) parts.push(`cause.errno=${cause.errno}`);
+        if (cause.syscall) parts.push(`cause.syscall=${cause.syscall}`);
+        if (cause.hostname) parts.push(`cause.hostname=${cause.hostname}`);
+        if (cause.address) parts.push(`cause.address=${cause.address}`);
+        if (cause.port) parts.push(`cause.port=${cause.port}`);
+        if (cause.message) parts.push(`cause.message=${cause.message}`);
+    }
+
+    return parts.length ? `（${parts.join(', ')}）` : '';
+}
+
 function resolveRuntimeConfig(body) {
     const provider = resolveProvider(body);
     if (provider === 'openai') {
@@ -500,126 +610,7 @@ function resolveRuntimeConfig(body) {
     return cfg;
 }
 
-function fetchWithTimeout(url, options, timeoutMs) {
-    const ms = Number.isFinite(timeoutMs) ? timeoutMs : 8000;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ms);
-    return fetch(url, { ...(options || {}), signal: controller.signal })
-        .finally(() => clearTimeout(timer));
-}
-
-function createHttpError(statusCode, message) {
-    const err = new Error(message);
-    err.statusCode = statusCode;
-    return err;
-}
-
-function formatFetchCause(err) {
-    const parts = [];
-    const cause = err && typeof err === 'object' ? err.cause : null;
-
-    if (err && typeof err === 'object') {
-        if (err.code) parts.push(`code=${err.code}`);
-        if (err.errno) parts.push(`errno=${err.errno}`);
-        if (err.syscall) parts.push(`syscall=${err.syscall}`);
-    }
-
-    if (cause && typeof cause === 'object') {
-        if (cause.code) parts.push(`cause.code=${cause.code}`);
-        if (cause.errno) parts.push(`cause.errno=${cause.errno}`);
-        if (cause.syscall) parts.push(`cause.syscall=${cause.syscall}`);
-        if (cause.hostname) parts.push(`cause.hostname=${cause.hostname}`);
-        if (cause.address) parts.push(`cause.address=${cause.address}`);
-        if (cause.port) parts.push(`cause.port=${cause.port}`);
-        if (cause.message) parts.push(`cause.message=${cause.message}`);
-    }
-
-    return parts.length ? `（${parts.join(', ')}）` : '';
-}
-
-function extractTextFromOpenAiLikeResponse(data) {
-    if (!data || typeof data !== 'object') return '';
-
-    // 1) OpenAI Chat Completions: choices[0].message.content
-    const choice0 = Array.isArray(data.choices) ? data.choices[0] : null;
-    const message = choice0 && typeof choice0 === 'object' ? choice0.message : null;
-    const content = message && typeof message === 'object' ? message.content : null;
-    if (typeof content === 'string' && content.trim()) return content;
-    if (content && typeof content === 'object' && typeof content.text === 'string' && content.text.trim()) return content.text;
-    if (Array.isArray(content)) {
-        const joined = content
-            .map(part => {
-                if (!part) return '';
-                if (typeof part === 'string') return part;
-                if (typeof part === 'object') return part.text || part.content || '';
-                return '';
-            })
-            .filter(Boolean)
-            .join('');
-        if (joined.trim()) return joined;
-    }
-
-    // 2) OpenAI legacy Completions: choices[0].text
-    const choiceText = choice0 && typeof choice0.text === 'string' ? choice0.text : '';
-    if (choiceText.trim()) return choiceText;
-
-    // 3) Streaming-ish shapes from some gateways: choices[0].delta.content
-    const delta = choice0 && typeof choice0.delta === 'object' ? choice0.delta : null;
-    const deltaContent = delta && typeof delta.content === 'string' ? delta.content : '';
-    if (deltaContent.trim()) return deltaContent;
-
-    // 4) OpenAI Responses API shape from some gateways: output[].content[].text
-    const output0 = Array.isArray(data.output) ? data.output[0] : null;
-    const outputContent = output0 && typeof output0 === 'object' ? output0.content : null;
-    if (Array.isArray(outputContent)) {
-        const joined = outputContent
-            .map(part => {
-                if (!part || typeof part !== 'object') return '';
-                return part.text || '';
-            })
-            .filter(Boolean)
-            .join('');
-        if (joined.trim()) return joined;
-    }
-
-    // 5) 最后兜底：一些网关直接返回 text/content
-    if (typeof data.text === 'string' && data.text.trim()) return data.text;
-    if (typeof data.content === 'string' && data.content.trim()) return data.content;
-
-    return '';
-}
-
-function extractTextFromOpenAiSse(rawText) {
-    const raw = String(rawText || '').trim();
-    if (!raw) return '';
-    const lines = raw.split(/\r?\n/);
-    let acc = '';
-
-    for (const line of lines) {
-        const trimmed = String(line || '').trim();
-        if (!trimmed.startsWith('data:')) continue;
-        const payload = trimmed.slice('data:'.length).trim();
-        if (!payload || payload === '[DONE]') continue;
-        const obj = safeJsonParse(payload);
-        if (!obj) continue;
-        const piece = extractTextFromOpenAiLikeResponse(obj);
-        if (piece) acc += piece;
-    }
-
-    return acc.trim();
-}
-
-function summarizeOpenAiLikeResponseShape(data) {
-    if (!data || typeof data !== 'object') return 'data=null';
-    const topKeys = Object.keys(data).slice(0, 20);
-    const choice0 = Array.isArray(data.choices) ? data.choices[0] : null;
-    const choiceKeys = choice0 && typeof choice0 === 'object' ? Object.keys(choice0).slice(0, 20) : [];
-    const finishReason = choice0 && typeof choice0 === 'object' ? choice0.finish_reason : undefined;
-    return `keys=${topKeys.join(',') || '-'}; choiceKeys=${choiceKeys.join(',') || '-'}; finish_reason=${finishReason ?? '-'}`;
-}
-
 async function openaiGenerateWithConfig({ name, url, description, tagsHint, categories, mode, baseUrl, apiKey, model, timeoutMs }) {
-
     const userPayload = {
         name: String(name || '').slice(0, 200),
         url: String(url || '').slice(0, 2000),
@@ -747,7 +738,9 @@ async function geminiGenerateWithConfig({ name, url, description, tagsHint, cate
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);
         summary = buildFallbackSummary({ name, url, tags: effectiveTags });
     }
-    if (!tags.length && !summary) throw createHttpError(502, 'Gemini 网关返回内容无法解析（内容为空或格式异常）');
+    if (!tags.length && !summary) {
+        throw createHttpError(502, 'Gemini 网关返回内容无法解析（内容为空或格式异常）');
+    }
     return { tags, summary, category, newCategory, provider: 'gemini', model };
 }
 
@@ -805,92 +798,145 @@ async function claudeGenerateWithConfig({ name, url, description, tagsHint, cate
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);
         summary = buildFallbackSummary({ name, url, tags: effectiveTags });
     }
-    if (!tags.length && !summary) throw createHttpError(502, 'Claude 网关返回内容无法解析（内容为空或格式异常）');
+    if (!tags.length && !summary) {
+        throw createHttpError(502, 'Claude 网关返回内容无法解析（内容为空或格式异常）');
+    }
     return { tags, summary, category, newCategory, provider: 'claude', model };
 }
 
-module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') return res.status(200).end();
-
-    const action = String(req.query.action || '').toLowerCase();
-
+async function ensureAiTables(db) {
+    const createSql = db.USE_MYSQL
+        ? `
+            CREATE TABLE IF NOT EXISTS bookmark_ai (
+                bookmark_id VARCHAR(50) PRIMARY KEY,
+                tags LONGTEXT,
+                summary TEXT,
+                provider VARCHAR(50),
+                model VARCHAR(100),
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `
+        : `
+            CREATE TABLE IF NOT EXISTS bookmark_ai (
+                bookmark_id TEXT PRIMARY KEY,
+                tags TEXT,
+                summary TEXT,
+                provider TEXT,
+                model TEXT,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        `;
     try {
-        if (req.method === 'GET' && action === 'status') {
-            return res.json({ success: true, data: getAiPublicStatus() });
-        }
-
-        if (req.method === 'GET' && action === 'bookmark') {
-            const id = String(req.query.id || '').trim();
-            if (!id) return res.status(400).json({ success: false, error: '缺少书签 ID' });
-            await ensureAiTables();
-            const row = await queryOne('SELECT * FROM bookmark_ai WHERE bookmark_id = ?', [id]);
-            if (!row) return res.json({ success: true, data: null });
-            let tags = [];
-            try { tags = JSON.parse(row.tags || '[]'); } catch {}
-            return res.json({
-                success: true,
-                data: {
-                    bookmark_id: row.bookmark_id,
-                    tags: Array.isArray(tags) ? tags : [],
-                    summary: row.summary || '',
-                    provider: row.provider || null,
-                    model: row.model || null,
-                    updated_at: row.updated_at || null
-                }
-            });
-        }
-
-        if (req.method === 'POST' && action === 'bookmark') {
-            const { bookmarkId, tags, summary } = req.body || {};
-            const id = String(bookmarkId || '').trim();
-            if (!id) return res.status(400).json({ success: false, error: '缺少书签 ID' });
-            await ensureAiTables();
-            await upsertBookmarkAi({
-                bookmarkId: id,
-                tags: normalizeTagsInput(tags),
-                summary: summary ? String(summary).trim().slice(0, 200) : '',
-                provider: 'manual',
-                model: null
-            });
-            return res.json({ success: true });
-        }
-
-        if (req.method === 'POST' && action === 'generate') {
-            if (!isAiEnabledFlag()) {
-                return res.status(400).json({ success: false, error: 'AI 功能未启用（请设置 AI_ENABLED=true）' });
-            }
-
-            const { bookmarkId, name, url, description, persist, mode, tagsHint, categories } = req.body || {};
-            const shouldPersist = String(persist).toLowerCase() === 'true';
-            const id = String(bookmarkId || '').trim();
-
-            const cfg = resolveRuntimeConfig(req.body);
-            let result;
-            if (cfg.provider === 'openai') result = await openaiGenerateWithConfig({ name, url, description, mode, tagsHint, categories, ...cfg });
-            else if (cfg.provider === 'gemini') result = await geminiGenerateWithConfig({ name, url, description, mode, tagsHint, categories, ...cfg });
-            else if (cfg.provider === 'claude') result = await claudeGenerateWithConfig({ name, url, description, mode, tagsHint, categories, ...cfg });
-            else return res.status(400).json({ success: false, error: `不支持的 AI_PROVIDER: ${cfg.provider}` });
-
-            console.log('[AI handler] result from provider:', JSON.stringify(result));
-
-            if (shouldPersist) {
-                if (!id) return res.status(400).json({ success: false, error: '持久化需要提供 bookmarkId' });
-                await ensureAiTables();
-                await upsertBookmarkAi({ bookmarkId: id, ...result });
-            }
-
-            const responseData = { tags: result.tags, summary: result.summary, category: result.category || '', newCategory: result.newCategory || '' };
-            console.log('[AI handler] response data:', JSON.stringify(responseData));
-            return res.json({ success: true, data: responseData });
-        }
-
-        return res.status(404).json({ success: false, error: '未知操作' });
+        await db.execute(createSql);
     } catch (e) {
-        const statusCode = Number.isInteger(e?.statusCode) ? e.statusCode : 500;
-        return res.status(statusCode).json({ success: false, error: e.message });
+        // 不影响主功能：AI 表创建失败时，仅让 AI 功能不可用
+        throw new Error('AI 数据表初始化失败：' + e.message);
     }
-};
+}
+
+async function upsertBookmarkAi(db, { bookmarkId, tags, summary, provider, model }) {
+    const tagsJson = JSON.stringify(tags || []);
+    const sum = summary ? String(summary) : '';
+
+    if (db.USE_MYSQL) {
+        await db.execute(
+            `INSERT INTO bookmark_ai (bookmark_id, tags, summary, provider, model)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE tags = VALUES(tags), summary = VALUES(summary), provider = VALUES(provider), model = VALUES(model)`,
+            [bookmarkId, tagsJson, sum, provider || '', model || '']
+        );
+    } else {
+        await db.execute(
+            `INSERT OR REPLACE INTO bookmark_ai (bookmark_id, tags, summary, provider, model, updated_at)
+             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+            [bookmarkId, tagsJson, sum, provider || '', model || '']
+        );
+    }
+}
+
+function registerAiRoutes(app, db) {
+    app.all('/api/ai', async (req, res) => {
+        const action = String(req.query.action || '').toLowerCase();
+
+        try {
+            if (req.method === 'GET' && action === 'status') {
+                return res.json({ success: true, data: getAiPublicStatus() });
+            }
+
+            if (req.method === 'GET' && action === 'bookmark') {
+                const id = String(req.query.id || '').trim();
+                if (!id) return res.status(400).json({ success: false, error: '缺少书签 ID' });
+
+                await ensureAiTables(db);
+                const row = await db.queryOne('SELECT * FROM bookmark_ai WHERE bookmark_id = ?', [id]);
+                if (!row) return res.json({ success: true, data: null });
+
+                let tags = [];
+                try { tags = JSON.parse(row.tags || '[]'); } catch {}
+                return res.json({
+                    success: true,
+                    data: {
+                        bookmark_id: row.bookmark_id,
+                        tags: Array.isArray(tags) ? tags : [],
+                        summary: row.summary || '',
+                        provider: row.provider || null,
+                        model: row.model || null,
+                        updated_at: row.updated_at || null
+                    }
+                });
+            }
+
+            if (req.method === 'POST' && action === 'bookmark') {
+                const { bookmarkId, tags, summary } = req.body || {};
+                const id = String(bookmarkId || '').trim();
+                if (!id) return res.status(400).json({ success: false, error: '缺少书签 ID' });
+
+                await ensureAiTables(db);
+                await upsertBookmarkAi(db, {
+                    bookmarkId: id,
+                    tags: normalizeTagsInput(tags),
+                    summary: summary ? String(summary).trim().slice(0, 200) : '',
+                    provider: 'manual',
+                    model: null
+                });
+                return res.json({ success: true });
+            }
+
+            if (req.method === 'POST' && action === 'generate') {
+                if (!isAiEnabledFlag()) {
+                    return res.status(400).json({ success: false, error: 'AI 功能未启用（请设置 AI_ENABLED=true）' });
+                }
+
+                const { bookmarkId, name, url, description, persist, mode, tagsHint, categories } = req.body || {};
+                const shouldPersist = String(persist).toLowerCase() === 'true';
+                const id = String(bookmarkId || '').trim();
+
+                const cfg = resolveRuntimeConfig(req.body);
+                let result;
+                if (cfg.provider === 'openai') result = await openaiGenerateWithConfig({ name, url, description, mode, tagsHint, categories, ...cfg });
+                else if (cfg.provider === 'gemini') result = await geminiGenerateWithConfig({ name, url, description, mode, tagsHint, categories, ...cfg });
+                else if (cfg.provider === 'claude') result = await claudeGenerateWithConfig({ name, url, description, mode, tagsHint, categories, ...cfg });
+                else return res.status(400).json({ success: false, error: `不支持的 AI_PROVIDER: ${cfg.provider}` });
+
+                console.log('[AI handler] result from provider:', JSON.stringify(result));
+
+                if (shouldPersist) {
+                    if (!id) return res.status(400).json({ success: false, error: '持久化需要提供 bookmarkId' });
+                    await ensureAiTables(db);
+                    await upsertBookmarkAi(db, { bookmarkId: id, ...result });
+                }
+
+                const responseData = { tags: result.tags, summary: result.summary, category: result.category || '', newCategory: result.newCategory || '' };
+                console.log('[AI handler] response data:', JSON.stringify(responseData));
+                return res.json({ success: true, data: responseData });
+            }
+
+            return res.status(404).json({ success: false, error: '未知操作' });
+        } catch (e) {
+            const statusCode = Number.isInteger(e?.statusCode) ? e.statusCode : 500;
+            return res.status(statusCode).json({ success: false, error: e.message });
+        }
+    });
+}
+
+module.exports = { registerAiRoutes };
