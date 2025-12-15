@@ -23,6 +23,9 @@ let editingEngineId = null;
 let currentIconType = 'auto';
 let currentIconData = '';
 let editingBookmark = null; // 存储正在编辑的书签原始数据
+let aiRequestInFlight = false;
+let aiLastActionAt = 0;
+const AI_CLICK_COOLDOWN_MS = 2500;
 let collapsedCategories = new Set(); // 存储折叠状态的分类ID
 let aiStatus = { enabled: false, provider: null, model: null, note: null };
 
@@ -1192,9 +1195,25 @@ function buildLocalFallbackSummary({ name, url, tags }) {
     return `${subject}：常用网站`.slice(0, 40);
 }
 
+function setAiButtonsDisabled(disabled) {
+    if (DOM.aiGenerateBtn) DOM.aiGenerateBtn.disabled = Boolean(disabled);
+    if (DOM.aiRefineBtn) DOM.aiRefineBtn.disabled = Boolean(disabled);
+}
+
 async function handleAiGenerate({ mode }) {
     if (!aiStatus || !aiStatus.enabled) {
         alert('AI 功能未启用（建议仅在 Docker 主站开启）');
+        return;
+    }
+
+    const now = Date.now();
+    if (aiRequestInFlight) {
+        if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = 'AI 正在处理中，请稍候...';
+        return;
+    }
+    if (now - aiLastActionAt < AI_CLICK_COOLDOWN_MS) {
+        const left = Math.ceil((AI_CLICK_COOLDOWN_MS - (now - aiLastActionAt)) / 1000);
+        if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = `操作太频繁，请 ${left}s 后再试`;
         return;
     }
 
@@ -1206,6 +1225,9 @@ async function handleAiGenerate({ mode }) {
         return;
     }
 
+    aiRequestInFlight = true;
+    aiLastActionAt = now;
+    setAiButtonsDisabled(true);
     if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = mode === 'refine' ? '精炼中...' : '生成中...';
     try {
         const clientCfg = getAiClientSettings();
@@ -1268,6 +1290,8 @@ async function handleAiGenerate({ mode }) {
     } catch (e) {
         alert('AI 生成失败: ' + e.message);
     } finally {
+        aiRequestInFlight = false;
+        setAiButtonsDisabled(false);
         updateAiUiVisibility();
     }
 }

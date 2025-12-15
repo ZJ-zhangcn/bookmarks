@@ -911,6 +911,13 @@ body {
     background: var(--bg-tertiary);
 }
 
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 .btn-secondary:hover {
     color: var(--text-primary);
     background: var(--bg-primary);
