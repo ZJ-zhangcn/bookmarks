@@ -151,6 +151,44 @@ function parseAiTagsAndSummaryFromText(text) {
         return { tags, summary };
     }
 
+    // 1.5) 兜底：支持“JSON 片段/非严格 JSON”场景，尽量从文本中提取 tags/summary
+    const extractQuotedStrings = (s) => {
+        const result = [];
+        const re = /"((?:\\.|[^"\\])*)"/g;
+        let m;
+        while ((m = re.exec(String(s || '')))) {
+            const v = String(m[1] || '').trim();
+            if (v) result.push(v);
+        }
+        return result;
+    };
+
+    const tagsKeyMatch = raw.match(/["']tags["']\s*:\s*\[/i);
+    const summaryKeyMatch = raw.match(/["']summary["']\s*:\s*"/i);
+
+    if (tagsKeyMatch || summaryKeyMatch) {
+        let tags = [];
+        let summary = '';
+
+        if (tagsKeyMatch && typeof tagsKeyMatch.index === 'number') {
+            const startIndex = tagsKeyMatch.index + tagsKeyMatch[0].length;
+            const rest = raw.slice(startIndex);
+            const endIndex = rest.indexOf(']');
+            const segment = endIndex >= 0 ? rest.slice(0, endIndex) : rest;
+            tags = extractQuotedStrings(segment).slice(0, 20);
+        }
+
+        if (summaryKeyMatch) {
+            const m = raw.match(/["']summary["']\s*:\s*"((?:\\.|[^"\\])*)/i);
+            if (m && m[1]) summary = String(m[1]).trim();
+        }
+
+        if (tags.length || summary) {
+            summary = summary.slice(0, 80);
+            return { tags, summary };
+        }
+    }
+
     // 2) 兜底：支持 tags/summary 或 标签/摘要 的行式输出
     const tagsLine = raw.match(/(?:^|\n)\s*(?:tags|标签)\s*[:：]\s*(.+)\s*(?:\n|$)/i);
     const summaryLine = raw.match(/(?:^|\n)\s*(?:summary|摘要)\s*[:：]\s*(.+)\s*(?:\n|$)/i);
@@ -462,10 +500,9 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         '你是一个书签整理助手。请基于输入生成：',
         '1) tags：3~8 个中文标签（每个标签 2~8 个字，避免重复）',
         '2) summary：一句话中文摘要（<= 40 字）',
-        '优先只输出 JSON（不要代码块，不要多余文字），格式：{"tags":["..."],"summary":"..."}',
-        '如果无法输出 JSON，则输出两行：',
+        '请严格只输出两行（不要 JSON、不要代码块、不要多余文字）：',
         'tags: 标签1,标签2,标签3',
-        'summary: 摘要',
+        'summary: 摘要（<= 40 字）',
         '',
         JSON.stringify(userPayload)
     ].join('\n');
