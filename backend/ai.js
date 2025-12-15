@@ -161,6 +161,34 @@ function buildFallbackSummary({ name, url, tags }) {
     return `${subject}：常用网站`.slice(0, 40);
 }
 
+function detectAiUpstreamErrorFromText(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return null;
+    const upper = raw.toUpperCase();
+
+    const hit =
+        upper.includes('RESOURCE_EXHAUSTED') ||
+        upper.includes('INSUFFICIENT_QUOTA') ||
+        upper.includes('QUOTA_EXCEEDED') ||
+        upper.includes('RATE_LIMIT') ||
+        upper.includes('RATE_LIMITED');
+
+    if (!hit) return null;
+
+    // 统一对外提示：避免把上游错误写进书签描述
+    if (upper.includes('RESOURCE_EXHAUSTED')) {
+        return { statusCode: 429, message: 'AI 网关额度/并发已耗尽（RESOURCE_EXHAUSTED），请稍后再试或更换 Key/网关' };
+    }
+    if (upper.includes('INSUFFICIENT_QUOTA') || upper.includes('QUOTA_EXCEEDED')) {
+        return { statusCode: 429, message: 'AI 网关额度不足（QUOTA），请更换/充值 Key 或降低调用频率' };
+    }
+    if (upper.includes('RATE_LIMIT')) {
+        return { statusCode: 429, message: 'AI 网关触发限流（RATE_LIMIT），请稍后再试或降低调用频率' };
+    }
+
+    return { statusCode: 502, message: `AI 网关返回错误：${raw.slice(0, 120)}` };
+}
+
 function normalizeTagsInput(input) {
     if (Array.isArray(input)) {
         return input
@@ -622,6 +650,8 @@ async function openaiGenerateWithConfig({ name, url, description, tagsHint, mode
     const text = data
         ? extractTextFromOpenAiLikeResponse(data)
         : (isSse ? extractTextFromOpenAiSse(rawText) : rawText);
+    const upstreamErr = detectAiUpstreamErrorFromText(text);
+    if (upstreamErr) throw createHttpError(upstreamErr.statusCode, upstreamErr.message);
     let { tags, summary } = parseAiTagsAndSummaryFromText(text);
     if (normalizeAiMode(mode) === 'refine' && !summary) {
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);
@@ -683,6 +713,8 @@ async function geminiGenerateWithConfig({ name, url, description, tagsHint, mode
     }
 
     const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
+    const upstreamErr = detectAiUpstreamErrorFromText(text);
+    if (upstreamErr) throw createHttpError(upstreamErr.statusCode, upstreamErr.message);
     let { tags, summary } = parseAiTagsAndSummaryFromText(text);
     if (normalizeAiMode(mode) === 'refine' && !summary) {
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);
@@ -740,6 +772,8 @@ async function claudeGenerateWithConfig({ name, url, description, tagsHint, mode
     const text = Array.isArray(data?.content)
         ? data.content.map(c => (c && c.type === 'text' ? c.text : '')).filter(Boolean).join('')
         : (data?.content?.text || '');
+    const upstreamErr = detectAiUpstreamErrorFromText(text);
+    if (upstreamErr) throw createHttpError(upstreamErr.statusCode, upstreamErr.message);
     let { tags, summary } = parseAiTagsAndSummaryFromText(text);
     if (normalizeAiMode(mode) === 'refine' && !summary) {
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);
