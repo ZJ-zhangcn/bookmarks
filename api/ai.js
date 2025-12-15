@@ -122,8 +122,32 @@ function parseAiTagsAndSummaryFromText(text) {
     // 1) JSON 优先
     const parsed = safeJsonParse(raw);
     if (parsed && typeof parsed === 'object') {
-        const tags = normalizeTagsInput(parsed.tags);
-        const summary = String(parsed.summary || '').trim().slice(0, 80);
+        let tags = normalizeTagsInput(parsed.tags);
+        let summary = String(parsed.summary || '').trim().slice(0, 80);
+
+        // 1.1) 兼容：tags/summary 被错误地包成了 JSON 字符串
+        if (!tags.length && typeof parsed.tags === 'string') {
+            const maybe = safeJsonParse(parsed.tags);
+            if (Array.isArray(maybe)) tags = normalizeTagsInput(maybe);
+            if (maybe && typeof maybe === 'object') tags = normalizeTagsInput(maybe.tags);
+        }
+
+        // 1.2) 兼容：summary 里包了一层 JSON（例如 {"summary":"{\"tags\":[...]}"}）
+        if ((!tags.length || !summary) && typeof parsed.summary === 'string') {
+            const nested = safeJsonParse(parsed.summary);
+            if (nested && typeof nested === 'object') {
+                const nestedTags = normalizeTagsInput(nested.tags);
+                const nestedSummary = String(nested.summary || '').trim().slice(0, 80);
+                if (!tags.length && nestedTags.length) tags = nestedTags;
+                if ((!summary || summary === String(parsed.summary || '').trim().slice(0, 80)) && nestedSummary) {
+                    summary = nestedSummary;
+                }
+                if (summary && summary.startsWith('{') && nestedTags.length && !nestedSummary) {
+                    summary = '';
+                }
+            }
+        }
+
         return { tags, summary };
     }
 
@@ -345,6 +369,67 @@ function formatFetchCause(err) {
     return parts.length ? `（${parts.join(', ')}）` : '';
 }
 
+function extractTextFromOpenAiLikeResponse(data) {
+    if (!data || typeof data !== 'object') return '';
+
+    // 1) OpenAI Chat Completions: choices[0].message.content
+    const choice0 = Array.isArray(data.choices) ? data.choices[0] : null;
+    const message = choice0 && typeof choice0 === 'object' ? choice0.message : null;
+    const content = message && typeof message === 'object' ? message.content : null;
+    if (typeof content === 'string' && content.trim()) return content;
+    if (content && typeof content === 'object' && typeof content.text === 'string' && content.text.trim()) return content.text;
+    if (Array.isArray(content)) {
+        const joined = content
+            .map(part => {
+                if (!part) return '';
+                if (typeof part === 'string') return part;
+                if (typeof part === 'object') return part.text || part.content || '';
+                return '';
+            })
+            .filter(Boolean)
+            .join('');
+        if (joined.trim()) return joined;
+    }
+
+    // 2) OpenAI legacy Completions: choices[0].text
+    const choiceText = choice0 && typeof choice0.text === 'string' ? choice0.text : '';
+    if (choiceText.trim()) return choiceText;
+
+    // 3) Streaming-ish shapes from some gateways: choices[0].delta.content
+    const delta = choice0 && typeof choice0.delta === 'object' ? choice0.delta : null;
+    const deltaContent = delta && typeof delta.content === 'string' ? delta.content : '';
+    if (deltaContent.trim()) return deltaContent;
+
+    // 4) OpenAI Responses API shape from some gateways: output[].content[].text
+    const output0 = Array.isArray(data.output) ? data.output[0] : null;
+    const outputContent = output0 && typeof output0 === 'object' ? output0.content : null;
+    if (Array.isArray(outputContent)) {
+        const joined = outputContent
+            .map(part => {
+                if (!part || typeof part !== 'object') return '';
+                return part.text || '';
+            })
+            .filter(Boolean)
+            .join('');
+        if (joined.trim()) return joined;
+    }
+
+    // 5) 最后兜底：一些网关直接返回 text/content
+    if (typeof data.text === 'string' && data.text.trim()) return data.text;
+    if (typeof data.content === 'string' && data.content.trim()) return data.content;
+
+    return '';
+}
+
+function summarizeOpenAiLikeResponseShape(data) {
+    if (!data || typeof data !== 'object') return 'data=null';
+    const topKeys = Object.keys(data).slice(0, 20);
+    const choice0 = Array.isArray(data.choices) ? data.choices[0] : null;
+    const choiceKeys = choice0 && typeof choice0 === 'object' ? Object.keys(choice0).slice(0, 20) : [];
+    const finishReason = choice0 && typeof choice0 === 'object' ? choice0.finish_reason : undefined;
+    return `keys=${topKeys.join(',') || '-'}; choiceKeys=${choiceKeys.join(',') || '-'}; finish_reason=${finishReason ?? '-'}`;
+}
+
 async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKey, model, timeoutMs }) {
 
     const userPayload = {
@@ -398,9 +483,11 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         throw createHttpError(502, message);
     }
 
-    const text = data?.choices?.[0]?.message?.content || '';
+    const text = extractTextFromOpenAiLikeResponse(data);
     const { tags, summary } = parseAiTagsAndSummaryFromText(text);
-    if (!tags.length && !summary) throw createHttpError(502, 'OpenAI 网关返回内容无法解析（内容为空或格式异常）');
+    if (!tags.length && !summary) {
+        throw createHttpError(502, `OpenAI 网关返回内容无法解析（内容为空或格式异常）。${summarizeOpenAiLikeResponseShape(data)}`);
+    }
     return { tags, summary, provider: 'openai', model };
 }
 
