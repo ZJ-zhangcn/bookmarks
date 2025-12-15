@@ -458,9 +458,11 @@ function renderBookmarks() {
         const catBookmarks = bookmarks.filter(b => b.category_id === category.id);
         const filteredItems = catBookmarks.filter(item => {
             if (!searchTerm) return true;
+            const tagsText = Array.isArray(item.tags) ? item.tags.join(',') : String(item.tags || '');
             return item.name.toLowerCase().includes(searchTerm) ||
                 (item.description && item.description.toLowerCase().includes(searchTerm)) ||
-                item.url.toLowerCase().includes(searchTerm);
+                item.url.toLowerCase().includes(searchTerm) ||
+                (tagsText && tagsText.toLowerCase().includes(searchTerm));
         });
 
         if (filteredItems.length === 0 && currentCategory === 'all') return;
@@ -2824,9 +2826,11 @@ function handleBookmarkSearch() {
     // 过滤书签（只搜索书签类型，不包括组件）
     const results = bookmarks.filter(b => {
         if (b.item_type === 'component') return false;
+        const tagsText = Array.isArray(b.tags) ? b.tags.join(',') : String(b.tags || '');
         return b.name.toLowerCase().includes(searchTerm) ||
             (b.description && b.description.toLowerCase().includes(searchTerm)) ||
-            b.url.toLowerCase().includes(searchTerm);
+            b.url.toLowerCase().includes(searchTerm) ||
+            (tagsText && tagsText.toLowerCase().includes(searchTerm));
     });
 
     if (results.length === 0) {

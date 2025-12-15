@@ -282,6 +282,43 @@ app.get('/api/bookmarks', async (req, res) => {
         }
 
         const bookmarks = await db.queryAll(sql);
+        try {
+            const ids = bookmarks.map(b => b.id).filter(Boolean);
+            if (ids.length > 0) {
+                const placeholders = ids.map(() => '?').join(',');
+                const rows = await db.queryAll(
+                    `SELECT bookmark_id, tags, summary FROM bookmark_ai WHERE bookmark_id IN (${placeholders})`,
+                    ids
+                );
+
+                const aiMap = new Map();
+                rows.forEach(row => {
+                    let tags = [];
+                    try { tags = JSON.parse(row.tags || '[]'); } catch {}
+                    aiMap.set(row.bookmark_id, {
+                        tags: Array.isArray(tags) ? tags : [],
+                        summary: row.summary || ''
+                    });
+                });
+
+                bookmarks.forEach(b => {
+                    const ai = aiMap.get(b.id);
+                    b.tags = ai ? ai.tags : [];
+                    b.ai_summary = ai ? ai.summary : '';
+                });
+            } else {
+                bookmarks.forEach(b => {
+                    b.tags = [];
+                    b.ai_summary = '';
+                });
+            }
+        } catch {
+            // 兜底：AI 表不存在或查询失败时，不影响原有书签列表
+            bookmarks.forEach(b => {
+                if (!('tags' in b)) b.tags = [];
+                if (!('ai_summary' in b)) b.ai_summary = '';
+            });
+        }
         res.json({ success: true, data: bookmarks });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });

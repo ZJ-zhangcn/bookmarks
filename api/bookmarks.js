@@ -10,6 +10,48 @@
 
 const { query, execute, queryOne, transaction } = require('./_lib/db');
 
+async function ensureAiTables() {
+    await execute(`
+        CREATE TABLE IF NOT EXISTS bookmark_ai (
+            bookmark_id VARCHAR(50) PRIMARY KEY,
+            tags LONGTEXT,
+            summary TEXT,
+            provider VARCHAR(50),
+            model VARCHAR(100),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    `);
+}
+
+async function attachBookmarkAi(bookmarks) {
+    if (!Array.isArray(bookmarks) || bookmarks.length === 0) return;
+    const ids = bookmarks.map(b => b.id).filter(Boolean);
+    if (ids.length === 0) return;
+
+    await ensureAiTables();
+    const placeholders = ids.map(() => '?').join(',');
+    const rows = await query(
+        `SELECT bookmark_id, tags, summary FROM bookmark_ai WHERE bookmark_id IN (${placeholders})`,
+        ids
+    );
+
+    const aiMap = new Map();
+    rows.forEach(row => {
+        let tags = [];
+        try { tags = JSON.parse(row.tags || '[]'); } catch {}
+        aiMap.set(row.bookmark_id, {
+            tags: Array.isArray(tags) ? tags : [],
+            summary: row.summary || ''
+        });
+    });
+
+    bookmarks.forEach(b => {
+        const ai = aiMap.get(b.id);
+        b.tags = ai ? ai.tags : [];
+        b.ai_summary = ai ? ai.summary : '';
+    });
+}
+
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -26,6 +68,9 @@ module.exports = async function handler(req, res) {
             if (req.query.grouped === 'true') {
                 const categories = await query('SELECT * FROM categories ORDER BY sort_order, created_at');
                 const bookmarks = await query('SELECT * FROM bookmarks ORDER BY sort_order, created_at');
+                try {
+                    await attachBookmarkAi(bookmarks);
+                } catch {}
 
                 const grouped = categories.map(cat => ({
                     ...cat,
@@ -59,6 +104,9 @@ module.exports = async function handler(req, res) {
             }
 
             const bookmarks = await query(sql);
+            try {
+                await attachBookmarkAi(bookmarks);
+            } catch {}
             return res.json({ success: true, data: bookmarks });
         }
 
