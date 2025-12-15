@@ -102,13 +102,13 @@ const DEFAULT_AI_SYSTEM_PROMPT = [
     '输出必须且只能包含四行（不要 JSON、不要代码块、不要多余文字、不要空行）：',
     'tags: 标签1,标签2,标签3',
     'summary: 一句话摘要（<= 40 字）',
-    'category: 推荐分类名称（从已��分类中选择最匹配的一个，若无合适则留空）',
-    'new_category: 建议新分类名称（仅当已有分类都不合适时给出，否则留空）',
+    'category: 推荐的已有分类名称',
+    'new_category: 建议的新分类名称',
     '规则：',
     '- tags：3~8 个中文标签，每个 2~8 字，去重，按重要性排序；尽量是"用途/内容类型/领域"，避免泛词（如"官网/网站/主页"）。',
     '- summary：中文一句话，不要包含"tags:"前缀，不要引号/花括号/JSON，不要换行。',
-    '- category：从用户提供的已有分类列表中选择最匹配的一个分类名称，必须完全匹配列表中的名称。',
-    '- new_category：仅当已有分类都不适合时，建议一个简洁的新分类名称（2~6字）。',
+    '- category：必须从用户提供的"已有分类列表"中选择最匹配的一个，完全匹配列表中的名称；若列表为空或确实无匹配则填"无"。',
+    '- new_category：若已有分类都不太合适，建议一个简洁的新分类名称（2~6字）；若已有分类已足够合适则填"无"。',
     '若信息不足：给出最保守的用途/领域标签与最保守的用途描述。'
 ].join('\n');
 
@@ -300,6 +300,9 @@ function parseAiTagsAndSummaryFromText(text) {
     let summary = summaryLine ? String(summaryLine[1] || '').trim() : '';
     let category = categoryLine ? String(categoryLine[1] || '').trim().slice(0, 50) : '';
     let newCategory = newCategoryLine ? String(newCategoryLine[1] || '').trim().slice(0, 50) : '';
+    // 将 "无"、"-"、"空" 等值视为空
+    if (/^(无|没有|空|-|none|null|n\/a)$/i.test(category)) category = '';
+    if (/^(无|没有|空|-|none|null|n\/a)$/i.test(newCategory)) newCategory = '';
 
     if (!summary) {
         const firstNonTagsLine = raw
