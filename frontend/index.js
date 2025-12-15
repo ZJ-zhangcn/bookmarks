@@ -109,6 +109,7 @@ function cacheDOMElements() {
         bookmarkInputTags: document.getElementById('bookmarkInputTags'),
         bookmarkAiActions: document.getElementById('bookmarkAiActions'),
         aiGenerateBtn: document.getElementById('aiGenerateBtn'),
+        aiRefineBtn: document.getElementById('aiRefineBtn'),
         aiStatusHint: document.getElementById('aiStatusHint'),
         bookmarkInputCategory: document.getElementById('bookmarkInputCategory'),
         bookmarkItemType: document.getElementById('bookmarkItemType'),
@@ -748,7 +749,10 @@ function bindAllEvents() {
     DOM.cancelBookmarkBtn.addEventListener('click', closeBookmarkModal);
     DOM.saveBookmarkBtn.addEventListener('click', saveBookmark);
     if (DOM.aiGenerateBtn) {
-        DOM.aiGenerateBtn.addEventListener('click', handleAiGenerate);
+        DOM.aiGenerateBtn.addEventListener('click', () => handleAiGenerate({ mode: 'default' }));
+    }
+    if (DOM.aiRefineBtn) {
+        DOM.aiRefineBtn.addEventListener('click', () => handleAiGenerate({ mode: 'refine' }));
     }
 
     // 图标选择
@@ -1175,7 +1179,20 @@ async function saveBookmarkAi(bookmarkId) {
     } catch (e) {}
 }
 
-async function handleAiGenerate() {
+function buildLocalFallbackSummary({ name, url, tags }) {
+    const safeName = String(name || '').trim();
+    const safeUrl = String(url || '').trim();
+    const tag0 = Array.isArray(tags) && tags[0] ? String(tags[0]).trim() : '';
+
+    let host = '';
+    try { host = new URL(safeUrl).hostname.replace(/^www\./, ''); } catch {}
+
+    const subject = safeName || host || '该站点';
+    if (tag0) return `${subject}：${tag0}相关站点`.slice(0, 40);
+    return `${subject}：常用网站`.slice(0, 40);
+}
+
+async function handleAiGenerate({ mode }) {
     if (!aiStatus || !aiStatus.enabled) {
         alert('AI 功能未启用（建议仅在 Docker 主站开启）');
         return;
@@ -1189,10 +1206,15 @@ async function handleAiGenerate() {
         return;
     }
 
-    if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = '生成中...';
+    if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = mode === 'refine' ? '精炼中...' : '生成中...';
     try {
         const clientCfg = getAiClientSettings();
         const payload = { name, url, description };
+        if (mode === 'refine') {
+            payload.mode = 'refine';
+            const tagsHint = DOM.bookmarkInputTags ? DOM.bookmarkInputTags.value.trim() : '';
+            if (tagsHint) payload.tagsHint = tagsHint;
+        }
 
         const provider = String(clientCfg.provider || '').trim();
         if (provider && aiStatus.allowClientProvider) payload.provider = provider;
@@ -1226,6 +1248,11 @@ async function handleAiGenerate() {
             } else {
                 const ok = confirm('AI 已生成摘要，是否覆盖当前“描述”？');
                 if (ok) DOM.bookmarkInputDesc.value = summary;
+            }
+        } else if (mode !== 'refine') {
+            // 默认模式：避免空摘要影响体验，若 AI 仅返回 tags 则本地兜底补一句
+            if (!DOM.bookmarkInputDesc.value && tags.length > 0) {
+                DOM.bookmarkInputDesc.value = buildLocalFallbackSummary({ name, url, tags });
             }
         }
 
