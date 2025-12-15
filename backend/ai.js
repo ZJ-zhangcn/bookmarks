@@ -206,13 +206,35 @@ function parseAiTagsAndSummaryFromText(text) {
     const tagsLine = raw.match(/(?:^|\n)\s*(?:tags|标签)\s*[:：]\s*(.+)\s*(?:\n|$)/i);
     const summaryLine = raw.match(/(?:^|\n)\s*(?:summary|摘要)\s*[:：]\s*(.+)\s*(?:\n|$)/i);
 
-    const tags = normalizeTagsInput(tagsLine ? tagsLine[1] : '');
+    let tags = normalizeTagsInput(tagsLine ? tagsLine[1] : '');
     let summary = summaryLine ? String(summaryLine[1] || '').trim() : '';
     if (!summary) {
-        // 取第一行作为摘要
-        summary = raw.split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
+        // 取第一条“非 tags 行”作为摘要（避免把 tags 行当成摘要）
+        const firstNonTagsLine = raw
+            .split('\n')
+            .map(s => String(s || '').trim())
+            .filter(Boolean)
+            .find(line => !/^(?:tags|标签)\s*[:：]/i.test(line));
+        summary = firstNonTagsLine || '';
     }
     summary = summary.slice(0, 80);
+
+    // 进一步兜底：有时模型把 tags 行输出到 summary（或混在同一行），这里尽量纠正
+    if (/^(?:tags|标签)\s*[:：]/i.test(summary)) {
+        if (!tags.length) {
+            const m = summary.match(/^(?:tags|标签)\s*[:：]\s*(.+)$/i);
+            tags = normalizeTagsInput(m ? m[1] : '');
+        }
+        summary = '';
+    }
+    if (!tags.length) {
+        const looseTags = raw.match(/(?:tags|标签)\s*[:：]\s*([^\n\r]+)/i);
+        if (looseTags && looseTags[1]) tags = normalizeTagsInput(looseTags[1]);
+    }
+    if (!summary) {
+        const looseSummary = raw.match(/(?:summary|摘要)\s*[:：]\s*([^\n\r]+)/i);
+        if (looseSummary && looseSummary[1]) summary = String(looseSummary[1]).trim().slice(0, 80);
+    }
 
     return { tags, summary };
 }
@@ -516,8 +538,8 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
                     { role: 'user', content: prompt }
                 ],
                 stream: false,
-                temperature: 0.2,
-                max_tokens: 220
+                temperature: 0,
+                max_tokens: 280
             })
         }, timeoutMs);
     } catch (e) {
