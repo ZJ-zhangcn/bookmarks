@@ -448,6 +448,7 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
+                'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -467,17 +468,27 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         throw createHttpError(502, `无法连接 OpenAI 网关（${endpoint}）：${e?.message || 'network error'}${formatFetchCause(e)}`);
     }
 
-    const data = await response.json().catch(() => ({}));
+    const contentType = response.headers.get('content-type') || '';
+    const rawText = await response.text().catch(() => '');
+    const data = safeJsonParse(rawText);
     if (!response.ok) {
         const detail = data?.error?.message || '';
-        const message = `OpenAI 网关错误（HTTP ${response.status}）${detail ? `：${detail}` : ''}`;
+        const fallback = !detail && rawText ? `：${String(rawText).trim().slice(0, 200)}` : '';
+        const message = `OpenAI 网关错误（HTTP ${response.status}）${detail ? `：${detail}` : fallback}`;
         throw createHttpError(502, message);
     }
 
-    const text = extractTextFromOpenAiLikeResponse(data);
+    // 有些自建网关可能返回非 JSON（纯文本）或返回空响应；尽量给出可诊断信息
+    const text = data ? extractTextFromOpenAiLikeResponse(data) : rawText;
     const { tags, summary } = parseAiTagsAndSummaryFromText(text);
     if (!tags.length && !summary) {
-        throw createHttpError(502, `OpenAI 网关返回内容无法解析（内容为空或格式异常）。${summarizeOpenAiLikeResponseShape(data)}`);
+        if (!rawText) {
+            throw createHttpError(502, `OpenAI 网关返回内容无法解析（响应为空）。content-type=${contentType || '-'}; endpoint=${endpoint}`);
+        }
+        const hint = data
+            ? summarizeOpenAiLikeResponseShape(data)
+            : `content-type=${contentType || '-'}; raw=${String(rawText).trim().slice(0, 200)}`;
+        throw createHttpError(502, `OpenAI 网关返回内容无法解析（内容为空或格式异常）。${hint}`);
     }
     return { tags, summary, provider: 'openai', model };
 }
