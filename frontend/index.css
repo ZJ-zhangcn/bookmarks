@@ -1398,6 +1398,46 @@ body {
     overflow: hidden;
 }
 
+.bookmark-tags {
+    margin-top: var(--spacing-xs);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+}
+
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-result-tags {
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.search-result-reason {
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
 /* 搜索高亮 */
 .highlight {
     background: linear-gradient(135deg, var(--accent-3), var(--accent-1));

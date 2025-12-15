@@ -522,6 +522,15 @@ function createBookmarkCard(item, searchTerm) {
 
     const name = highlightText(item.name, searchTerm);
     const desc = highlightText(item.description || '', searchTerm);
+    const tagsArray = Array.isArray(item.tags)
+        ? item.tags.map(t => String(t || '').trim()).filter(Boolean)
+        : String(item.tags || '').split(/[,\n，;；|/]+/g).map(t => t.trim()).filter(Boolean);
+    const matchedTags = searchTerm
+        ? tagsArray.filter(t => t.toLowerCase().includes(searchTerm))
+        : [];
+    const tagsHtml = matchedTags.length > 0
+        ? `<div class="bookmark-tags" title="标签（匹配）">${matchedTags.map(t => `<span class="tag-chip">${highlightText(t, searchTerm)}</span>`).join('')}</div>`
+        : '';
 
     let iconHtml;
     // 检查缓存中是否有图标数据
@@ -557,6 +566,7 @@ function createBookmarkCard(item, searchTerm) {
             <div class="bookmark-info">
                 <div class="bookmark-name">${name}</div>
                 <div class="bookmark-desc" title="${rawDesc.replace(/"/g, '&quot;')}">${desc}</div>
+                ${tagsHtml}
             </div>
         </a>
     `;
@@ -2893,6 +2903,20 @@ function handleBookmarkSearch() {
     DOM.bookmarkSearchResults.innerHTML = results.slice(0, 20).map(item => {
         const category = categories.find(c => c.id === item.category_id);
         const categoryName = category ? category.name : '未分类';
+        const tagsArray = Array.isArray(item.tags)
+            ? item.tags.map(t => String(t || '').trim()).filter(Boolean)
+            : String(item.tags || '').split(/[,\n，;；|/]+/g).map(t => t.trim()).filter(Boolean);
+        const matchedTags = tagsArray.filter(t => t.toLowerCase().includes(searchTerm));
+        const matchName = String(item.name || '').toLowerCase().includes(searchTerm);
+        const matchDesc = String(item.description || '').toLowerCase().includes(searchTerm);
+        const matchUrl = String(item.url || '').toLowerCase().includes(searchTerm);
+        const matchTags = matchedTags.length > 0;
+        const reasons = [];
+        if (matchName) reasons.push('名称');
+        if (matchDesc) reasons.push('描述');
+        if (matchUrl) reasons.push('网址');
+        if (matchTags) reasons.push('标签');
+        const reasonText = reasons.length ? `匹配：${reasons.join(' / ')}` : '';
 
         // 获取图标（优先 URL 类型）
         let iconHtml;
@@ -2907,12 +2931,23 @@ function handleBookmarkSearch() {
             iconHtml = item.icon || '🌐';
         }
 
+        const descHtml = item.description
+            ? highlightText(item.description, searchTerm)
+            : highlightText(item.url, searchTerm);
+        const tagsToShow = matchTags ? matchedTags : [];
+        const tagsHtml = tagsToShow.length
+            ? `<div class="search-result-tags">标签：${tagsToShow.slice(0, 6).map(t => `<span class="tag-chip">${highlightText(t, searchTerm)}</span>`).join('')}</div>`
+            : '';
+        const reasonHtml = reasonText ? `<div class="search-result-reason">${reasonText}</div>` : '';
+
         return `
             <a href="${item.url}" class="search-result-item" target="_blank" rel="noopener" onclick="closeBookmarkSearch()">
                 <div class="search-result-icon">${iconHtml}</div>
                 <div class="search-result-info">
                     <div class="search-result-name">${highlightText(item.name, searchTerm)}</div>
-                    <div class="search-result-desc">${item.description ? highlightText(item.description, searchTerm) : item.url}</div>
+                    <div class="search-result-desc">${descHtml}</div>
+                    ${tagsHtml}
+                    ${reasonHtml}
                 </div>
                 <span class="search-result-category">${categoryName}</span>
             </a>
