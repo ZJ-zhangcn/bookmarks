@@ -230,6 +230,26 @@ function extractTextFromOpenAiLikeResponse(data) {
     return '';
 }
 
+function extractTextFromOpenAiSse(rawText) {
+    const raw = String(rawText || '').trim();
+    if (!raw) return '';
+    const lines = raw.split(/\r?\n/);
+    let acc = '';
+
+    for (const line of lines) {
+        const trimmed = String(line || '').trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const payload = trimmed.slice('data:'.length).trim();
+        if (!payload || payload === '[DONE]') continue;
+        const obj = safeJsonParse(payload);
+        if (!obj) continue;
+        const piece = extractTextFromOpenAiLikeResponse(obj);
+        if (piece) acc += piece;
+    }
+
+    return acc.trim();
+}
+
 function summarizeOpenAiLikeResponseShape(data) {
     if (!data || typeof data !== 'object') return 'data=null';
     const topKeys = Object.keys(data).slice(0, 20);
@@ -457,6 +477,7 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
                     { role: 'system', content: '你严格按要求输出 JSON。' },
                     { role: 'user', content: prompt }
                 ],
+                stream: false,
                 temperature: 0.2,
                 max_tokens: 220
             })
@@ -478,12 +499,18 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         throw createHttpError(502, message);
     }
 
-    // 有些自建网关可能返回非 JSON（纯文本）或返回空响应；尽量给出可诊断信息
-    const text = data ? extractTextFromOpenAiLikeResponse(data) : rawText;
+    // 有些自建网关会返回 SSE（text/event-stream，形如 data: {...chunk...}），需要做合并解析
+    const isSse = contentType.includes('text/event-stream') || /^\s*data:\s*\{/.test(rawText);
+    const text = data
+        ? extractTextFromOpenAiLikeResponse(data)
+        : (isSse ? extractTextFromOpenAiSse(rawText) : rawText);
     const { tags, summary } = parseAiTagsAndSummaryFromText(text);
     if (!tags.length && !summary) {
         if (!rawText) {
             throw createHttpError(502, `OpenAI 网关返回内容无法解析（响应为空）。content-type=${contentType || '-'}; endpoint=${endpoint}`);
+        }
+        if (isSse) {
+            throw createHttpError(502, `OpenAI 网关返回内容无法解析（SSE 未包含可用文本片段）。content-type=${contentType || '-'}; raw=${String(rawText).trim().slice(0, 200)}`);
         }
         const hint = data
             ? summarizeOpenAiLikeResponseShape(data)
