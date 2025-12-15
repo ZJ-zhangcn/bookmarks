@@ -875,13 +875,17 @@ module.exports = async function handler(req, res) {
             else if (cfg.provider === 'claude') result = await claudeGenerateWithConfig({ name, url, description, mode, tagsHint, categories, ...cfg });
             else return res.status(400).json({ success: false, error: `不支持的 AI_PROVIDER: ${cfg.provider}` });
 
+            console.log('[AI handler] result from provider:', JSON.stringify(result));
+
             if (shouldPersist) {
                 if (!id) return res.status(400).json({ success: false, error: '持久化需要提供 bookmarkId' });
                 await ensureAiTables();
                 await upsertBookmarkAi({ bookmarkId: id, ...result });
             }
 
-            return res.json({ success: true, data: { tags: result.tags, summary: result.summary, category: result.category || '', newCategory: result.newCategory || '' } });
+            const responseData = { tags: result.tags, summary: result.summary, category: result.category || '', newCategory: result.newCategory || '' };
+            console.log('[AI handler] response data:', JSON.stringify(responseData));
+            return res.json({ success: true, data: responseData });
         }
 
         return res.status(404).json({ success: false, error: '未知操作' });
