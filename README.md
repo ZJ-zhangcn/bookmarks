@@ -204,6 +204,7 @@ ports:
 | `AI_MODEL` | - | 模型名（不同 Provider 不同，如 `gpt-4o-mini` / `gemini-1.5-flash` / `claude-3-5-sonnet-latest`） |
 | `AI_BASE_URL` | - | API 基础地址（按 Provider 自动默认；也可统一覆盖） |
 | `AI_TIMEOUT_MS` | `8000` | AI 调用超时（毫秒） |
+| `AI_SYSTEM_PROMPT` | - | 覆盖内置系统提示词（建议保持“两行输出 tags/summary”的规则，否则解析可能失败） |
 | `AI_ALLOW_CLIENT_KEY` | `false` | 是否允许前端传入 Key（自用场景可选，不建议对外站点开启） |
 | `AI_ALLOW_CLIENT_BASE_URL` | `false` | 是否允许前端覆盖 API 地址（自用场景可选） |
 | `AI_ALLOW_CLIENT_PROVIDER` | `false` | 是否允许前端覆盖 Provider（自用场景可选） |

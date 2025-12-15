@@ -96,6 +96,38 @@ function getAiPublicStatus() {
     };
 }
 
+const DEFAULT_AI_SYSTEM_PROMPT = [
+    '你是一个书签整理助手。',
+    '你的任务：根据输入的书签信息生成 tags 与 summary。',
+    '输出必须且只能包含两行（不要 JSON、不要代码块、不要多余文字、不要空行）：',
+    'tags: 标签1,标签2,标签3',
+    'summary: 一句话摘要（<= 40 字）',
+    '规则：',
+    '- tags：3~8 个中文标签，每个 2~8 字，去重，按重要性排序；尽量是“用途/内容类型/领域”，避免泛词（如“官网/网站/主页”）。',
+    '- summary：中文一句话，不要包含“tags:”前缀，不要引号/花括号/JSON，不要换行。',
+    '若信息不足：给出最保守的用途/领域标签与最保守的用途描述。'
+].join('\n');
+
+function getAiSystemPrompt() {
+    const override = String(process.env.AI_SYSTEM_PROMPT || '').trim();
+    if (!override) return DEFAULT_AI_SYSTEM_PROMPT;
+    return override.slice(0, 2000);
+}
+
+function buildAiUserPrompt(payload) {
+    const name = String(payload?.name || '').trim().slice(0, 200);
+    const url = String(payload?.url || '').trim().slice(0, 2000);
+    const description = String(payload?.description || '').trim().slice(0, 500);
+    return [
+        '书签信息如下：',
+        `名称: ${name || '-'}`,
+        `网址: ${url || '-'}`,
+        `描述: ${description || '-'}`,
+        '',
+        '请按系统规则输出两行结果。'
+    ].join('\n');
+}
+
 function normalizeTagsInput(input) {
     if (Array.isArray(input)) {
         return input
@@ -510,16 +542,8 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         description: String(description || '').slice(0, 500)
     };
 
-    const prompt = [
-        '你是一个书签整理助手。请基于输入生成：',
-        '1) tags：3~8 个中文标签（每个标签 2~8 个字，避免重复）',
-        '2) summary：一句话中文摘要（<= 40 字）',
-        '请严格只输出两行（不要 JSON、不要代码块、不要多余文字）：',
-        'tags: 标签1,标签2,标签3',
-        'summary: 摘要（<= 40 字）',
-        '',
-        JSON.stringify(userPayload)
-    ].join('\n');
+    const systemPrompt = getAiSystemPrompt();
+    const userPrompt = buildAiUserPrompt(userPayload);
 
     const endpoint = `${String(baseUrl || '').replace(/\/+$/, '')}/chat/completions`;
     let response;
@@ -534,8 +558,8 @@ async function openaiGenerateWithConfig({ name, url, description, baseUrl, apiKe
             body: JSON.stringify({
                 model,
                 messages: [
-                    { role: 'system', content: '你严格按要求输出 JSON。' },
-                    { role: 'user', content: prompt }
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
                 ],
                 stream: false,
                 temperature: 0,
@@ -587,17 +611,7 @@ async function geminiGenerateWithConfig({ name, url, description, baseUrl, apiKe
         description: String(description || '').slice(0, 500)
     };
 
-    const prompt = [
-        '你是一个书签整理助手。请基于输入生成：',
-        '1) tags：3~8 个中文标签（每个标签 2~8 个字，避免重复）',
-        '2) summary：一句话中文摘要（<= 40 字）',
-        '优先只输出 JSON（不要代码块，不要多余文字），格式：{"tags":["..."],"summary":"..."}',
-        '如果无法输出 JSON，则输出两行：',
-        'tags: 标签1,标签2,标签3',
-        'summary: 摘要',
-        '',
-        JSON.stringify(userPayload)
-    ].join('\n');
+    const prompt = `${getAiSystemPrompt()}\n\n${buildAiUserPrompt(userPayload)}`;
 
     const base = String(baseUrl || '').replace(/\/+$/, '');
     const endpoint = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -612,7 +626,7 @@ async function geminiGenerateWithConfig({ name, url, description, baseUrl, apiKe
             },
             body: JSON.stringify({
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.2, maxOutputTokens: 220 }
+                generationConfig: { temperature: 0, maxOutputTokens: 280 }
             })
         }, timeoutMs);
     } catch (e) {
@@ -644,17 +658,8 @@ async function claudeGenerateWithConfig({ name, url, description, baseUrl, apiKe
         description: String(description || '').slice(0, 500)
     };
 
-    const prompt = [
-        '你是一个书签整理助手。请基于输入生成：',
-        '1) tags：3~8 个中文标签（每个标签 2~8 个字，避免重复）',
-        '2) summary：一句话中文摘要（<= 40 字）',
-        '优先只输出 JSON（不要代码块，不要多余文字），格式：{"tags":["..."],"summary":"..."}',
-        '如果无法输出 JSON，则输出两行：',
-        'tags: 标签1,标签2,标签3',
-        'summary: 摘要',
-        '',
-        JSON.stringify(userPayload)
-    ].join('\n');
+    const systemPrompt = getAiSystemPrompt();
+    const userPrompt = buildAiUserPrompt(userPayload);
 
     const endpoint = `${String(baseUrl || '').replace(/\/+$/, '')}/messages`;
     let response;
@@ -668,9 +673,10 @@ async function claudeGenerateWithConfig({ name, url, description, baseUrl, apiKe
             },
             body: JSON.stringify({
                 model,
-                max_tokens: 220,
-                temperature: 0.2,
-                messages: [{ role: 'user', content: prompt }]
+                max_tokens: 280,
+                temperature: 0,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: userPrompt }]
             })
         }, timeoutMs);
     } catch (e) {
