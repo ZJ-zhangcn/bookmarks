@@ -615,13 +615,14 @@ function summarizeOpenAiLikeResponseShape(data) {
     return `keys=${topKeys.join(',') || '-'}; choiceKeys=${choiceKeys.join(',') || '-'}; finish_reason=${finishReason ?? '-'}`;
 }
 
-async function openaiGenerateWithConfig({ name, url, description, tagsHint, mode, baseUrl, apiKey, model, timeoutMs }) {
+async function openaiGenerateWithConfig({ name, url, description, tagsHint, categories, mode, baseUrl, apiKey, model, timeoutMs }) {
 
     const userPayload = {
         name: String(name || '').slice(0, 200),
         url: String(url || '').slice(0, 2000),
         description: String(description || '').slice(0, 500),
-        tagsHint: String(tagsHint || '').slice(0, 200)
+        tagsHint: String(tagsHint || '').slice(0, 200),
+        categories: Array.isArray(categories) ? categories : []
     };
 
     const systemPrompt = getAiSystemPrompt(mode);
@@ -672,7 +673,7 @@ async function openaiGenerateWithConfig({ name, url, description, tagsHint, mode
         : (isSse ? extractTextFromOpenAiSse(rawText) : rawText);
     const upstreamErr = detectAiUpstreamErrorFromText(text);
     if (upstreamErr) throw createHttpError(upstreamErr.statusCode, upstreamErr.message);
-    let { tags, summary } = parseAiTagsAndSummaryFromText(text);
+    let { tags, summary, category, newCategory } = parseAiTagsAndSummaryFromText(text);
     if (normalizeAiMode(mode) === 'refine' && !summary) {
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);
         summary = buildFallbackSummary({ name, url, tags: effectiveTags });
@@ -689,15 +690,16 @@ async function openaiGenerateWithConfig({ name, url, description, tagsHint, mode
             : `content-type=${contentType || '-'}; raw=${String(rawText).trim().slice(0, 200)}`;
         throw createHttpError(502, `OpenAI 网关返回内容无法解析（内容为空或格式异常）。${hint}`);
     }
-    return { tags, summary, provider: 'openai', model };
+    return { tags, summary, category, newCategory, provider: 'openai', model };
 }
 
-async function geminiGenerateWithConfig({ name, url, description, tagsHint, mode, baseUrl, apiKey, model, timeoutMs }) {
+async function geminiGenerateWithConfig({ name, url, description, tagsHint, categories, mode, baseUrl, apiKey, model, timeoutMs }) {
     const userPayload = {
         name: String(name || '').slice(0, 200),
         url: String(url || '').slice(0, 2000),
         description: String(description || '').slice(0, 500),
-        tagsHint: String(tagsHint || '').slice(0, 200)
+        tagsHint: String(tagsHint || '').slice(0, 200),
+        categories: Array.isArray(categories) ? categories : []
     };
 
     const prompt = `${getAiSystemPrompt(mode)}\n\n${buildAiUserPrompt(userPayload, mode)}`;
@@ -735,21 +737,22 @@ async function geminiGenerateWithConfig({ name, url, description, tagsHint, mode
     const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
     const upstreamErr = detectAiUpstreamErrorFromText(text);
     if (upstreamErr) throw createHttpError(upstreamErr.statusCode, upstreamErr.message);
-    let { tags, summary } = parseAiTagsAndSummaryFromText(text);
+    let { tags, summary, category, newCategory } = parseAiTagsAndSummaryFromText(text);
     if (normalizeAiMode(mode) === 'refine' && !summary) {
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);
         summary = buildFallbackSummary({ name, url, tags: effectiveTags });
     }
     if (!tags.length && !summary) throw createHttpError(502, 'Gemini 网关返回内容无法解析（内容为空或格式异常）');
-    return { tags, summary, provider: 'gemini', model };
+    return { tags, summary, category, newCategory, provider: 'gemini', model };
 }
 
-async function claudeGenerateWithConfig({ name, url, description, tagsHint, mode, baseUrl, apiKey, model, timeoutMs }) {
+async function claudeGenerateWithConfig({ name, url, description, tagsHint, categories, mode, baseUrl, apiKey, model, timeoutMs }) {
     const userPayload = {
         name: String(name || '').slice(0, 200),
         url: String(url || '').slice(0, 2000),
         description: String(description || '').slice(0, 500),
-        tagsHint: String(tagsHint || '').slice(0, 200)
+        tagsHint: String(tagsHint || '').slice(0, 200),
+        categories: Array.isArray(categories) ? categories : []
     };
 
     const systemPrompt = getAiSystemPrompt(mode);
@@ -792,13 +795,13 @@ async function claudeGenerateWithConfig({ name, url, description, tagsHint, mode
         : (data?.content?.text || '');
     const upstreamErr = detectAiUpstreamErrorFromText(text);
     if (upstreamErr) throw createHttpError(upstreamErr.statusCode, upstreamErr.message);
-    let { tags, summary } = parseAiTagsAndSummaryFromText(text);
+    let { tags, summary, category, newCategory } = parseAiTagsAndSummaryFromText(text);
     if (normalizeAiMode(mode) === 'refine' && !summary) {
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);
         summary = buildFallbackSummary({ name, url, tags: effectiveTags });
     }
     if (!tags.length && !summary) throw createHttpError(502, 'Claude 网关返回内容无法解析（内容为空或格式异常）');
-    return { tags, summary, provider: 'claude', model };
+    return { tags, summary, category, newCategory, provider: 'claude', model };
 }
 
 module.exports = async function handler(req, res) {
@@ -856,15 +859,15 @@ module.exports = async function handler(req, res) {
                 return res.status(400).json({ success: false, error: 'AI 功能未启用（请设置 AI_ENABLED=true）' });
             }
 
-            const { bookmarkId, name, url, description, persist, mode, tagsHint } = req.body || {};
+            const { bookmarkId, name, url, description, persist, mode, tagsHint, categories } = req.body || {};
             const shouldPersist = String(persist).toLowerCase() === 'true';
             const id = String(bookmarkId || '').trim();
 
             const cfg = resolveRuntimeConfig(req.body);
             let result;
-            if (cfg.provider === 'openai') result = await openaiGenerateWithConfig({ name, url, description, mode, tagsHint, ...cfg });
-            else if (cfg.provider === 'gemini') result = await geminiGenerateWithConfig({ name, url, description, mode, tagsHint, ...cfg });
-            else if (cfg.provider === 'claude') result = await claudeGenerateWithConfig({ name, url, description, mode, tagsHint, ...cfg });
+            if (cfg.provider === 'openai') result = await openaiGenerateWithConfig({ name, url, description, mode, tagsHint, categories, ...cfg });
+            else if (cfg.provider === 'gemini') result = await geminiGenerateWithConfig({ name, url, description, mode, tagsHint, categories, ...cfg });
+            else if (cfg.provider === 'claude') result = await claudeGenerateWithConfig({ name, url, description, mode, tagsHint, categories, ...cfg });
             else return res.status(400).json({ success: false, error: `不支持的 AI_PROVIDER: ${cfg.provider}` });
 
             if (shouldPersist) {
