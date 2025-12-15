@@ -674,9 +674,11 @@ async function openaiGenerateWithConfig({ name, url, description, tagsHint, cate
     const text = data
         ? extractTextFromOpenAiLikeResponse(data)
         : (isSse ? extractTextFromOpenAiSse(rawText) : rawText);
+    console.log('[AI OpenAI] raw text from model:', text);
     const upstreamErr = detectAiUpstreamErrorFromText(text);
     if (upstreamErr) throw createHttpError(upstreamErr.statusCode, upstreamErr.message);
     let { tags, summary, category, newCategory } = parseAiTagsAndSummaryFromText(text);
+    console.log('[AI OpenAI] parsed result:', { tags, summary, category, newCategory });
     if (normalizeAiMode(mode) === 'refine' && !summary) {
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);
         summary = buildFallbackSummary({ name, url, tags: effectiveTags });
