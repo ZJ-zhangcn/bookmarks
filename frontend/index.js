@@ -671,6 +671,15 @@ function escapeRegExp(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function escapeHtmlAttribute(s) {
+    return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\r?\n/g, ' ');
+}
+
 function renderEngineDropdown() {
     const divider = DOM.engineDropdown.querySelector('.engine-dropdown-divider');
     DOM.engineDropdown.querySelectorAll('.engine-option').forEach(el => el.remove());
@@ -2934,6 +2943,8 @@ function handleBookmarkSearch() {
         const descHtml = item.description
             ? highlightText(item.description, searchTerm)
             : highlightText(item.url, searchTerm);
+        const descTitle = escapeHtmlAttribute(item.description || item.url || '');
+        const nameTitle = escapeHtmlAttribute(item.name || '');
         const tagsToShow = matchTags ? matchedTags : [];
         const tagsHtml = tagsToShow.length
             ? `<div class="search-result-tags">标签：${tagsToShow.slice(0, 6).map(t => `<span class="tag-chip">${highlightText(t, searchTerm)}</span>`).join('')}</div>`
@@ -2944,8 +2955,8 @@ function handleBookmarkSearch() {
             <a href="${item.url}" class="search-result-item" target="_blank" rel="noopener" onclick="closeBookmarkSearch()">
                 <div class="search-result-icon">${iconHtml}</div>
                 <div class="search-result-info">
-                    <div class="search-result-name">${highlightText(item.name, searchTerm)}</div>
-                    <div class="search-result-desc">${descHtml}</div>
+                    <div class="search-result-name" title="${nameTitle}">${highlightText(item.name, searchTerm)}</div>
+                    <div class="search-result-desc" title="${descTitle}">${descHtml}</div>
                     ${tagsHtml}
                     ${reasonHtml}
                 </div>
