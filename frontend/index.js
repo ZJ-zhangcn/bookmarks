@@ -1358,6 +1358,7 @@ async function handleAiGenerate({ mode }) {
         // 处理分类推荐
         const recommendedCategory = String(data.category || '').trim();
         const suggestedNewCategory = String(data.newCategory || '').trim();
+        console.log('[AI] category recommendation:', { recommendedCategory, suggestedNewCategory, allCategories: categories.map(c => c.name) });
         showCategoryRecommendations(recommendedCategory, suggestedNewCategory);
     } catch (e) {
         alert('AI 生成失败: ' + e.message);
