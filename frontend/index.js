@@ -55,8 +55,14 @@ async function init() {
     cacheDOMElements();
     loadAiClientSettingsToUi();
     loadCollapsedState(); // 加载折叠状态
-    await loadAiStatus();
-    await loadData();
+
+    // 并行加载：AI 状态 / 数据 / 个性化（壁纸）
+    // 注意：个性化里可能会预加载壁纸，避免“先无壁纸后有壁纸”的闪屏
+    await Promise.all([
+        loadAiStatus(),
+        loadData(),
+        loadPersonalization()
+    ]);
     renderAll();
     bindAllEvents();
     // 隐藏加载遮罩
@@ -72,6 +78,35 @@ function hideLoadingOverlay() {
             overlay.style.display = 'none';
         }, 300);
     }
+}
+
+function preloadImage(url, timeoutMs = 4000) {
+    const src = String(url || '').trim();
+    if (!src) return Promise.resolve(false);
+    return new Promise(resolve => {
+        const img = new Image();
+        let done = false;
+        const timer = setTimeout(() => {
+            if (done) return;
+            done = true;
+            resolve(false);
+        }, timeoutMs);
+
+        img.onload = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            resolve(true);
+        };
+        img.onerror = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            resolve(false);
+        };
+
+        img.src = src;
+    });
 }
 
 function cacheDOMElements() {
@@ -426,8 +461,6 @@ function renderAll() {
     renderBookmarks();
     renderEngineDropdown();
     updateEngineDisplay();
-    // 应用个性化设置
-    loadPersonalization();
     // 应用语言翻译
     if (window.i18n && window.i18n.applyTranslations) {
         window.i18n.applyTranslations();
@@ -2481,7 +2514,7 @@ async function loadPersonalization() {
             if (DOM.contentMaxWidth) DOM.contentMaxWidth.value = config.contentMaxWidth || 1200;
             if (DOM.footerShow) DOM.footerShow.checked = config.footerShow !== false;
             if (DOM.footerText) DOM.footerText.value = config.footerText || '© 2024 书签导航 · 快捷访问常用网站';
-            applyPersonalization(config);
+            await applyPersonalization(config);
         }
     } catch (e) {
         console.error('加载个性化设置失败:', e);
@@ -2509,14 +2542,14 @@ async function savePersonalization() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config)
         });
-        applyPersonalization(config);
+        await applyPersonalization(config);
         alert('保存成功！');
     } catch (e) {
         alert('保存失败: ' + e.message);
     }
 }
 
-function applyPersonalization(config) {
+async function applyPersonalization(config) {
     // LOGO
     const logo = document.querySelector('.site-title');
     if (logo) {
@@ -2548,9 +2581,10 @@ function applyPersonalization(config) {
     const bgDecoration = document.getElementById('bgDecoration');
 
     if (config.wallpaperUrl) {
-        // 显示壁纸层
+        const url = String(config.wallpaperUrl || '').trim();
+
+        // 先显示壁纸层与遮罩参数，避免布局抖动
         wallpaperLayer.classList.add('active');
-        wallpaperImage.style.backgroundImage = `url(${config.wallpaperUrl})`;
 
         // 应用模糊效果
         const blur = config.wallpaperBlur || 0;
@@ -2561,8 +2595,19 @@ function applyPersonalization(config) {
         const dim = config.wallpaperDim || 30;
         wallpaperOverlay.style.background = `rgba(0, 0, 0, ${dim / 100})`;
 
-        // 隐藏默认背景装饰
-        if (bgDecoration) bgDecoration.style.display = 'none';
+        // 预加载壁纸，避免“先无壁纸后有壁纸”的闪屏
+        // 加载完成前暂时保留默认背景装饰，避免纯黑底
+        if (bgDecoration) bgDecoration.style.display = '';
+        const ok = await preloadImage(url, 4000);
+        if (ok) {
+            wallpaperImage.style.backgroundImage = `url(${url})`;
+            if (bgDecoration) bgDecoration.style.display = 'none';
+        } else {
+            // 壁纸不可用时回退到默认背景
+            wallpaperLayer.classList.remove('active');
+            wallpaperImage.style.backgroundImage = '';
+            if (bgDecoration) bgDecoration.style.display = '';
+        }
 
         // 清除 body 上可能存在的旧样式
         document.body.style.backgroundImage = '';
