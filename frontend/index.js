@@ -1323,6 +1323,7 @@ async function handleAiGenerate({ mode }) {
             body: JSON.stringify(payload)
         });
         const result = await res.json();
+        console.log('[AI] full API response:', result);
         if (!res.ok || !result.success) {
             throw new Error(result.error || `HTTP ${res.status}`);
         }
