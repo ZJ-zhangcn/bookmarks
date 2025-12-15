@@ -162,6 +162,16 @@ body {
     z-index: -1;
 }
 
+.bg-decoration::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(700px circle at 18% 78%, hsla(180, 100%, 50%, 0.18), transparent 60%),
+        radial-gradient(520px circle at 14% 18%, hsla(var(--primary-hue), 100%, 65%, 0.12), transparent 62%);
+    opacity: 1;
+}
+
 .bg-orb {
     position: absolute;
     border-radius: 50%;
