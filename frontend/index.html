@@ -447,6 +447,16 @@
                                     <option value="en">English</option>
                                 </select>
                             </div>
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <div class="setting-label">主题</div>
+                                </div>
+                                <select id="themeSelect" class="setting-select">
+                                    <option value="dark">深色</option>
+                                    <option value="light">浅色</option>
+                                    <option value="system">跟随系统</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -647,6 +657,14 @@
                                 <input type="file" id="importFile" accept=".json" style="display:none;">
                                 <button class="btn btn-secondary" id="importBtn">导入</button>
                             </div>
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <div class="setting-label">导入浏览器书签</div>
+                                    <div class="setting-desc">从 Chrome/Firefox/Edge 导入</div>
+                                </div>
+                                <input type="file" id="browserImportFile" accept=".html,.htm" style="display:none;">
+                                <button class="btn btn-secondary" id="browserImportBtn">导入</button>
+                            </div>
                         </div>
                         <div class="setting-card">
                             <h5 class="card-subtitle">☁️ WebDAV 云同步</h5>
@@ -746,7 +764,7 @@
     </button>
 
     <script src="i18n.js"></script>
-    <script src="index.js"></script>
+    <script type="module" src="main.js"></script>
 </body>
 
 </html>

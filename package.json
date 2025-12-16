@@ -9,8 +9,12 @@
     "db:migrate": "node scripts/migrate-to-mysql.js"
   },
   "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "cheerio": "^1.1.2",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
     "mysql2": "^3.11.0",
-    "cheerio": "^1.0.0-rc.12"
+    "node-fetch": "^2.7.0"
   },
   "engines": {
     "node": ">=18"

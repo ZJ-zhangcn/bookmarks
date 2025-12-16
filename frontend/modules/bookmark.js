@@ -1,0 +1,525 @@
+/**
+ * 书签管理模块
+ */
+import { DOM } from './dom.js';
+import * as state from './state.js';
+import { loadData } from './api.js';
+import { renderAll, renderCategoryNav } from './render.js';
+import { updateAiUiVisibility, getAiClientSettings, setAiButtonsDisabled, buildLocalFallbackSummary } from './ai.js';
+import { fetchFavicon } from './favicon.js';
+import { loadIconLibrary, refreshIconLibraryCache } from './icon-library.js';
+import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
+
+export function handleBookmarkClick(e) {
+    const editBtn = e.target.closest('.bookmark-action-btn.edit');
+    const deleteBtn = e.target.closest('.bookmark-action-btn.delete');
+    const addBtn = e.target.closest('.header-action-btn.add-btn');
+    const sortBtn = e.target.closest('.header-action-btn.sort-btn');
+    const collapseBtn = e.target.closest('.collapse-btn');
+
+    if (collapseBtn) { e.preventDefault(); e.stopPropagation(); toggleCategoryCollapse(collapseBtn.dataset.category); }
+    else if (editBtn) { e.preventDefault(); e.stopPropagation(); openBookmarkModal(editBtn.dataset.id); }
+    else if (deleteBtn) { e.preventDefault(); e.stopPropagation(); deleteBookmark(deleteBtn.dataset.id); }
+    else if (addBtn) { e.preventDefault(); openBookmarkModal(null, addBtn.dataset.category); }
+    else if (sortBtn) { e.preventDefault(); toggleBookmarkSorting(sortBtn.dataset.category); }
+}
+
+export function openBookmarkModal(bookmarkId = null, categoryId = null) {
+    state.setEditingBookmarkId(bookmarkId);
+
+    DOM.bookmarkInputCategory.innerHTML = state.categories.map(c =>
+        `<option value="${c.id}" ${c.id === categoryId ? 'selected' : ''}>${c.name}</option>`
+    ).join('') + '<option value="__new__">+ 新建分类...</option>';
+
+    if (bookmarkId) {
+        DOM.bookmarkModalTitle.textContent = '编辑书签';
+        const bookmark = state.bookmarks.find(b => b.id === bookmarkId);
+        if (bookmark) {
+            state.setEditingBookmark(bookmark);
+            DOM.bookmarkInputName.value = bookmark.name;
+            DOM.bookmarkInputUrl.value = bookmark.url;
+            DOM.bookmarkInputDesc.value = bookmark.description || '';
+            if (DOM.bookmarkInputTags) DOM.bookmarkInputTags.value = '';
+            DOM.bookmarkInputCategory.value = bookmark.category_id;
+
+            const originalIconType = bookmark.icon_type || 'auto';
+            state.setCurrentIconType((originalIconType === 'base64') ? 'auto' : originalIconType);
+            state.setCurrentIconData(bookmark.icon_data || '');
+
+            if (originalIconType === 'emoji') {
+                DOM.bookmarkInputEmoji.value = bookmark.icon_data || '';
+            } else {
+                DOM.bookmarkInputEmoji.value = '';
+            }
+            if (originalIconType === 'url') {
+                DOM.bookmarkInputIconUrl.value = bookmark.icon_data || '';
+            } else {
+                DOM.bookmarkInputIconUrl.value = '';
+            }
+
+            if (bookmark.icon_data) {
+                if (originalIconType === 'base64' || originalIconType === 'url') {
+                    DOM.iconPreviewAuto.innerHTML = `<img src="${bookmark.icon_data}" class="selected">`;
+                } else if (originalIconType === 'emoji') {
+                    DOM.iconPreviewAuto.innerHTML = `<span>${bookmark.icon_data}</span>`;
+                }
+            } else {
+                DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+            }
+            DOM.iconPreviewUpload.innerHTML = '';
+        }
+    } else {
+        state.setEditingBookmark(null);
+        DOM.bookmarkModalTitle.textContent = '添加书签';
+        DOM.bookmarkInputName.value = '';
+        DOM.bookmarkInputUrl.value = '';
+        DOM.bookmarkInputDesc.value = '';
+        if (DOM.bookmarkInputTags) DOM.bookmarkInputTags.value = '';
+        state.setCurrentIconType('auto');
+        state.setCurrentIconData('');
+        DOM.bookmarkInputEmoji.value = '';
+        DOM.bookmarkInputIconUrl.value = '';
+        DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+        DOM.iconPreviewUpload.innerHTML = '';
+    }
+
+    document.querySelectorAll('.icon-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.icon-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector(`[data-type="${state.currentIconType}"]`)?.classList.add('active');
+    DOM.bookmarkModal.querySelector(`[data-panel="${state.currentIconType}"]`)?.classList.add('active');
+
+    hideCategoryRecommendations();
+    DOM.bookmarkModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    updateAiUiVisibility();
+    if (DOM.bookmarkInputTags) {
+        loadBookmarkAi(bookmarkId);
+    }
+
+    DOM.bookmarkInputCategory.onchange = function () {
+        if (this.value === '__new__') {
+            const newCatName = prompt('请输入新分类名称：');
+            if (newCatName && newCatName.trim()) {
+                createCategoryForBookmark(newCatName.trim());
+            } else {
+                this.value = state.categories[0]?.id || '';
+            }
+        }
+    };
+}
+
+export async function loadBookmarkAi(bookmarkId) {
+    if (!DOM.bookmarkInputTags) return;
+    if (!bookmarkId) return;
+    try {
+        const res = await fetch(`${state.API_BASE}/api/ai?action=bookmark&id=${encodeURIComponent(bookmarkId)}`);
+        const result = await res.json();
+        if (result && result.success && result.data) {
+            const tags = Array.isArray(result.data.tags) ? result.data.tags : [];
+            DOM.bookmarkInputTags.value = tags.join(',');
+            if (result.data.summary && !DOM.bookmarkInputDesc.value) {
+                DOM.bookmarkInputDesc.value = result.data.summary;
+            }
+        }
+    } catch (e) {}
+}
+
+export async function saveBookmarkAi(bookmarkId) {
+    if (!DOM.bookmarkInputTags) return;
+    const tagsText = DOM.bookmarkInputTags.value.trim();
+    try {
+        await fetch(`${state.API_BASE}/api/ai?action=bookmark`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookmarkId, tags: tagsText })
+        });
+    } catch (e) {}
+}
+
+export function closeBookmarkModal() {
+    DOM.bookmarkModal.classList.remove('open');
+    document.body.style.overflow = '';
+    state.setEditingBookmarkId(null);
+}
+
+export async function saveBookmark() {
+    const name = DOM.bookmarkInputName.value.trim();
+    const url = DOM.bookmarkInputUrl.value.trim();
+    const description = DOM.bookmarkInputDesc.value.trim();
+    const category_id = DOM.bookmarkInputCategory.value;
+    const item_type = DOM.bookmarkItemType ? DOM.bookmarkItemType.value : 'bookmark';
+    const component_type = item_type === 'component' ? DOM.bookmarkComponentType.value : null;
+
+    if (!name) { alert('请填写名称'); return; }
+    if (item_type === 'bookmark' && !url) { alert('请填写网址'); return; }
+
+    let icon_type = state.currentIconType;
+    let icon_data = '';
+    let icon = '🌐';
+
+    if (item_type === 'component') {
+        const componentIcons = { cpu: '💻', memory: '📊', disk: '💾' };
+        icon = componentIcons[component_type] || '📊';
+        icon_type = 'emoji';
+        icon_data = icon;
+    } else if (state.currentIconType === 'library') {
+        if (state.currentIconData) {
+            icon_type = state.currentIconData.startsWith('data:') ? 'base64' : 'url';
+            icon_data = state.currentIconData;
+        } else if (state.editingBookmark && state.editingBookmark.icon_data) {
+            icon_type = state.editingBookmark.icon_type;
+            icon_data = state.editingBookmark.icon_data;
+        }
+    } else if (state.currentIconType === 'emoji') {
+        icon_data = DOM.bookmarkInputEmoji.value.trim() || '🌐';
+        icon = icon_data;
+    } else if (state.currentIconType === 'url') {
+        const iconUrl = DOM.bookmarkInputIconUrl.value.trim();
+        if (iconUrl) {
+            icon_type = 'url';
+            icon_data = iconUrl;
+        } else if (state.editingBookmark && state.editingBookmark.icon_data) {
+            icon_type = state.editingBookmark.icon_type;
+            icon_data = state.editingBookmark.icon_data;
+        }
+    } else if (state.currentIconType === 'upload') {
+        if (state.currentIconData) {
+            icon_type = 'base64';
+            icon_data = state.currentIconData;
+        } else if (state.editingBookmark && state.editingBookmark.icon_data) {
+            icon_type = state.editingBookmark.icon_type;
+            icon_data = state.editingBookmark.icon_data;
+        }
+    } else if (state.currentIconType === 'auto') {
+        const selectedImg = DOM.iconPreviewAuto.querySelector('img.selected') || DOM.iconPreviewAuto.querySelector('img');
+        if (selectedImg && selectedImg.src) {
+            if (selectedImg.src.startsWith('data:')) {
+                icon_type = 'base64';
+                icon_data = selectedImg.src;
+            } else {
+                icon_type = 'url';
+                icon_data = selectedImg.src;
+            }
+        } else if (state.editingBookmark && state.editingBookmark.icon_data) {
+            icon_type = state.editingBookmark.icon_type;
+            icon_data = state.editingBookmark.icon_data;
+        }
+    }
+
+    try {
+        const res = await fetch(`${state.API_BASE}/api/bookmarks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: state.editingBookmarkId,
+                category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type
+            })
+        });
+        const result = await res.json().catch(() => null);
+
+        if (res.ok && result && result.success) {
+            const savedId = result?.data?.id || state.editingBookmarkId;
+            if (savedId) await saveBookmarkAi(savedId);
+            await loadData();
+            renderAll();
+            refreshIconLibraryCache();
+            closeBookmarkModal();
+        } else {
+            const errMsg = result?.error || `HTTP ${res.status}`;
+            alert('保存失败: ' + errMsg);
+        }
+    } catch (e) {
+        alert('保存失败: ' + e.message);
+    }
+}
+
+export async function deleteBookmark(id) {
+    if (!confirm('确定删除此书签？')) return;
+
+    try {
+        await fetch(`${state.API_BASE}/api/bookmarks?id=${id}`, { method: 'DELETE' });
+        await loadData();
+        renderAll();
+    } catch (e) {
+        alert('删除失败: ' + e.message);
+    }
+}
+
+export function toggleBookmarkSorting(categoryId) {
+    const section = document.querySelector(`.category-section[data-category-id="${categoryId}"]`);
+    if (!section) return;
+
+    const grid = section.querySelector('.bookmarks-grid');
+    const sortBtn = section.querySelector('.sort-btn');
+
+    if (state.sortingCategory === categoryId) {
+        state.setSortingCategory(null);
+        grid.classList.remove('sorting-mode');
+        sortBtn.classList.remove('active');
+        const saveBtn = section.querySelector('.save-sort-btn');
+        if (saveBtn) saveBtn.remove();
+    } else {
+        state.setSortingCategory(categoryId);
+        grid.classList.add('sorting-mode');
+        sortBtn.classList.add('active');
+
+        const header = section.querySelector('.category-header');
+        if (!section.querySelector('.save-sort-btn')) {
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'btn btn-primary save-sort-btn';
+            saveBtn.innerHTML = '💾 保存排序';
+            saveBtn.onclick = () => saveBookmarkOrder(categoryId);
+            header.insertAdjacentElement('afterend', saveBtn);
+        }
+
+        enableBookmarkDrag(grid, categoryId);
+    }
+}
+
+export function enableBookmarkDrag(grid, categoryId) {
+    let draggedItem = null;
+
+    const cards = grid.querySelectorAll('.bookmark-card, .component-card');
+    cards.forEach(card => {
+        card.draggable = true;
+
+        card.ondragstart = (e) => {
+            draggedItem = card;
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        };
+
+        card.ondragend = () => {
+            card.classList.remove('dragging');
+            draggedItem = null;
+        };
+
+        card.ondragover = (e) => {
+            e.preventDefault();
+            if (!draggedItem || draggedItem === card) return;
+
+            const rect = card.getBoundingClientRect();
+            const midX = rect.left + rect.width / 2;
+
+            if (e.clientX < midX) {
+                grid.insertBefore(draggedItem, card);
+            } else {
+                grid.insertBefore(draggedItem, card.nextSibling);
+            }
+        };
+    });
+}
+
+export async function saveBookmarkOrder(categoryId) {
+    const section = document.querySelector(`.category-section[data-category-id="${categoryId}"]`);
+    const grid = section.querySelector('.bookmarks-grid');
+    const cards = grid.querySelectorAll('.bookmark-card, .component-card');
+
+    const order = Array.from(cards).map((card, index) => ({
+        id: card.dataset.id,
+        sort_order: index
+    }));
+
+    try {
+        await fetch(`${state.API_BASE}/api/bookmarks`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order })
+        });
+
+        toggleBookmarkSorting(categoryId);
+
+        await loadData();
+        renderAll();
+    } catch (e) {
+        alert('保存排序失败: ' + e.message);
+    }
+}
+
+export function handleIconUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        state.setCurrentIconData(reader.result);
+        DOM.iconPreviewUpload.innerHTML = `<img src="${reader.result}">`;
+    };
+    reader.readAsDataURL(file);
+}
+
+export async function handleAiGenerate({ mode }) {
+    if (!state.aiStatus || !state.aiStatus.enabled) {
+        alert('AI 功能未启用（建议仅在 Docker 主站开启）');
+        return;
+    }
+
+    const now = Date.now();
+    if (state.aiRequestInFlight) {
+        if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = 'AI 正在处理中，请稍候...';
+        return;
+    }
+    if (now - state.aiLastActionAt < state.AI_CLICK_COOLDOWN_MS) {
+        const left = Math.ceil((state.AI_CLICK_COOLDOWN_MS - (now - state.aiLastActionAt)) / 1000);
+        if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = `操作太频繁，请 ${left}s 后再试`;
+        return;
+    }
+
+    const name = DOM.bookmarkInputName.value.trim();
+    const url = DOM.bookmarkInputUrl.value.trim();
+    const description = DOM.bookmarkInputDesc.value.trim();
+    if (!name && !url) {
+        alert('请先填写名称或网址');
+        return;
+    }
+
+    state.setAiRequestInFlight(true);
+    state.setAiLastActionAt(now);
+    setAiButtonsDisabled(true);
+    if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = mode === 'refine' ? '精炼中...' : '生成中...';
+    try {
+        const clientCfg = getAiClientSettings();
+        const payload = { name, url, description };
+        if (mode === 'refine') {
+            payload.mode = 'refine';
+            const tagsHint = DOM.bookmarkInputTags ? DOM.bookmarkInputTags.value.trim() : '';
+            if (tagsHint) payload.tagsHint = tagsHint;
+        }
+
+        const provider = String(clientCfg.provider || '').trim();
+        if (provider && state.aiStatus.allowClientProvider) payload.provider = provider;
+
+        const model = String(clientCfg.model || '').trim();
+        if (model) payload.model = model;
+
+        const baseUrl = String(clientCfg.apiBaseUrl || '').trim();
+        if (baseUrl && state.aiStatus.allowClientBaseUrl) payload.apiBaseUrl = baseUrl;
+
+        const apiKey = String(clientCfg.apiKey || '').trim();
+        if (apiKey && state.aiStatus.allowClientKey) payload.apiKey = apiKey;
+
+        payload.categories = state.categories.map(c => c.name);
+
+        const res = await fetch(`${state.API_BASE}/api/ai?action=generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        console.log('[AI] full API response:', result);
+        if (!res.ok || !result.success) {
+            throw new Error(result.error || `HTTP ${res.status}`);
+        }
+
+        const data = result.data || {};
+        const tags = Array.isArray(data.tags) ? data.tags : [];
+        const summary = String(data.summary || '').trim();
+
+        if (summary) {
+            if (!DOM.bookmarkInputDesc.value) {
+                DOM.bookmarkInputDesc.value = summary;
+            } else {
+                const ok = confirm('AI 已生成摘要，是否覆盖当前"描述"？');
+                if (ok) DOM.bookmarkInputDesc.value = summary;
+            }
+        } else if (mode !== 'refine') {
+            if (!DOM.bookmarkInputDesc.value && tags.length > 0) {
+                DOM.bookmarkInputDesc.value = buildLocalFallbackSummary({ name, url, tags });
+            }
+        }
+
+        if (DOM.bookmarkInputTags && tags.length > 0) {
+            const next = tags.join(',');
+            if (!DOM.bookmarkInputTags.value.trim()) {
+                DOM.bookmarkInputTags.value = next;
+            } else {
+                const ok = confirm('AI 已生成标签，是否覆盖当前"标签"？');
+                if (ok) DOM.bookmarkInputTags.value = next;
+            }
+        }
+
+        const recommendedCategory = String(data.category || '').trim();
+        const suggestedNewCategory = String(data.newCategory || '').trim();
+        console.log('[AI] category recommendation:', { recommendedCategory, suggestedNewCategory, allCategories: state.categories.map(c => c.name) });
+        showCategoryRecommendations(recommendedCategory, suggestedNewCategory);
+    } catch (e) {
+        alert('AI 生成失败: ' + e.message);
+    } finally {
+        state.setAiRequestInFlight(false);
+        setAiButtonsDisabled(false);
+        updateAiUiVisibility();
+    }
+}
+
+export function showCategoryRecommendations(recommendedCategory, suggestedNewCategory) {
+    if (!DOM.categoryRecommendations || !DOM.categoryRecChips) return;
+
+    DOM.categoryRecChips.innerHTML = '';
+    let hasContent = false;
+
+    if (recommendedCategory) {
+        const matchedCat = state.categories.find(c => c.name === recommendedCategory);
+        if (matchedCat && DOM.bookmarkInputCategory.value !== matchedCat.id) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'rec-chip existing';
+            btn.dataset.categoryId = matchedCat.id;
+            btn.textContent = `${matchedCat.icon || '📁'} ${matchedCat.name}`;
+            DOM.categoryRecChips.appendChild(btn);
+            hasContent = true;
+        }
+    }
+
+    if (suggestedNewCategory) {
+        const normalizedNew = suggestedNewCategory.trim().toLowerCase();
+        const existingCat = state.categories.find(c => c.name.toLowerCase() === normalizedNew);
+        if (!existingCat) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'rec-chip new-category';
+            btn.dataset.newCategory = suggestedNewCategory;
+            const icon = document.createElement('span');
+            icon.className = 'chip-icon';
+            icon.textContent = '+';
+            btn.appendChild(icon);
+            btn.appendChild(document.createTextNode(suggestedNewCategory));
+            DOM.categoryRecChips.appendChild(btn);
+            hasContent = true;
+        }
+    }
+
+    DOM.categoryRecommendations.style.display = hasContent ? 'flex' : 'none';
+}
+
+export function hideCategoryRecommendations() {
+    if (DOM.categoryRecommendations) {
+        DOM.categoryRecommendations.style.display = 'none';
+    }
+}
+
+export async function handleCategoryRecChipClick(e) {
+    const chip = e.target.closest('.rec-chip');
+    if (!chip) return;
+
+    if (chip.classList.contains('existing')) {
+        const categoryId = chip.dataset.categoryId;
+        if (categoryId && DOM.bookmarkInputCategory) {
+            DOM.bookmarkInputCategory.value = categoryId;
+        }
+        hideCategoryRecommendations();
+    } else if (chip.classList.contains('new-category')) {
+        const newCategoryName = chip.dataset.newCategory;
+        if (newCategoryName) {
+            const normalizedNew = newCategoryName.trim().toLowerCase();
+            const existingCat = state.categories.find(c => c.name.toLowerCase() === normalizedNew);
+            if (existingCat) {
+                DOM.bookmarkInputCategory.value = existingCat.id;
+                hideCategoryRecommendations();
+            } else {
+                const created = await createCategoryForBookmark(newCategoryName);
+                if (created) {
+                    hideCategoryRecommendations();
+                }
+            }
+        }
+    }
+}

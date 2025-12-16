@@ -94,6 +94,26 @@
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* 浅色主题 */
+[data-theme="light"] {
+    --primary-hue: 250;
+    --primary: hsl(var(--primary-hue), 85%, 55%);
+    --primary-light: hsl(var(--primary-hue), 85%, 65%);
+    --primary-dark: hsl(var(--primary-hue), 85%, 45%);
+
+    --bg-primary: hsl(220, 20%, 97%);
+    --bg-secondary: hsl(220, 20%, 94%);
+    --bg-tertiary: hsl(220, 20%, 90%);
+
+    --glass-bg: hsla(220, 20%, 100%, 0.8);
+    --glass-border: hsla(220, 20%, 50%, 0.15);
+    --glass-shadow: 0 8px 32px hsla(220, 20%, 0%, 0.08);
+
+    --text-primary: hsl(220, 25%, 15%);
+    --text-secondary: hsl(220, 15%, 40%);
+    --text-tertiary: hsl(220, 10%, 55%);
+}
+
 /* ========================================
    基础重置
    ======================================== */
