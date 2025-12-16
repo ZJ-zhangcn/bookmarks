@@ -65,3 +65,4 @@ export function setIconLibraryCache(val) { iconLibraryCache = val; }
 export function setSelectedLibraryIcon(val) { selectedLibraryIcon = val; }
 export function setClockInterval(val) { clockInterval = val; }
 export function setSystemStatsInterval(val) { systemStatsInterval = val; }
+export function setCollapsedCategories(val) { collapsedCategories = val; }

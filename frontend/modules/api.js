@@ -130,7 +130,7 @@ export function loadCollapsedState() {
     try {
         const saved = localStorage.getItem('collapsedCategories');
         if (saved) {
-            state.collapsedCategories = new Set(JSON.parse(saved));
+            state.setCollapsedCategories(new Set(JSON.parse(saved)));
         }
     } catch (e) {
         console.error('加载折叠状态失败:', e);
