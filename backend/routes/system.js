@@ -4,11 +4,14 @@
 const express = require('express');
 const os = require('os');
 const fs = require('fs');
+const { exec } = require('child_process');
 const router = express.Router();
 const { success, asyncHandler } = require('../utils');
 
 const HOST_PROC = process.env.HOST_PROC || '/proc';
 let lastCpuTimes = null;
+let diskCache = { data: null, timestamp: 0 };
+const DISK_CACHE_TTL = 30000; // 磁盘信息缓存 30 秒
 
 function getCpuUsageFromProc() {
     try {
@@ -71,41 +74,75 @@ function getMemoryFromProc() {
     }
 }
 
+function getDiskInfoWindows() {
+    return new Promise((resolve) => {
+        // 使用 PowerShell 替代 wmic（更快）
+        const cmd = 'powershell -NoProfile -Command "Get-CimInstance Win32_LogicalDisk | Where-Object {$_.DriveType -eq 3} | Select-Object Size,FreeSpace | ConvertTo-Json"';
+        exec(cmd, { timeout: 5000 }, (err, stdout) => {
+            if (err) {
+                resolve({ total: 0, used: 0, free: 0 });
+                return;
+            }
+            try {
+                let disks = JSON.parse(stdout || '[]');
+                if (!Array.isArray(disks)) disks = [disks];
+                let total = 0, free = 0;
+                disks.forEach(d => {
+                    total += parseInt(d.Size) || 0;
+                    free += parseInt(d.FreeSpace) || 0;
+                });
+                resolve({ total, used: total - free, free });
+            } catch {
+                resolve({ total: 0, used: 0, free: 0 });
+            }
+        });
+    });
+}
+
+function getDiskInfoLinux() {
+    return new Promise((resolve) => {
+        const hostRoot = process.env.HOST_PROC ? '/host' : '/';
+        exec(`df -B1 ${hostRoot} 2>/dev/null | tail -1 | awk '{print $2,$3,$4}'`, { timeout: 3000 }, (err, stdout) => {
+            if (err) {
+                resolve({ total: 0, used: 0, free: 0 });
+                return;
+            }
+            const parts = stdout.trim().split(/\s+/);
+            if (parts.length >= 3) {
+                resolve({
+                    total: parseInt(parts[0]) || 0,
+                    used: parseInt(parts[1]) || 0,
+                    free: parseInt(parts[2]) || 0
+                });
+            } else {
+                resolve({ total: 0, used: 0, free: 0 });
+            }
+        });
+    });
+}
+
+async function getDiskInfo() {
+    // 检查缓存
+    const now = Date.now();
+    if (diskCache.data && (now - diskCache.timestamp) < DISK_CACHE_TTL) {
+        return diskCache.data;
+    }
+
+    const diskInfo = process.platform === 'win32'
+        ? await getDiskInfoWindows()
+        : await getDiskInfoLinux();
+
+    diskCache = { data: diskInfo, timestamp: now };
+    return diskInfo;
+}
+
 module.exports = function(_db) {
     // GET /api/system/stats
     router.get('/stats', asyncHandler(async (req, res) => {
         const cpuUsage = getCpuUsageFromProc();
         const cpuCores = os.cpus().length;
         const memory = getMemoryFromProc();
-
-        let diskInfo = { total: 0, used: 0, free: 0 };
-        try {
-            const { execSync } = require('child_process');
-            if (process.platform === 'win32') {
-                const output = execSync('wmic logicaldisk get size,freespace,caption', { encoding: 'utf8' });
-                const lines = output.trim().split('\n').slice(1);
-                lines.forEach(line => {
-                    const parts = line.trim().split(/\s+/);
-                    if (parts.length >= 3) {
-                        diskInfo.free += parseInt(parts[1]) || 0;
-                        diskInfo.total += parseInt(parts[2]) || 0;
-                    }
-                });
-                diskInfo.used = diskInfo.total - diskInfo.free;
-            } else {
-                const hostRoot = process.env.HOST_PROC ? '/host' : '/';
-                const output = execSync(`df -B1 ${hostRoot} 2>/dev/null || df -B1 / | tail -1 | awk '{print $2,$3,$4}'`, { encoding: 'utf8' });
-                const lastLine = output.trim().split('\n').pop();
-                const parts = lastLine.split(/\s+/);
-                if (parts.length >= 4) {
-                    diskInfo.total = parseInt(parts[1]) || 0;
-                    diskInfo.used = parseInt(parts[2]) || 0;
-                    diskInfo.free = parseInt(parts[3]) || 0;
-                }
-            }
-        } catch (e) {
-            console.error('获取磁盘信息失败:', e.message);
-        }
+        const diskInfo = await getDiskInfo();
 
         res.json(success({
             cpu: { usage: cpuUsage, cores: cpuCores },
