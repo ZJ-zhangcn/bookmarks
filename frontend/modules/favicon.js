@@ -6,6 +6,22 @@ import * as state from './state.js';
 import { isPrivateOrLocalAddress } from './utils.js';
 import { renderIconSelection } from './render.js';
 
+const FALLBACK_SOURCES = [
+    domain => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+    domain => `https://favicon.im/${domain}`,
+    domain => `https://icon.horse/icon/${domain}`
+];
+
+async function tryLoadImage(url, timeout = 3000) {
+    return new Promise(resolve => {
+        const img = new Image();
+        const timer = setTimeout(() => { img.src = ''; resolve(false); }, timeout);
+        img.onload = () => { clearTimeout(timer); resolve(img.width > 1 && img.height > 1); };
+        img.onerror = () => { clearTimeout(timer); resolve(false); };
+        img.src = url;
+    });
+}
+
 export async function fetchFavicon() {
     const url = DOM.bookmarkInputUrl.value.trim();
     if (!url || state.currentIconType !== 'auto') return;
@@ -21,19 +37,16 @@ export async function fetchFavicon() {
             return;
         }
 
-        const googleFavicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-        const testImg = new Image();
-        testImg.onload = function () {
-            if (this.width > 1 && this.height > 1) {
-                state.setAvailableIcons([googleFavicon]);
+        for (const getUrl of FALLBACK_SOURCES) {
+            const iconUrl = getUrl(domain);
+            if (await tryLoadImage(iconUrl)) {
+                state.setAvailableIcons([iconUrl]);
                 renderIconSelection(state.availableIcons);
                 fetchMoreIcons(url, domain);
-            } else {
-                fetchProxyFavicon(url);
+                return;
             }
-        };
-        testImg.onerror = function () { fetchProxyFavicon(url); };
-        testImg.src = googleFavicon;
+        }
+        fetchProxyFavicon(url);
     } catch (e) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
     }
@@ -91,21 +104,29 @@ export async function fetchEngineIcon() {
 
         DOM.engineIconPreview.innerHTML = '<span style="opacity:0.5">⏳</span>';
 
-        const faviconUrl = isPrivateOrLocalAddress(domain)
-            ? `${parsedUrl.origin}/favicon.ico`
-            : `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        if (isPrivateOrLocalAddress(domain)) {
+            const localIcon = `${parsedUrl.origin}/favicon.ico`;
+            if (await tryLoadImage(localIcon)) {
+                DOM.engineIconPreview.innerHTML = `<img src="${localIcon}">`;
+                DOM.engineIconPreview.dataset.iconUrl = localIcon;
+            } else {
+                DOM.engineIconPreview.innerHTML = '<span>🔍</span>';
+                delete DOM.engineIconPreview.dataset.iconUrl;
+            }
+            return;
+        }
 
-        const testImg = new Image();
-        testImg.onload = function () {
-            DOM.engineIconPreview.innerHTML = `<img src="${faviconUrl}">`;
-            DOM.engineIconPreview.dataset.iconUrl = faviconUrl;
-        };
-        testImg.onerror = function () {
-            DOM.engineIconPreview.innerHTML = '<span>🔍</span>';
-            delete DOM.engineIconPreview.dataset.iconUrl;
-            alert('自动获取图标失败，请手动输入图标 URL');
-        };
-        testImg.src = faviconUrl;
+        for (const getUrl of FALLBACK_SOURCES) {
+            const iconUrl = getUrl(domain);
+            if (await tryLoadImage(iconUrl)) {
+                DOM.engineIconPreview.innerHTML = `<img src="${iconUrl}">`;
+                DOM.engineIconPreview.dataset.iconUrl = iconUrl;
+                return;
+            }
+        }
+
+        DOM.engineIconPreview.innerHTML = '<span>🔍</span>';
+        delete DOM.engineIconPreview.dataset.iconUrl;
     } catch (e) {
         alert('URL 格式不正确');
     }

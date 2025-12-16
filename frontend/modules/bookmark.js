@@ -191,7 +191,8 @@ export async function saveBookmark() {
             icon_data = state.editingBookmark.icon_data;
         }
     } else if (state.currentIconType === 'auto') {
-        const selectedImg = DOM.iconPreviewAuto.querySelector('img.selected') || DOM.iconPreviewAuto.querySelector('img');
+        const selectedWrap = DOM.iconPreviewAuto.querySelector('.icon-option-wrap.selected');
+        const selectedImg = selectedWrap ? selectedWrap.querySelector('img') : DOM.iconPreviewAuto.querySelector('img');
         if (selectedImg && selectedImg.src) {
             if (selectedImg.src.startsWith('data:')) {
                 icon_type = 'base64';

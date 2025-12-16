@@ -6,6 +6,10 @@ const cheerio = require('cheerio');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
 
+const FETCH_TIMEOUT = 5000;
+const CACHE_TTL = 300000; // 5分钟缓存
+const faviconCache = new Map();
+
 function isPrivateOrLocalAddress(hostname) {
     if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
     const privatePatterns = [
@@ -19,6 +23,44 @@ function isPrivateOrLocalAddress(hostname) {
     return privatePatterns.some(p => p.test(hostname));
 }
 
+async function fetchWithTimeout(url, options = {}) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        return response;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+function getFallbackIcons(host, isPrivate, protocol = 'https:') {
+    if (isPrivate) {
+        return [`${protocol}//${host}/favicon.ico`];
+    }
+    return [
+        `https://www.google.com/s2/favicons?domain=${host}&sz=64`,
+        `https://favicon.im/${host}`,
+        `https://icon.horse/icon/${host}`
+    ];
+}
+
+function getCachedResult(domain) {
+    const cached = faviconCache.get(domain);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        return cached.icons;
+    }
+    return null;
+}
+
+function setCachedResult(domain, icons) {
+    faviconCache.set(domain, { icons, timestamp: Date.now() });
+    if (faviconCache.size > 500) {
+        const oldest = faviconCache.keys().next().value;
+        faviconCache.delete(oldest);
+    }
+}
+
 module.exports = function(_db) {
     // POST /api/favicon
     router.post('/', asyncHandler(async (req, res) => {
@@ -27,12 +69,24 @@ module.exports = function(_db) {
             throw new AppError('URL is required', 400);
         }
 
+        let parsedUrl;
         try {
-            const parsedUrl = new URL(url);
-            const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
-            const isPrivate = isPrivateOrLocalAddress(parsedUrl.hostname);
+            parsedUrl = new URL(url);
+        } catch {
+            throw new AppError('Invalid URL format', 400);
+        }
 
-            const response = await fetch(url, {
+        const domain = parsedUrl.host;
+        const baseUrl = `${parsedUrl.protocol}//${domain}`;
+        const isPrivate = isPrivateOrLocalAddress(parsedUrl.hostname);
+
+        const cached = getCachedResult(domain);
+        if (cached) {
+            return res.json(success(cached, 'ok'));
+        }
+
+        try {
+            const response = await fetchWithTimeout(url, {
                 headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
             });
 
@@ -71,22 +125,17 @@ module.exports = function(_db) {
                 icons.push(defaultFavicon);
             }
 
-            if (!isPrivate) {
-                icons.push(`https://www.google.com/s2/favicons?domain=${parsedUrl.host}&sz=64`);
-            }
+            const fallbacks = getFallbackIcons(domain, isPrivate, parsedUrl.protocol);
+            fallbacks.forEach(fb => {
+                if (!icons.includes(fb)) icons.push(fb);
+            });
 
+            setCachedResult(domain, icons);
             res.json(success(icons, 'ok'));
         } catch (e) {
-            try {
-                const parsedUrl = new URL(url);
-                if (isPrivateOrLocalAddress(parsedUrl.hostname)) {
-                    res.json(success([`${parsedUrl.protocol}//${parsedUrl.host}/favicon.ico`]));
-                } else {
-                    res.json(success([`https://www.google.com/s2/favicons?domain=${parsedUrl.host}&sz=64`]));
-                }
-            } catch {
-                throw new AppError(e.message, 500);
-            }
+            const fallbacks = getFallbackIcons(domain, isPrivate, parsedUrl.protocol);
+            setCachedResult(domain, fallbacks);
+            res.json(success(fallbacks, 'ok'));
         }
     }));
 

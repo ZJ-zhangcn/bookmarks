@@ -257,24 +257,41 @@ export function updateEngineDisplay() {
     DOM.engineName.textContent = state.currentEngine.name;
 }
 
+function getIconSource(url) {
+    if (url.includes('google.com/s2/favicons')) return { label: 'Google', class: 'source-google' };
+    if (url.includes('favicon.im')) return { label: 'Favicon.im', class: 'source-faviconim' };
+    if (url.includes('icon.horse')) return { label: 'IconHorse', class: 'source-iconhorse' };
+    if (url.includes('apple-touch-icon')) return { label: 'Apple', class: 'source-apple' };
+    if (url.includes('/favicon.ico')) return { label: '站点', class: 'source-site' };
+    return { label: '网站', class: 'source-site' };
+}
+
 export function renderIconSelection(availableIcons) {
     if (availableIcons.length === 0) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
         return;
     }
     if (availableIcons.length === 1) {
-        DOM.iconPreviewAuto.innerHTML = `<img src="${availableIcons[0]}" onerror="this.outerHTML='🌐'">`;
+        const source = getIconSource(availableIcons[0]);
+        DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
+            <img src="${availableIcons[0]}" onerror="this.outerHTML='<span>🌐</span>'">
+            <span class="icon-source-label ${source.class}">${source.label}</span>
+        </div>`;
     } else {
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
-            ${availableIcons.slice(0, 6).map((icon, idx) =>
-            `<img src="${icon}" class="icon-option ${idx === 0 ? 'selected' : ''}" data-url="${icon}" onerror="this.style.display='none'" title="点击选择">`
-        ).join('')}
+            ${availableIcons.slice(0, 6).map((icon, idx) => {
+                const source = getIconSource(icon);
+                return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
+                    <img src="${icon}" class="icon-option" onerror="this.parentElement.style.display='none'">
+                    <span class="icon-source-label ${source.class}">${source.label}</span>
+                </div>`;
+            }).join('')}
         </div>`;
-        DOM.iconPreviewAuto.querySelectorAll('.icon-option').forEach(img => {
-            img.onclick = (e) => {
+        DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(wrap => {
+            wrap.onclick = (e) => {
                 e.stopPropagation();
-                DOM.iconPreviewAuto.querySelectorAll('.icon-option').forEach(i => i.classList.remove('selected'));
-                img.classList.add('selected');
+                DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(w => w.classList.remove('selected'));
+                wrap.classList.add('selected');
             };
         });
     }
