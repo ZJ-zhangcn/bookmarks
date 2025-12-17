@@ -1019,26 +1019,49 @@ async function fetchFavicon() {
 
         DOM.iconPreviewAuto.innerHTML = '<span style="opacity:0.5">⏳</span>';
 
-        // 内网地址直接通过后端代理获取，不使用 Google Favicon
+        // 内网地址直接通过后端代理获取
         if (isPrivateOrLocalAddress(domain)) {
             fetchProxyFavicon(url);
             return;
         }
 
-        // 外网地址先尝试 Google Favicon
-        const googleFavicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-        const testImg = new Image();
-        testImg.onload = function () {
-            if (this.width > 1 && this.height > 1) {
-                availableIcons = [googleFavicon];
-                renderIconSelection();
-                fetchMoreIcons(url, domain);
-            } else {
-                fetchProxyFavicon(url);
-            }
-        };
-        testImg.onerror = function () { fetchProxyFavicon(url); };
-        testImg.src = googleFavicon;
+        // 并行获取：同时请求后端代理和第三方服务
+        const FALLBACK_SOURCES = [
+            d => `https://www.google.com/s2/favicons?domain=${d}&sz=64`,
+            d => `https://favicon.im/${d}`,
+            d => `https://icon.horse/icon/${d}`
+        ];
+
+        const proxyPromise = fetch(`${API_BASE}/api/favicon`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        }).then(res => res.json()).catch(() => null);
+
+        const tryLoadImage = (imgUrl, timeout = 3000) => new Promise(resolve => {
+            const img = new Image();
+            const timer = setTimeout(() => { img.src = ''; resolve(null); }, timeout);
+            img.onload = () => { clearTimeout(timer); resolve(img.width > 1 && img.height > 1 ? imgUrl : null); };
+            img.onerror = () => { clearTimeout(timer); resolve(null); };
+            img.src = imgUrl;
+        });
+
+        const fallbackPromises = FALLBACK_SOURCES.map(getUrl => tryLoadImage(getUrl(domain)));
+
+        const [proxyResult, ...fallbackResults] = await Promise.all([proxyPromise, ...fallbackPromises]);
+
+        // 合并图标：网站自带图标优先
+        const siteIcons = (proxyResult?.success && proxyResult?.icons) ? proxyResult.icons : [];
+        const fallbackIcons = fallbackResults.filter(Boolean);
+
+        const allIcons = [...new Set([...siteIcons, ...fallbackIcons])];
+
+        if (allIcons.length > 0) {
+            availableIcons = allIcons;
+            renderIconSelection();
+        } else {
+            DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+        }
     } catch (e) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
     }

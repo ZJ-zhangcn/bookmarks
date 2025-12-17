@@ -37,16 +37,34 @@ export async function fetchFavicon() {
             return;
         }
 
-        for (const getUrl of FALLBACK_SOURCES) {
+        // 并行获取：同时请求后端代理和第三方服务
+        const proxyPromise = fetch(`${state.API_BASE}/api/favicon`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        }).then(res => res.json()).catch(() => null);
+
+        const fallbackPromises = FALLBACK_SOURCES.map(async getUrl => {
             const iconUrl = getUrl(domain);
-            if (await tryLoadImage(iconUrl)) {
-                state.setAvailableIcons([iconUrl]);
-                renderIconSelection(state.availableIcons);
-                fetchMoreIcons(url, domain);
-                return;
-            }
+            return (await tryLoadImage(iconUrl)) ? iconUrl : null;
+        });
+
+        // 等待所有请求完成
+        const [proxyResult, ...fallbackResults] = await Promise.all([proxyPromise, ...fallbackPromises]);
+
+        // 合并图标：网站自带图标优先
+        const siteIcons = (proxyResult?.success && proxyResult?.icons) ? proxyResult.icons : [];
+        const fallbackIcons = fallbackResults.filter(Boolean);
+
+        // 网站自带图标放前面，第三方服务图标放后面，去重
+        const allIcons = [...new Set([...siteIcons, ...fallbackIcons])];
+
+        if (allIcons.length > 0) {
+            state.setAvailableIcons(allIcons);
+            renderIconSelection(state.availableIcons);
+        } else {
+            DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
         }
-        fetchProxyFavicon(url);
     } catch (e) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
     }
