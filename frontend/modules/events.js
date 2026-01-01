@@ -14,6 +14,7 @@ import { openSettingsModal, closeSettingsModal, closeAllModals, loadDockerContai
 import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
 import { saveAiClientSettingsFromUi, clearAiClientSettings, updateAiUiVisibility } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
+import { initSearchSuggestions } from './suggest.js';
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -26,6 +27,7 @@ const debouncedBookmarkSearch = debounce(() => {
 }, 150);
 
 export function bindAllEvents() {
+    initSearchSuggestions();
     DOM.searchInput.addEventListener('input', e => debouncedSearch(e.target.value));
     DOM.searchClear.addEventListener('click', () => { DOM.searchInput.value = ''; state.setCurrentSearch(''); renderBookmarks(); });
 

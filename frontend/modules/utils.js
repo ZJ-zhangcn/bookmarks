@@ -31,6 +31,10 @@ export function escapeRegExp(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+export function escapeHtml(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export function escapeHtmlAttribute(s) {
     return String(s || '')
         .replace(/&/g, '&amp;')

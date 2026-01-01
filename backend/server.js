@@ -1640,8 +1640,8 @@ app.get('/api/suggest', async (req, res) => {
         let suggestions = [];
 
         if (engine === 'baidu') {
-            // 百度返回 JSONP: window.baidu.sug({s:["a","b"]})
-            const match = text.match(/\{s:\s*\[([^\]]*)\]/);
+            // 百度返回 JSONP: ({q:"test",p:false,s:["a","b"]})
+            const match = text.match(/s:\s*\[([^\]]*)\]/);
             if (match) {
                 try {
                     suggestions = JSON.parse('[' + match[1] + ']');
