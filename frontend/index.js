@@ -3203,16 +3203,27 @@ let selectedSuggestionIndex = -1;
 
 function initSearchSuggestions() {
     suggestionsEl = document.getElementById('searchSuggestions');
-    if (!suggestionsEl) return;
+    console.log('[SearchSuggestions] init, suggestionsEl:', suggestionsEl);
+    console.log('[SearchSuggestions] webSearchInput:', DOM.webSearchInput);
+    if (!suggestionsEl) {
+        console.warn('[SearchSuggestions] suggestionsEl not found, skipping init');
+        return;
+    }
+    if (!DOM.webSearchInput) {
+        console.warn('[SearchSuggestions] webSearchInput not found, skipping init');
+        return;
+    }
 
     DOM.webSearchInput.addEventListener('input', handleSuggestInput);
     DOM.webSearchInput.addEventListener('keydown', handleSuggestKeydown);
     DOM.webSearchInput.addEventListener('blur', () => setTimeout(hideSearchSuggestions, 200));
     suggestionsEl.addEventListener('click', handleSuggestionClick);
+    console.log('[SearchSuggestions] event listeners attached');
 }
 
 function handleSuggestInput(e) {
     const q = e.target.value.trim();
+    console.log('[SearchSuggestions] input:', q);
     clearTimeout(suggestDebounceTimer);
 
     if (!q) {
@@ -3224,14 +3235,18 @@ function handleSuggestInput(e) {
 }
 
 async function fetchSuggestions(q) {
+    console.log('[SearchSuggestions] fetching suggestions for:', q);
     try {
         const engineName = currentEngine?.name?.toLowerCase() || '';
         let engine = 'baidu';
         if (engineName.includes('google')) engine = 'google';
         else if (engineName.includes('bing')) engine = 'bing';
 
-        const res = await fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(q)}&engine=${engine}`);
+        const url = `${API_BASE}/api/suggest?q=${encodeURIComponent(q)}&engine=${engine}`;
+        console.log('[SearchSuggestions] request URL:', url);
+        const res = await fetch(url);
         const data = await res.json();
+        console.log('[SearchSuggestions] response:', data);
 
         if (data.success && Array.isArray(data.data) && data.data.length > 0) {
             currentSuggestions = data.data;
@@ -3240,7 +3255,8 @@ async function fetchSuggestions(q) {
         } else {
             hideSearchSuggestions();
         }
-    } catch {
+    } catch (err) {
+        console.error('[SearchSuggestions] fetch error:', err);
         hideSearchSuggestions();
     }
 }
