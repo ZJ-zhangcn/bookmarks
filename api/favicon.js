@@ -5,25 +5,10 @@
  */
 
 const cheerio = require('cheerio');
-
-// 判断是否为内网/本地地址
-function isPrivateOrLocalAddress(hostname) {
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
-    const privatePatterns = [
-        /^10\./,
-        /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-        /^192\.168\./,
-        /^169\.254\./,
-        /^fc00:/i,
-        /^fe80:/i
-    ];
-    return privatePatterns.some(p => p.test(hostname));
-}
+const { setCors, isPrivateOrLocalAddress, assertSafeFetchUrl } = require('./_lib/auth');
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setCors(res, req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -42,6 +27,7 @@ module.exports = async function handler(req, res) {
     // 图标转换功能
     if (req.query.action === 'convert') {
         try {
+            assertSafeFetchUrl(url);
             const response = await fetch(url, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -64,9 +50,8 @@ module.exports = async function handler(req, res) {
 
     // 获取网站 favicon
     try {
-        const parsedUrl = new URL(url);
+        const parsedUrl = assertSafeFetchUrl(url);
         const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
-        const isPrivate = isPrivateOrLocalAddress(parsedUrl.hostname);
 
         // 尝试获取页面 HTML
         const response = await fetch(url, {
@@ -116,7 +101,7 @@ module.exports = async function handler(req, res) {
         }
 
         // 只有外网地址才添加 Google 备用
-        if (!isPrivate) {
+        if (!isPrivateOrLocalAddress(parsedUrl.hostname)) {
             icons.push(`https://www.google.com/s2/favicons?domain=${parsedUrl.host}&sz=64`);
         }
 

@@ -334,6 +334,8 @@ function updateAiUiVisibility() {
 const iconCache = new Map(); // 图标缓存
 let iconLoadQueue = []; // 待加载图标队列
 let isLoadingIcons = false; // 是否正在加载图标
+let iconObserver = null; // IntersectionObserver 实例
+let pendingIconIds = new Set(); // 待加载的图标 ID
 
 async function loadData() {
     try {
@@ -369,39 +371,77 @@ async function loadData() {
     }
 }
 
-// 延迟加载可见书签的图标（只加载 base64 类型）
-function lazyLoadVisibleIcons() {
-    if (isLoadingIcons) return;
+// 初始化图标懒加载 IntersectionObserver
+function initIconObserver() {
+    if (iconObserver) {
+        iconObserver.disconnect();
+    }
 
-    const visibleBookmarkIds = [];
-    const bookmarkElements = document.querySelectorAll('.bookmark-card[data-id]');
-
-    bookmarkElements.forEach(el => {
-        const rect = el.getBoundingClientRect();
-        // 检查是否在视口内或即将进入视口
-        if (rect.top < window.innerHeight + 200 && rect.bottom > -200) {
-            const id = el.dataset.id;
-            if (id && !iconCache.has(id)) {
-                // 只加载需要从服务器获取图标的书签（base64 类型）
-                const bookmark = bookmarks.find(b => b.id == id);
-                if (bookmark && bookmark.icon_type === 'base64' && !bookmark.icon_data) {
-                    visibleBookmarkIds.push(id);
+    iconObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const el = entry.target;
+                const id = el.dataset.id;
+                if (id && !iconCache.has(id)) {
+                    const bookmark = bookmarks.find(b => b.id == id);
+                    if (bookmark && bookmark.icon_type === 'base64' && !bookmark.icon_data) {
+                        pendingIconIds.add(id);
+                    }
                 }
+                iconObserver.unobserve(el);
+            }
+        });
+        if (pendingIconIds.size > 0) {
+            scheduleBatchLoad();
+        }
+    }, { rootMargin: '200px 0px' });
+}
+
+// 调度批量加载
+let batchLoadTimer = null;
+function scheduleBatchLoad() {
+    if (batchLoadTimer) return;
+    batchLoadTimer = setTimeout(() => {
+        batchLoadTimer = null;
+        const ids = Array.from(pendingIconIds);
+        pendingIconIds.clear();
+        if (ids.length > 0) {
+            loadIconsBatch(ids);
+        }
+    }, 50);
+}
+
+// 观察所有书签卡片
+function observeBookmarkCards() {
+    if (!iconObserver) initIconObserver();
+    document.querySelectorAll('.bookmark-card[data-id]').forEach(el => {
+        const id = el.dataset.id;
+        if (id && !iconCache.has(id)) {
+            const bookmark = bookmarks.find(b => b.id == id);
+            if (bookmark && bookmark.icon_type === 'base64' && !bookmark.icon_data) {
+                iconObserver.observe(el);
             }
         }
     });
+}
 
-    if (visibleBookmarkIds.length > 0) {
-        loadIconsBatch(visibleBookmarkIds);
-    }
+// 兼容旧调用（被 scroll/resize 事件调用）
+function lazyLoadVisibleIcons() {
+    observeBookmarkCards();
 }
 
 // 批量加载图标
 async function loadIconsBatch(ids) {
-    if (ids.length === 0 || isLoadingIcons) return;
+    if (ids.length === 0 || isLoadingIcons) {
+        if (ids.length > 0) {
+            ids.forEach(id => pendingIconIds.add(id));
+            scheduleBatchLoad();
+        }
+        return;
+    }
 
     isLoadingIcons = true;
-    const idsToLoad = ids.filter(id => !iconCache.has(id)).slice(0, 20); // 每次最多加载20个
+    const idsToLoad = ids.filter(id => !iconCache.has(id)).slice(0, 20);
 
     if (idsToLoad.length === 0) {
         isLoadingIcons = false;
@@ -417,16 +457,14 @@ async function loadIconsBatch(ids) {
         const data = await res.json();
 
         if (data.success) {
-            // 更新缓存并渲染图标
             Object.entries(data.data).forEach(([id, iconInfo]) => {
                 iconCache.set(id, iconInfo);
                 updateBookmarkIcon(id, iconInfo);
             });
 
-            // 标记没有图标数据的书签
             idsToLoad.forEach(id => {
                 if (!data.data[id]) {
-                    iconCache.set(id, null); // 标记为已检查但无数据
+                    iconCache.set(id, null);
                 }
             });
         }
@@ -434,8 +472,9 @@ async function loadIconsBatch(ids) {
         console.error('加载图标失败:', e);
     } finally {
         isLoadingIcons = false;
-        // 继续加载剩余图标
-        setTimeout(lazyLoadVisibleIcons, 100);
+        if (pendingIconIds.size > 0) {
+            scheduleBatchLoad();
+        }
     }
 }
 
@@ -697,10 +736,21 @@ async function refreshSystemStats() {
     }
 }
 
+function escapeHtml(s) {
+    return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function highlightText(text, searchTerm) {
-    if (!searchTerm || !text) return text;
-    const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
-    return text.replace(regex, '<span class="highlight">$1</span>');
+    if (!searchTerm || !text) return escapeHtml(text);
+    const escaped = escapeHtml(text);
+    const escapedTerm = escapeHtml(searchTerm);
+    const regex = new RegExp(`(${escapeRegExp(escapedTerm)})`, 'gi');
+    return escaped.replace(regex, '<span class="highlight">$1</span>');
 }
 
 function escapeRegExp(s) {
@@ -784,9 +834,13 @@ function bindAllEvents() {
         const q = DOM.webSearchInput.value.trim();
         if (q) {
             window.open(currentEngine.url + encodeURIComponent(q), '_blank');
-            DOM.webSearchInput.value = ''; // 搜索后清空输入框
+            DOM.webSearchInput.value = '';
+            hideSearchSuggestions();
         }
     });
+
+    // 搜索联想
+    initSearchSuggestions();
 
     // 搜索引擎管理
     DOM.engineManageBtn.addEventListener('click', e => { e.stopPropagation(); DOM.engineSelector.classList.remove('open'); openEngineModal(); });
@@ -3137,6 +3191,128 @@ function handleBookmarkSearch() {
             </a>
         `;
     }).join('');
+}
+
+// ========================================
+// 搜索联想
+// ========================================
+let suggestionsEl = null;
+let suggestDebounceTimer = null;
+let currentSuggestions = [];
+let selectedSuggestionIndex = -1;
+
+function initSearchSuggestions() {
+    suggestionsEl = document.getElementById('searchSuggestions');
+    if (!suggestionsEl) return;
+
+    DOM.webSearchInput.addEventListener('input', handleSuggestInput);
+    DOM.webSearchInput.addEventListener('keydown', handleSuggestKeydown);
+    DOM.webSearchInput.addEventListener('blur', () => setTimeout(hideSearchSuggestions, 200));
+    suggestionsEl.addEventListener('click', handleSuggestionClick);
+}
+
+function handleSuggestInput(e) {
+    const q = e.target.value.trim();
+    clearTimeout(suggestDebounceTimer);
+
+    if (!q) {
+        hideSearchSuggestions();
+        return;
+    }
+
+    suggestDebounceTimer = setTimeout(() => fetchSuggestions(q), 150);
+}
+
+async function fetchSuggestions(q) {
+    try {
+        const engineName = currentEngine?.name?.toLowerCase() || '';
+        let engine = 'baidu';
+        if (engineName.includes('google')) engine = 'google';
+        else if (engineName.includes('bing')) engine = 'bing';
+
+        const res = await fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(q)}&engine=${engine}`);
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+            currentSuggestions = data.data;
+            selectedSuggestionIndex = -1;
+            renderSuggestions();
+        } else {
+            hideSearchSuggestions();
+        }
+    } catch {
+        hideSearchSuggestions();
+    }
+}
+
+function renderSuggestions() {
+    if (!suggestionsEl || currentSuggestions.length === 0) return;
+
+    suggestionsEl.innerHTML = currentSuggestions.map((text, i) => `
+        <div class="suggestion-item${i === selectedSuggestionIndex ? ' active' : ''}" data-index="${i}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <span class="suggestion-text">${escapeHtml(text)}</span>
+        </div>
+    `).join('');
+
+    suggestionsEl.classList.add('active');
+}
+
+function hideSearchSuggestions() {
+    if (suggestionsEl) {
+        suggestionsEl.classList.remove('active');
+        suggestionsEl.innerHTML = '';
+    }
+    currentSuggestions = [];
+    selectedSuggestionIndex = -1;
+}
+
+function handleSuggestKeydown(e) {
+    if (!suggestionsEl?.classList.contains('active') || currentSuggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
+        updateSuggestionHighlight();
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedSuggestionIndex = selectedSuggestionIndex <= 0 ? currentSuggestions.length - 1 : selectedSuggestionIndex - 1;
+        updateSuggestionHighlight();
+    } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+        e.preventDefault();
+        selectSuggestion(selectedSuggestionIndex);
+    } else if (e.key === 'Escape') {
+        hideSearchSuggestions();
+    }
+}
+
+function updateSuggestionHighlight() {
+    if (!suggestionsEl) return;
+    const items = suggestionsEl.querySelectorAll('.suggestion-item');
+    items.forEach((item, i) => {
+        item.classList.toggle('active', i === selectedSuggestionIndex);
+    });
+}
+
+function handleSuggestionClick(e) {
+    const item = e.target.closest('.suggestion-item');
+    if (item) {
+        const index = parseInt(item.dataset.index, 10);
+        selectSuggestion(index);
+    }
+}
+
+function selectSuggestion(index) {
+    if (index >= 0 && index < currentSuggestions.length) {
+        const text = currentSuggestions[index];
+        DOM.webSearchInput.value = text;
+        hideSearchSuggestions();
+        window.open(currentEngine.url + encodeURIComponent(text), '_blank');
+        DOM.webSearchInput.value = '';
+    }
 }
 
 // ========================================

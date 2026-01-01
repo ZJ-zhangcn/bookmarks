@@ -4,10 +4,10 @@
  * POST /api/webdav?action=download - 下载备份
  */
 
+const { requireAdmin, setCors } = require('./_lib/auth');
+
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setCors(res, req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -16,6 +16,9 @@ module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
+
+    // WebDAV 操作需要鉴权
+    if (!requireAdmin(req, res)) return;
 
     const { url, username, password, path: filePath, data } = req.body;
     const action = req.query.action;

@@ -9,18 +9,17 @@
  */
 
 const { query, queryOne, transaction } = require('./_lib/db');
+const { requireAdmin, setCors } = require('./_lib/auth');
 
 async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setCors(res, req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
     try {
-        // GET - 导出
+        // GET - 导出（只读）
         if (req.method === 'GET') {
             const includeIcons = req.query.includeIcons !== 'false';
 
@@ -58,8 +57,10 @@ async function handler(req, res) {
             });
         }
 
-        // POST - 导入
+        // POST - 导入（需要鉴权）
         if (req.method === 'POST') {
+            if (!requireAdmin(req, res)) return;
+
             const { categories, bookmarks, engines, personalization } = req.body;
 
             await transaction(async (connection) => {

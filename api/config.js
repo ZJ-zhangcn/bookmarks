@@ -5,11 +5,10 @@
  */
 
 const { execute, queryOne } = require('./_lib/db');
+const { requireAdmin, setCors } = require('./_lib/auth');
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setCors(res, req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -26,6 +25,8 @@ module.exports = async function handler(req, res) {
         }
 
         if (req.method === 'POST') {
+            if (!requireAdmin(req, res)) return;
+
             const value = JSON.stringify(req.body);
             await execute(
                 'INSERT INTO config (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',

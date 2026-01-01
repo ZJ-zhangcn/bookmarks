@@ -9,6 +9,7 @@
  */
 
 const { query, execute, queryOne, transaction } = require('./_lib/db');
+const { requireAdmin, setCors } = require('./_lib/auth');
 
 async function ensureAiTables() {
     await execute(`
@@ -53,16 +54,14 @@ async function attachBookmarkAi(bookmarks) {
 }
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setCors(res, req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
     try {
-        // GET - 获取书签
+        // GET - 获取书签（只读，无需鉴权）
         if (req.method === 'GET') {
             // 分组获取
             if (req.query.grouped === 'true') {
@@ -112,7 +111,7 @@ module.exports = async function handler(req, res) {
 
         // POST - 创建/更新书签 或 批量获取图标
         if (req.method === 'POST') {
-            // 批量获取图标
+            // 批量获取图标（只读，无需鉴权）
             if (req.query.action === 'icons') {
                 const { ids } = req.body;
                 if (!Array.isArray(ids) || ids.length === 0) {
@@ -135,7 +134,9 @@ module.exports = async function handler(req, res) {
                 return res.json({ success: true, data: iconMap });
             }
 
-            // 创建/更新书签
+            // 创建/更新书签（需要鉴权）
+            if (!requireAdmin(req, res)) return;
+
             const { id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type } = req.body;
             const bookmarkId = id || `bm_${Date.now()}`;
             const isNewBookmark = !id;
@@ -192,8 +193,10 @@ module.exports = async function handler(req, res) {
             return res.json({ success: true, data: { id: bookmarkId } });
         }
 
-        // PUT - 排序
+        // PUT - 排序（需要鉴权）
         if (req.method === 'PUT') {
+            if (!requireAdmin(req, res)) return;
+
             const { order } = req.body;
             if (!Array.isArray(order)) {
                 return res.status(400).json({ success: false, error: '无效的排序数据' });
@@ -210,8 +213,10 @@ module.exports = async function handler(req, res) {
             return res.json({ success: true });
         }
 
-        // DELETE - 删除书签
+        // DELETE - 删除书签（需要鉴权）
         if (req.method === 'DELETE') {
+            if (!requireAdmin(req, res)) return;
+
             const { id } = req.query;
             if (!id) {
                 return res.status(400).json({ success: false, error: '缺少书签 ID' });

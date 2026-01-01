@@ -809,10 +809,10 @@ async function claudeGenerateWithConfig({ name, url, description, tagsHint, cate
     return { tags, summary, category, newCategory, provider: 'claude', model };
 }
 
+const { setCors } = require('./_lib/auth');
+
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setCors(res, req);
 
     if (req.method === 'OPTIONS') return res.status(200).end();
 

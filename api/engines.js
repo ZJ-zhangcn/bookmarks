@@ -7,22 +7,24 @@
  */
 
 const { query, execute, queryOne, transaction } = require('./_lib/db');
+const { requireAdmin, setCors } = require('./_lib/auth');
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setCors(res, req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
     try {
-        // GET - 获取所有搜索引擎
+        // GET - 获取所有搜索引擎（只读）
         if (req.method === 'GET') {
             const engines = await query('SELECT * FROM search_engines ORDER BY sort_order ASC, created_at ASC');
             return res.json({ success: true, data: engines });
         }
+
+        // 写入操作需要鉴权
+        if (!requireAdmin(req, res)) return;
 
         // POST - 创建/更新搜索引擎
         if (req.method === 'POST') {

@@ -7,11 +7,10 @@
  */
 
 const { query, execute, queryOne, transaction } = require('./_lib/db');
+const { requireAdmin, setCors } = require('./_lib/auth');
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setCors(res, req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -23,6 +22,9 @@ module.exports = async function handler(req, res) {
             const categories = await query('SELECT * FROM categories ORDER BY sort_order, created_at');
             return res.json({ success: true, data: categories });
         }
+
+        // 写入操作需要鉴权
+        if (!requireAdmin(req, res)) return;
 
         // POST - 创建/更新分类
         if (req.method === 'POST') {

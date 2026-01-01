@@ -9,18 +9,17 @@
  */
 
 const { query, execute } = require('./_lib/db');
+const { requireAdmin, setCors, assertSafeFetchUrl } = require('./_lib/auth');
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setCors(res, req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
     try {
-        // GET - 获取图标库
+        // GET - 获取图标库（只读）
         if (req.method === 'GET') {
             const icons = [];
 
@@ -77,6 +76,9 @@ module.exports = async function handler(req, res) {
             return res.json({ success: true, data: icons });
         }
 
+        // 写入操作需要鉴权
+        if (!requireAdmin(req, res)) return;
+
         // POST - 各种上传/操作
         if (req.method === 'POST') {
             const action = req.query.action;
@@ -99,6 +101,7 @@ module.exports = async function handler(req, res) {
                     return res.status(400).json({ success: false, error: '缺少 URL' });
                 }
                 try {
+                    assertSafeFetchUrl(url);
                     const response = await fetch(url, {
                         headers: { 'User-Agent': 'Mozilla/5.0' },
                         signal: AbortSignal.timeout(5000)

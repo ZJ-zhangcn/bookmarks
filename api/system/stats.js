@@ -6,10 +6,10 @@
  * 此 API 返回空数据，系统状态组件在 Vercel 上不可用
  */
 
+const { setCors } = require('../_lib/auth');
+
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setCors(res, req);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
