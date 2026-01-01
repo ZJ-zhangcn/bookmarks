@@ -42,7 +42,9 @@ module.exports = async function handler(req, res) {
             throw new Error(`HTTP ${response.status}`);
         }
 
-        const text = await response.text();
+        const buffer = await response.arrayBuffer();
+        const decoder = new TextDecoder(engine === 'baidu' ? 'gbk' : 'utf-8');
+        const text = decoder.decode(buffer);
         let suggestions = [];
 
         if (engine === 'baidu') {
