@@ -10,8 +10,11 @@ let suggestionsEl = null;
 let currentSuggestions = [];
 let selectedIndex = -1;
 let debounceTimer = null;
+let abortController = null;
+let initialized = false;
 
 export function initSearchSuggestions() {
+    if (initialized) return;
     suggestionsEl = document.getElementById('searchSuggestions');
     if (!suggestionsEl || !DOM.webSearchInput) return;
 
@@ -19,25 +22,33 @@ export function initSearchSuggestions() {
     DOM.webSearchInput.addEventListener('keydown', handleKeydown);
     DOM.webSearchInput.addEventListener('blur', () => setTimeout(hide, 200));
     suggestionsEl.addEventListener('click', handleClick);
+    initialized = true;
 }
 
 function handleInput(e) {
     const q = e.target.value.trim();
     clearTimeout(debounceTimer);
+    if (abortController) abortController.abort();
     if (!q) { hide(); return; }
     debounceTimer = setTimeout(() => fetchSuggestions(q), 150);
 }
 
 async function fetchSuggestions(q) {
+    if (abortController) abortController.abort();
+    abortController = new AbortController();
     try {
         const engineName = state.currentEngine?.name?.toLowerCase() || '';
         let engine = 'baidu';
         if (engineName.includes('google')) engine = 'google';
         else if (engineName.includes('bing')) engine = 'bing';
 
-        const res = await fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(q)}&engine=${engine}`);
+        const res = await fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(q)}&engine=${engine}`, {
+            signal: abortController.signal
+        });
+        if (!res.ok) { hide(); return; }
         const data = await res.json();
 
+        if (DOM.webSearchInput.value.trim() !== q) return;
         if (data.success && Array.isArray(data.data) && data.data.length > 0) {
             currentSuggestions = data.data;
             selectedIndex = -1;
@@ -45,8 +56,8 @@ async function fetchSuggestions(q) {
         } else {
             hide();
         }
-    } catch {
-        hide();
+    } catch (e) {
+        if (e.name !== 'AbortError') hide();
     }
 }
 
@@ -105,7 +116,8 @@ function select(index) {
         const text = currentSuggestions[index];
         DOM.webSearchInput.value = text;
         hide();
-        window.open(state.currentEngine.url + encodeURIComponent(text), '_blank');
+        window.open(state.currentEngine.url + encodeURIComponent(text), '_blank', 'noopener,noreferrer');
         DOM.webSearchInput.value = '';
     }
 }
+
