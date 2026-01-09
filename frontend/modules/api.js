@@ -6,7 +6,7 @@ import * as state from './state.js';
 
 export async function loadData() {
     try {
-        const res = await fetch(`${state.API_BASE}/api/bootstrap`);
+        const res = await fetch(`${state.API_BASE}/api/bootstrap-v2`);
         const result = await res.json();
 
         const payload = result && result.success ? result.data : null;

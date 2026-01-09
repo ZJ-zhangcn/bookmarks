@@ -110,6 +110,10 @@ app.use(express.static(path.join(__dirname, '..', 'frontend'), {
 // AI（可选功能，不影响现有功能）
 registerAiRoutes(app, db);
 
+// Bootstrap优化端点（MySQL高延迟优化）
+const registerBootstrapV2 = require('./bootstrap-v2');
+registerBootstrapV2(app, db);
+
 // ========================================
 // 系统状态 API
 // ========================================
