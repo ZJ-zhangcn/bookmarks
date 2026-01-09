@@ -19,10 +19,9 @@ export function renderAll() {
 
 // 骨架屏渲染（立即显示UI框架）
 export function renderAppShell() {
-    // 渲染"全部"按钮（立即可见）
-    renderCategoryNav();
-    // 显示空状态骨架
+    // 显示空状态骨架（不阻塞）
     if (DOM.bookmarksContainer) {
+        DOM.bookmarksContainer.style.display = 'flex';
         DOM.bookmarksContainer.innerHTML = `
             <div class="skeleton-container">
                 <div class="skeleton-item"></div>
@@ -30,6 +29,9 @@ export function renderAppShell() {
                 <div class="skeleton-item"></div>
             </div>
         `;
+    }
+    if (DOM.emptyState) {
+        DOM.emptyState.style.display = 'none';
     }
 }
 

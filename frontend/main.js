@@ -24,12 +24,15 @@ async function init() {
 
     // 骨架屏优化：立即显示UI框架（感知加载时间-1.5s）
     renderAppShell();
-    hideLoadingOverlay();
 
-    // 优先加载核心数据并渲染
-    await loadData();
+    // 完全不闪：首屏等待个性化（壁纸）和核心数据就绪后再揭开遮罩
+    await Promise.all([
+        loadData(),
+        loadPersonalization({ waitForWallpaper: true, avoidLateWallpaperSwap: true })
+    ]);
     renderAll();
     bindAllEvents();
+    hideLoadingOverlay();
 
     // 后台加载次要功能（不阻塞用户）
     Promise.all([

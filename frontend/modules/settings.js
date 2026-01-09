@@ -11,6 +11,36 @@ import { refreshIconLibraryCache } from './icon-library.js';
 
 const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
 let wallpaperLoadSeq = 0;
+const INITIAL_WALLPAPER_WAIT_MS = 5000;
+
+function loadImageAndDecode(url, timeoutMs) {
+    const src = String(url || '').trim();
+    if (!src) return Promise.resolve(false);
+    return new Promise(resolve => {
+        const img = new Image();
+        let done = false;
+        const finish = (ok) => {
+            if (done) return;
+            done = true;
+            resolve(ok);
+        };
+        const timer = setTimeout(() => finish(false), timeoutMs);
+        img.onload = () => {
+            const maybeDecode = typeof img.decode === 'function' ? img.decode() : null;
+            Promise.resolve(maybeDecode)
+                .catch(() => { })
+                .finally(() => {
+                    clearTimeout(timer);
+                    finish(true);
+                });
+        };
+        img.onerror = () => {
+            clearTimeout(timer);
+            finish(false);
+        };
+        img.src = src;
+    });
+}
 
 // 主题管理
 export function initTheme() {
@@ -55,7 +85,7 @@ export function closeAllModals() {
     document.body.style.overflow = '';
 }
 
-export async function loadPersonalization() {
+export async function loadPersonalization(options = {}) {
     try {
         let config;
         if (state.personalizationConfig !== undefined) {
@@ -81,7 +111,7 @@ export async function loadPersonalization() {
             if (DOM.contentMaxWidth) DOM.contentMaxWidth.value = config.contentMaxWidth || 1200;
             if (DOM.footerShow) DOM.footerShow.checked = config.footerShow !== false;
             if (DOM.footerText) DOM.footerText.value = config.footerText || '© 2024 书签导航 · 快捷访问常用网站';
-            await applyPersonalization(config);
+            await applyPersonalization(config, options);
         }
     } catch (e) {
         console.error('加载个性化设置失败:', e);
@@ -116,7 +146,7 @@ export async function savePersonalization() {
     }
 }
 
-export async function applyPersonalization(config) {
+export async function applyPersonalization(config, options = {}) {
     const logo = document.querySelector('.site-title');
     if (logo) {
         logo.style.display = config.logoShow ? '' : 'none';
@@ -146,8 +176,6 @@ export async function applyPersonalization(config) {
         const url = String(config.wallpaperUrl || '').trim();
         const seq = ++wallpaperLoadSeq;
 
-        wallpaperLayer.classList.add('active');
-
         const blur = config.wallpaperBlur || 0;
         wallpaperOverlay.style.backdropFilter = `blur(${blur}px)`;
         wallpaperOverlay.style.webkitBackdropFilter = `blur(${blur}px)`;
@@ -167,11 +195,36 @@ export async function applyPersonalization(config) {
         };
         const applyFailure = () => {
             if (seq !== wallpaperLoadSeq) return;
+            wallpaperLayer.classList.remove('active');
             wallpaperImage.style.backgroundImage = '';
             if (bgDecoration) bgDecoration.style.display = '';
         };
 
-        if (hinted) {
+        const waitForWallpaper = options && options.waitForWallpaper === true;
+        const avoidLateSwap = options && options.avoidLateWallpaperSwap === true;
+
+        if (waitForWallpaper) {
+            const ok = await loadImageAndDecode(url, hinted ? 1500 : INITIAL_WALLPAPER_WAIT_MS);
+            if (ok) {
+                applySuccess();
+            } else {
+                applyFailure();
+                if (!avoidLateSwap) {
+                    const img = new Image();
+                    img.onload = applySuccess;
+                    img.onerror = applyFailure;
+                    img.src = url;
+                } else {
+                    // 背景加载成功则仅写入 hint，避免本次加载出现“后到的壁纸”闪切
+                    const img = new Image();
+                    img.onload = () => {
+                        if (seq !== wallpaperLoadSeq) return;
+                        localStorage.setItem(WALLPAPER_HINT_KEY, url);
+                    };
+                    img.src = url;
+                }
+            }
+        } else if (hinted) {
             applySuccess();
             const img = new Image();
             img.onload = applySuccess;
