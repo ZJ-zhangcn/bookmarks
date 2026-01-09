@@ -22,17 +22,20 @@ async function init() {
     loadAiClientSettingsToUi();
     loadCollapsedState();
 
-    await Promise.all([
+    // 优先加载核心数据并立即渲染
+    await loadData();
+    renderAll();
+    bindAllEvents();
+    hideLoadingOverlay();
+
+    // 后台加载次要功能（不阻塞用户）
+    Promise.all([
         loadAiStatus().then(() => {
             updateAiUiVisibility();
             updateAiSettingsServerHint();
         }),
-        loadData(),
         loadPersonalization()
-    ]);
-    renderAll();
-    bindAllEvents();
-    hideLoadingOverlay();
+    ]).catch(e => console.error('后台加载失败:', e));
 }
 
 document.addEventListener('DOMContentLoaded', init);
