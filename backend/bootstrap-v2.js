@@ -1,7 +1,18 @@
-// MySQL优化版Bootstrap端点
+// MySQL优化版Bootstrap端点（带内存缓存）
+let bootstrapCache = { ts: 0, data: null };
+const CACHE_TTL = 60000; // 1分钟缓存
+
 module.exports = function registerBootstrapV2(app, db) {
     app.get('/api/bootstrap-v2', async (req, res) => {
         const start = Date.now();
+
+        // 检查缓存
+        if (bootstrapCache.data && Date.now() - bootstrapCache.ts < CACHE_TTL) {
+            console.log(`[Bootstrap-v2] Cache hit! (${Date.now() - start}ms)`);
+            res.setHeader('X-Cache', 'HIT');
+            return res.json(bootstrapCache.data);
+        }
+
         try {
             const sql = `
                 SELECT
@@ -89,14 +100,26 @@ module.exports = function registerBootstrapV2(app, db) {
                 try { config = JSON.parse(configRow.value); } catch { config = null; }
             }
 
-            res.json({
+            const responseData = {
                 success: true,
                 data: { categories, bookmarks, engines, config }
-            });
+            };
+
+            // 更新缓存
+            bootstrapCache = { ts: Date.now(), data: responseData };
+
+            res.setHeader('X-Cache', 'MISS');
+            res.json(responseData);
             console.log(`[Bootstrap-v2] Total: ${Date.now() - start}ms`);
         } catch (e) {
             console.error(`[Bootstrap-v2] Error:`, e);
             res.status(500).json({ success: false, error: e.message });
         }
     });
+};
+
+// 导出缓存清除函数（供其他模块调用）
+module.exports.clearBootstrapCache = function() {
+    bootstrapCache = { ts: 0, data: null };
+    console.log('[Bootstrap-v2] Cache cleared');
 };

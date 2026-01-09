@@ -84,28 +84,65 @@ export async function loadIconsBatch(ids) {
     }
 }
 
-export function lazyLoadVisibleIcons() {
-    if (state.isLoadingIcons) return;
+// IntersectionObserver实例（高性能懒加载）
+let iconObserver = null;
+const observedElements = new WeakSet();
 
-    const visibleBookmarkIds = [];
-    const bookmarkElements = document.querySelectorAll('.bookmark-card[data-id]');
+export function initIconObserver() {
+    if (iconObserver) return;
 
-    bookmarkElements.forEach(el => {
-        const rect = el.getBoundingClientRect();
-        if (rect.top < window.innerHeight + 200 && rect.bottom > -200) {
-            const id = el.dataset.id;
-            if (id && !state.iconCache.has(id)) {
-                const bookmark = state.bookmarks.find(b => b.id == id);
-                if (bookmark && bookmark.icon_type === 'base64' && !bookmark.icon_data) {
-                    visibleBookmarkIds.push(id);
+    // 特性检测（兼容性）
+    if (!('IntersectionObserver' in window)) {
+        console.warn('IntersectionObserver not supported, falling back');
+        return;
+    }
+
+    iconObserver = new IntersectionObserver((entries) => {
+        const visibleBookmarkIds = [];
+
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const el = entry.target;
+                const id = el.dataset.id;
+
+                if (id && !state.iconCache.has(id)) {
+                    const bookmark = state.bookmarks.find(b => b.id == id);
+                    if (bookmark && bookmark.icon_type === 'base64' && !bookmark.icon_data) {
+                        visibleBookmarkIds.push(id);
+                    }
                 }
+                // 加载后停止观察
+                iconObserver.unobserve(el);
             }
+        });
+
+        if (visibleBookmarkIds.length > 0 && !state.isLoadingIcons) {
+            loadIconsBatch(visibleBookmarkIds);
+        }
+    }, {
+        rootMargin: '200px'
+    });
+}
+
+export function observeBookmarkIcons() {
+    if (!iconObserver) {
+        initIconObserver();
+        if (!iconObserver) return; // 不支持则退出
+    }
+
+    const bookmarkElements = document.querySelectorAll('.bookmark-card[data-id]');
+    bookmarkElements.forEach(el => {
+        if (!observedElements.has(el)) {
+            iconObserver.observe(el);
+            observedElements.add(el);
         }
     });
+}
 
-    if (visibleBookmarkIds.length > 0) {
-        loadIconsBatch(visibleBookmarkIds);
-    }
+// 保留旧函数以兼容（但标记为已废弃）
+export function lazyLoadVisibleIcons() {
+    // 已废弃：使用observeBookmarkIcons()替代
+    observeBookmarkIcons();
 }
 
 function updateBookmarkIcon(bookmarkId, iconInfo) {

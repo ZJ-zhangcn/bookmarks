@@ -5,7 +5,7 @@
 
 import { cacheDOMElements } from './modules/dom.js';
 import { loadData, loadAiStatus, loadCollapsedState } from './modules/api.js';
-import { renderAll } from './modules/render.js';
+import { renderAll, renderAppShell } from './modules/render.js';
 import { bindAllEvents } from './modules/events.js';
 import { hideLoadingOverlay } from './modules/utils.js';
 import { loadAiClientSettingsToUi, updateAiSettingsServerHint, updateAiUiVisibility } from './modules/ai.js';
@@ -22,11 +22,14 @@ async function init() {
     loadAiClientSettingsToUi();
     loadCollapsedState();
 
-    // 优先加载核心数据并立即渲染
+    // 骨架屏优化：立即显示UI框架（感知加载时间-1.5s）
+    renderAppShell();
+    hideLoadingOverlay();
+
+    // 优先加载核心数据并渲染
     await loadData();
     renderAll();
     bindAllEvents();
-    hideLoadingOverlay();
 
     // 后台加载次要功能（不阻塞用户）
     Promise.all([

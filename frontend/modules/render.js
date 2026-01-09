@@ -4,7 +4,7 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 import { highlightText } from './utils.js';
-import { lazyLoadVisibleIcons } from './api.js';
+import { observeBookmarkIcons } from './api.js';
 
 export function renderAll() {
     renderCategoryNav();
@@ -15,6 +15,22 @@ export function renderAll() {
         window.i18n.applyTranslations();
     }
     refreshSystemStats();
+}
+
+// 骨架屏渲染（立即显示UI框架）
+export function renderAppShell() {
+    // 渲染"全部"按钮（立即可见）
+    renderCategoryNav();
+    // 显示空状态骨架
+    if (DOM.bookmarksContainer) {
+        DOM.bookmarksContainer.innerHTML = `
+            <div class="skeleton-container">
+                <div class="skeleton-item"></div>
+                <div class="skeleton-item"></div>
+                <div class="skeleton-item"></div>
+            </div>
+        `;
+    }
 }
 
 export function renderCategoryNav() {
@@ -89,8 +105,9 @@ export function renderBookmarks() {
     DOM.emptyState.style.display = hasResults ? 'none' : 'block';
     DOM.bookmarksContainer.style.display = hasResults ? 'flex' : 'none';
 
+    // 使用IntersectionObserver替代scroll监听（性能优化）
     requestAnimationFrame(() => {
-        setTimeout(lazyLoadVisibleIcons, 50);
+        setTimeout(observeBookmarkIcons, 50);
     });
 }
 
