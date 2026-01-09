@@ -6,19 +6,16 @@ import * as state from './state.js';
 
 export async function loadData() {
     try {
-        const [catRes, bmRes, engRes] = await Promise.all([
-            fetch(`${state.API_BASE}/api/categories`),
-            fetch(`${state.API_BASE}/api/bookmarks`),
-            fetch(`${state.API_BASE}/api/engines`)
-        ]);
+        const res = await fetch(`${state.API_BASE}/api/bootstrap`);
+        const result = await res.json();
 
-        const catData = await catRes.json();
-        const bmData = await bmRes.json();
-        const engData = await engRes.json();
-
-        state.setCategories(catData.success ? catData.data : []);
-        state.setBookmarks(bmData.success ? bmData.data : []);
-        state.setEngines(engData.success ? engData.data : []);
+        const payload = result && result.success ? result.data : null;
+        state.setCategories(payload?.categories || []);
+        state.setBookmarks(payload?.bookmarks || []);
+        state.setEngines(payload?.engines || []);
+        if (payload && 'config' in payload) {
+            state.setPersonalizationConfig(payload.config ?? null);
+        }
 
         if (state.engines.length > 0) {
             const firstEngine = state.engines[0];

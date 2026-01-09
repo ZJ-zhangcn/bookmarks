@@ -18,6 +18,7 @@ const { registerAiRoutes } = require('./ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+app.set('etag', 'weak');
 
 // ========================================
 // 鉴权与安全工具
@@ -88,7 +89,23 @@ app.use((req, res, next) => {
     const limit = req.path.startsWith('/api/webdav') ? '10mb' : '2mb';
     express.json({ limit })(req, res, next);
 });
-app.use(express.static(path.join(__dirname, '..', 'frontend')));
+app.use((req, res, next) => {
+    if (req.method === 'GET' && req.path.startsWith('/api/')) {
+        res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
+    }
+    next();
+});
+app.use(express.static(path.join(__dirname, '..', 'frontend'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        } else if (filePath.match(/\.(css|js)$/)) {
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+        } else {
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+        }
+    }
+}));
 
 // AI（可选功能，不影响现有功能）
 registerAiRoutes(app, db);
@@ -207,6 +224,79 @@ app.get('/api/system/stats', async (req, res) => {
                     usagePercent: diskInfo.total > 0 ? Math.round((diskInfo.used / diskInfo.total) * 100 * 100) / 100 : 0
                 }
             }
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ========================================
+// 启动加载聚合 API
+// ========================================
+app.get('/api/bootstrap', async (req, res) => {
+    try {
+        const [categories, engines, configRow] = await Promise.all([
+            db.queryAll('SELECT * FROM categories ORDER BY sort_order, created_at'),
+            db.queryAll('SELECT * FROM search_engines ORDER BY sort_order ASC, created_at ASC'),
+            db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization'])
+        ]);
+
+        let config = null;
+        if (configRow && configRow.value) {
+            try { config = JSON.parse(configRow.value); } catch { config = null; }
+        }
+
+        const sql = `
+            SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
+                   CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
+                   b.item_type, b.component_type, b.sort_order, b.created_at,
+                   c.name as category_name, c.icon as category_icon
+            FROM bookmarks b
+            LEFT JOIN categories c ON b.category_id = c.id
+            ORDER BY c.sort_order, b.sort_order, b.created_at
+        `;
+        const bookmarks = await db.queryAll(sql);
+
+        try {
+            const ids = bookmarks.map(b => b.id).filter(Boolean);
+            if (ids.length > 0) {
+                const placeholders = ids.map(() => '?').join(',');
+                const rows = await db.queryAll(
+                    `SELECT bookmark_id, tags, summary FROM bookmark_ai WHERE bookmark_id IN (${placeholders})`,
+                    ids
+                );
+
+                const aiMap = new Map();
+                rows.forEach(row => {
+                    let tags = [];
+                    try { tags = JSON.parse(row.tags || '[]'); } catch {}
+                    aiMap.set(row.bookmark_id, {
+                        tags: Array.isArray(tags) ? tags : [],
+                        summary: row.summary || ''
+                    });
+                });
+
+                bookmarks.forEach(b => {
+                    const ai = aiMap.get(b.id);
+                    b.tags = ai ? ai.tags : [];
+                    b.ai_summary = ai ? ai.summary : '';
+                });
+            } else {
+                bookmarks.forEach(b => {
+                    b.tags = [];
+                    b.ai_summary = '';
+                });
+            }
+        } catch {
+            bookmarks.forEach(b => {
+                if (!('tags' in b)) b.tags = [];
+                if (!('ai_summary' in b)) b.ai_summary = '';
+            });
+        }
+
+        res.json({
+            success: true,
+            data: { categories, bookmarks, engines, config }
         });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });

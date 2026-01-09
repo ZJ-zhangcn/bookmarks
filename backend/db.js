@@ -198,6 +198,12 @@ async function createTables() {
                 model TEXT,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+
+            -- 性能优化索引
+            CREATE INDEX IF NOT EXISTS idx_bookmarks_category_id ON bookmarks(category_id);
+            CREATE INDEX IF NOT EXISTS idx_bookmarks_sort_order ON bookmarks(sort_order);
+            CREATE INDEX IF NOT EXISTS idx_categories_sort_order ON categories(sort_order);
+            CREATE INDEX IF NOT EXISTS idx_search_engines_sort_order ON search_engines(sort_order);
         `);
 
         // 添加可能缺失的列

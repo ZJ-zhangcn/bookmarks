@@ -12,7 +12,40 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="index.css">
+    <style>
+        :root {
+            --primary-hue: 250;
+            --primary: hsl(var(--primary-hue), 100%, 65%);
+            --bg-primary: hsl(230, 25%, 8%);
+            --glass-border: hsla(0, 0%, 100%, 0.08);
+            --text-secondary: hsl(230, 15%, 70%);
+            --spacing-md: 1rem;
+        }
+        body { margin: 0; background: var(--bg-primary); }
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--glass-border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { margin-top: var(--spacing-md); color: var(--text-secondary); font-size: 0.95rem; font-family: sans-serif; }
+    </style>
+    <link rel="stylesheet" href="index.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="index.css"></noscript>
 </head>
 
 <body>

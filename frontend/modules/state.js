@@ -21,6 +21,7 @@ export const AI_CLICK_COOLDOWN_MS = 2500;
 export let collapsedCategories = new Set();
 export let aiStatus = { enabled: false, provider: null, model: null, note: null };
 export let sortingCategory = null;
+export let personalizationConfig = undefined;
 
 export const AI_CLIENT_STORAGE = {
     apiBaseUrl: 'aiApiBaseUrl',
@@ -59,6 +60,7 @@ export function setAiRequestInFlight(val) { aiRequestInFlight = val; }
 export function setAiLastActionAt(val) { aiLastActionAt = val; }
 export function setAiStatus(val) { aiStatus = val; }
 export function setSortingCategory(val) { sortingCategory = val; }
+export function setPersonalizationConfig(val) { personalizationConfig = val; }
 export function setIsLoadingIcons(val) { isLoadingIcons = val; }
 export function setAvailableIcons(val) { availableIcons = val; }
 export function setIconLibraryCache(val) { iconLibraryCache = val; }

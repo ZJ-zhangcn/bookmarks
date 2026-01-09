@@ -9,6 +9,9 @@ import { renderCategoryList } from './category.js';
 import { preloadImage } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 
+const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
+let wallpaperLoadSeq = 0;
+
 // 主题管理
 export function initTheme() {
     const saved = localStorage.getItem('theme') || 'dark';
@@ -54,10 +57,17 @@ export function closeAllModals() {
 
 export async function loadPersonalization() {
     try {
-        const res = await fetch(`${state.API_BASE}/api/config`);
-        const result = await res.json();
-        if (result.success && result.data) {
-            const config = result.data;
+        let config;
+        if (state.personalizationConfig !== undefined) {
+            config = state.personalizationConfig;
+        } else {
+            const res = await fetch(`${state.API_BASE}/api/config`);
+            const result = await res.json();
+            config = result && result.success ? (result.data ?? null) : null;
+            state.setPersonalizationConfig(config);
+        }
+
+        if (config) {
             if (DOM.logoShow) DOM.logoShow.checked = config.logoShow !== false;
             if (DOM.logoText) DOM.logoText.value = config.logoText || '书签导航';
             if (DOM.clockShow) DOM.clockShow.checked = config.clockShow || false;
@@ -134,6 +144,7 @@ export async function applyPersonalization(config) {
 
     if (config.wallpaperUrl) {
         const url = String(config.wallpaperUrl || '').trim();
+        const seq = ++wallpaperLoadSeq;
 
         wallpaperLayer.classList.add('active');
 
@@ -145,14 +156,38 @@ export async function applyPersonalization(config) {
         wallpaperOverlay.style.background = `rgba(0, 0, 0, ${dim / 100})`;
 
         if (bgDecoration) bgDecoration.style.display = '';
-        const ok = await preloadImage(url, 4000);
-        if (ok) {
+
+        const hinted = (localStorage.getItem(WALLPAPER_HINT_KEY) || '') === url;
+        const applySuccess = () => {
+            if (seq !== wallpaperLoadSeq) return;
+            wallpaperLayer.classList.add('active');
             wallpaperImage.style.backgroundImage = `url(${url})`;
             if (bgDecoration) bgDecoration.style.display = 'none';
-        } else {
-            wallpaperLayer.classList.remove('active');
+            localStorage.setItem(WALLPAPER_HINT_KEY, url);
+        };
+        const applyFailure = () => {
+            if (seq !== wallpaperLoadSeq) return;
             wallpaperImage.style.backgroundImage = '';
             if (bgDecoration) bgDecoration.style.display = '';
+        };
+
+        if (hinted) {
+            applySuccess();
+            const img = new Image();
+            img.onload = applySuccess;
+            img.onerror = applyFailure;
+            img.src = url;
+        } else {
+            const ok = await preloadImage(url, 1500);
+            if (ok) {
+                applySuccess();
+            } else {
+                applyFailure();
+                const img = new Image();
+                img.onload = applySuccess;
+                img.onerror = applyFailure;
+                img.src = url;
+            }
         }
 
         document.body.style.backgroundImage = '';
