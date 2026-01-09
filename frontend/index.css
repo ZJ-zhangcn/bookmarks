@@ -3724,24 +3724,3 @@ select:focus {
         height: 20px;
     }
 }
-
-/* 骨架屏样式 */
-.skeleton-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: var(--spacing-lg);
-    padding: var(--spacing-lg);
-}
-
-.skeleton-item {
-    height: 150px;
-    background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
-    background-size: 200% 100%;
-    animation: skeleton-loading 1.5s ease-in-out infinite;
-    border-radius: var(--radius-md);
-}
-
-@keyframes skeleton-loading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-}

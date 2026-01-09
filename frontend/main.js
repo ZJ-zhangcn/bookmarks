@@ -5,7 +5,7 @@
 
 import { cacheDOMElements } from './modules/dom.js';
 import { loadData, loadAiStatus, loadCollapsedState } from './modules/api.js';
-import { renderAll, renderAppShell } from './modules/render.js';
+import { renderAll } from './modules/render.js';
 import { bindAllEvents } from './modules/events.js';
 import { hideLoadingOverlay } from './modules/utils.js';
 import { loadAiClientSettingsToUi, updateAiSettingsServerHint, updateAiUiVisibility } from './modules/ai.js';
@@ -21,9 +21,6 @@ async function init() {
     initTheme();
     loadAiClientSettingsToUi();
     loadCollapsedState();
-
-    // 骨架屏优化：立即显示UI框架（感知加载时间-1.5s）
-    renderAppShell();
 
     // 完全不闪：首屏等待个性化（壁纸）和核心数据就绪后再揭开遮罩
     await Promise.all([
