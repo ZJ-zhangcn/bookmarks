@@ -1288,6 +1288,55 @@ app.post('/api/icon/fix-all', requireAdmin, async (req, res) => {
     }
 });
 
+// ========================================
+// Favicon 图片代理（解决国内访问 GitHub/Google 等图标超时问题）
+// ========================================
+app.get('/api/proxy-icon', async (req, res) => {
+    const { url } = req.query;
+
+    if (!url) {
+        return res.status(400).send('Missing url parameter');
+    }
+
+    try {
+        const parsedUrl = new URL(url);
+
+        // 安全检查：只允许代理特定域名的图标
+        const allowedHosts = [
+            'github.com',
+            'www.google.com',
+            'favicon.im',
+            'icon.horse',
+            'favicons.githubusercontent.com'
+        ];
+
+        if (!allowedHosts.some(host => parsedUrl.hostname === host || parsedUrl.hostname.endsWith('.' + host))) {
+            return res.status(403).send('Host not allowed');
+        }
+
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            signal: AbortSignal.timeout(8000)
+        });
+
+        if (!response.ok) {
+            return res.status(response.status).send('Failed to fetch icon');
+        }
+
+        const buffer = await response.arrayBuffer();
+        const contentType = response.headers.get('content-type') || 'image/x-icon';
+
+        // 设置缓存头（7天）
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+        res.send(Buffer.from(buffer));
+    } catch (e) {
+        res.status(500).send('Proxy error: ' + e.message);
+    }
+});
+
 app.post('/api/icon/fetch-all', requireAdmin, async (req, res) => {
     try {
         const bookmarks = await db.queryAll(`

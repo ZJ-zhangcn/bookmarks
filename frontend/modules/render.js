@@ -117,7 +117,15 @@ export function createBookmarkCard(item, searchTerm) {
     if (cachedIcon && cachedIcon.icon_data) {
         iconHtml = `<img src="${cachedIcon.icon_data}" alt="${item.name}" loading="lazy">`;
     } else if (item.icon_type === 'url' && item.icon_data) {
-        iconHtml = `<img src="${item.icon_data}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${item.icon || '🌐'}</span>'">`;
+        // 对于可能被墙的外部服务，通过后端代理加载
+        const needsProxy = item.icon_data.includes('github.com') ||
+                          item.icon_data.includes('google.com') ||
+                          item.icon_data.includes('favicon.im') ||
+                          item.icon_data.includes('icon.horse');
+        const iconSrc = needsProxy
+            ? `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(item.icon_data)}`
+            : item.icon_data;
+        iconHtml = `<img src="${iconSrc}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${item.icon || '🌐'}</span>'">`;
     } else if (item.icon_type === 'base64' && item.icon_data) {
         iconHtml = `<img src="${item.icon_data}" alt="${item.name}" loading="lazy">`;
     } else if (item.icon_type === 'base64') {
