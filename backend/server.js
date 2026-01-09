@@ -1182,7 +1182,10 @@ app.post('/api/favicon', async (req, res) => {
             $(selector).each((_, el) => {
                 let href = $(el).attr('href') || $(el).attr('content');
                 if (href) {
-                    if (href.startsWith('//')) {
+                    // 保留 data URI 和 blob URL 原样
+                    if (href.startsWith('data:') || href.startsWith('blob:')) {
+                        // data URI 或 blob URL，保持原样
+                    } else if (href.startsWith('//')) {
                         href = parsedUrl.protocol + href;
                     } else if (href.startsWith('/')) {
                         href = baseUrl + href;
