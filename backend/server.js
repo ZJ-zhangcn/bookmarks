@@ -9,6 +9,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -19,6 +20,19 @@ const { registerAiRoutes } = require('./ai');
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.set('etag', 'weak');
+
+// ========================================
+// gzip/brotli压缩（优先级最高）
+// ========================================
+app.use(compression({
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        return compression.filter(req, res);
+    },
+    level: 6  // 压缩级别（0-9，6为平衡点）
+}));
 
 // ========================================
 // 鉴权与安全工具
