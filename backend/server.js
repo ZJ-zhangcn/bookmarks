@@ -1304,6 +1304,7 @@ app.get('/api/proxy-icon', async (req, res) => {
         // 安全检查：只允许代理特定域名的图标
         const allowedHosts = [
             'github.com',
+            'grok.com',
             'www.google.com',
             'favicon.im',
             'icon.horse',

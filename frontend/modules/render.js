@@ -3,6 +3,21 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
+
+const PROXY_ALLOWED_HOSTS = ['github.com', 'grok.com', 'www.google.com', 'favicon.im', 'icon.horse', 'favicons.githubusercontent.com'];
+
+function shouldUseProxy(url) {
+    try {
+        const hostname = new URL(url).hostname;
+        return PROXY_ALLOWED_HOSTS.some(host => hostname === host || hostname.endsWith('.' + host));
+    } catch {
+        return false;
+    }
+}
+
+function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
 import { highlightText } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
 
@@ -117,15 +132,14 @@ export function createBookmarkCard(item, searchTerm) {
     if (cachedIcon && cachedIcon.icon_data) {
         iconHtml = `<img src="${cachedIcon.icon_data}" alt="${item.name}" loading="lazy">`;
     } else if (item.icon_type === 'url' && item.icon_data) {
-        // 对于可能被墙的外部服务，通过后端代理加载
-        const needsProxy = item.icon_data.includes('github.com') ||
-                          item.icon_data.includes('google.com') ||
-                          item.icon_data.includes('favicon.im') ||
-                          item.icon_data.includes('icon.horse');
-        const iconSrc = needsProxy
-            ? `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(item.icon_data)}`
-            : item.icon_data;
-        iconHtml = `<img src="${iconSrc}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${item.icon || '🌐'}</span>'">`;
+        const rawIconUrl = item.icon_data;
+        const escapedIcon = escapeHtml(item.icon || '🌐');
+        if (shouldUseProxy(rawIconUrl)) {
+            const proxyIconUrl = `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(rawIconUrl)}`;
+            iconHtml = `<img src="${rawIconUrl}" alt="${item.name}" loading="lazy" data-proxy-url="${proxyIconUrl}" onerror="if(!this.dataset.proxyTried && !this.src.includes('/api/proxy-icon?')){this.dataset.proxyTried='1';this.src=this.dataset.proxyUrl;}else{this.outerHTML='<span>${escapedIcon}</span>'}">`;
+        } else {
+            iconHtml = `<img src="${rawIconUrl}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${escapedIcon}</span>'">`;
+        }
     } else if (item.icon_type === 'base64' && item.icon_data) {
         iconHtml = `<img src="${item.icon_data}" alt="${item.name}" loading="lazy">`;
     } else if (item.icon_type === 'base64') {
@@ -281,19 +295,36 @@ export function renderIconSelection(availableIcons) {
         return;
     }
     if (availableIcons.length === 1) {
-        const source = getIconSource(availableIcons[0]);
-        DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
-            <img src="${availableIcons[0]}" onerror="this.outerHTML='<span>🌐</span>'">
-            <span class="icon-source-label ${source.class}">${source.label}</span>
-        </div>`;
+        const icon = availableIcons[0];
+        const source = getIconSource(icon);
+        if (shouldUseProxy(icon)) {
+            const proxyUrl = `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(icon)}`;
+            DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
+                <img src="${icon}" data-proxy-url="${proxyUrl}" onerror="if(!this.dataset.proxyTried && !this.src.includes('/api/proxy-icon?')){this.dataset.proxyTried='1';this.src=this.dataset.proxyUrl;}else{this.outerHTML='<span>🌐</span>'}">
+                <span class="icon-source-label ${source.class}">${source.label}</span>
+            </div>`;
+        } else {
+            DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
+                <img src="${icon}" onerror="this.outerHTML='<span>🌐</span>'">
+                <span class="icon-source-label ${source.class}">${source.label}</span>
+            </div>`;
+        }
     } else {
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
             ${availableIcons.slice(0, 6).map((icon, idx) => {
                 const source = getIconSource(icon);
-                return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
-                    <img src="${icon}" class="icon-option" onerror="this.parentElement.style.display='none'">
-                    <span class="icon-source-label ${source.class}">${source.label}</span>
-                </div>`;
+                if (shouldUseProxy(icon)) {
+                    const proxyUrl = `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(icon)}`;
+                    return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
+                        <img src="${icon}" class="icon-option" data-proxy-url="${proxyUrl}" onerror="if(!this.dataset.proxyTried && !this.src.includes('/api/proxy-icon?')){this.dataset.proxyTried='1';this.src=this.dataset.proxyUrl;}else{this.parentElement.remove();}">
+                        <span class="icon-source-label ${source.class}">${source.label}</span>
+                    </div>`;
+                } else {
+                    return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
+                        <img src="${icon}" class="icon-option" onerror="this.parentElement.remove()">
+                        <span class="icon-source-label ${source.class}">${source.label}</span>
+                    </div>`;
+                }
             }).join('')}
         </div>`;
         DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(wrap => {

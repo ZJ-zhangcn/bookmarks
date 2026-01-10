@@ -12,6 +12,14 @@ const FALLBACK_SOURCES = [
     domain => `https://icon.horse/icon/${domain}`
 ];
 
+const PREFER_PROXY_HOSTS = new Set([
+    'grok.com'
+]);
+
+function toProxyIconUrl(url) {
+    return `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(url)}`;
+}
+
 async function tryLoadImage(url, timeout = 3000) {
     return new Promise(resolve => {
         const img = new Image();
@@ -53,8 +61,19 @@ export async function fetchFavicon() {
         const [proxyResult, ...fallbackResults] = await Promise.all([proxyPromise, ...fallbackPromises]);
 
         // 合并图标：网站自带图标优先
-        const siteIcons = (proxyResult?.success && proxyResult?.icons) ? proxyResult.icons : [];
+        const rawSiteIcons = (proxyResult?.success && proxyResult?.icons) ? proxyResult.icons : [];
         const fallbackIcons = fallbackResults.filter(Boolean);
+
+        // 对于被墙的域名，优先添加代理 URL 避免浏览器直连失败
+        const siteIcons = rawSiteIcons.flatMap(iconUrl => {
+            try {
+                const host = new URL(iconUrl).hostname;
+                if (PREFER_PROXY_HOSTS.has(host)) {
+                    return [toProxyIconUrl(iconUrl), iconUrl];
+                }
+            } catch (e) { }
+            return [iconUrl];
+        });
 
         // 网站自带图标放前面，第三方服务图标放后面，去重
         const allIcons = [...new Set([...siteIcons, ...fallbackIcons])];
