@@ -220,7 +220,13 @@ export async function saveBookmark() {
 
         if (res.ok && result && result.success) {
             const savedId = result?.data?.id || state.editingBookmarkId;
-            if (savedId) await saveBookmarkAi(savedId);
+
+            // 清除该书签的图标缓存，确保显示最新图标
+            if (savedId) {
+                state.iconCache.delete(savedId);
+                await saveBookmarkAi(savedId);
+            }
+
             await loadData();
             renderAll();
             refreshIconLibraryCache();
