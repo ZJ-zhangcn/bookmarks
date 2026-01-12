@@ -6,7 +6,8 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderAll, renderCategoryNav } from './render.js';
 import { updateAiUiVisibility, getAiClientSettings, setAiButtonsDisabled, buildLocalFallbackSummary } from './ai.js';
-import { fetchFavicon, shouldUseProxyUrl, toProxyUrl } from './favicon.js';
+import { fetchFavicon } from './favicon.js';
+import { shouldUseProxyUrl, toProxyUrl } from './utils.js';
 import { loadIconLibrary, refreshIconLibraryCache } from './icon-library.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 

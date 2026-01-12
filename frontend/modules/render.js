@@ -7,7 +7,7 @@ import * as state from './state.js';
 function escapeHtml(str) {
     return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
-import { highlightText } from './utils.js';
+import { highlightText, shouldUseProxyUrl, toProxyUrl } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
 
 export function renderAll() {
@@ -122,8 +122,9 @@ export function createBookmarkCard(item, searchTerm) {
         iconHtml = `<img src="${cachedIcon.icon_data}" alt="${item.name}" loading="lazy">`;
     } else if (item.icon_type === 'url' && item.icon_data) {
         const rawIconUrl = item.icon_data;
+        const displayUrl = shouldUseProxyUrl(rawIconUrl) ? toProxyUrl(rawIconUrl) : rawIconUrl;
         const escapedIcon = escapeHtml(item.icon || '🌐');
-        iconHtml = `<img src="${rawIconUrl}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${escapedIcon}</span>'">`;
+        iconHtml = `<img src="${displayUrl}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${escapedIcon}</span>'">`;
     } else if (item.icon_type === 'base64' && item.icon_data) {
         iconHtml = `<img src="${item.icon_data}" alt="${item.name}" loading="lazy">`;
     } else if (item.icon_type === 'base64') {

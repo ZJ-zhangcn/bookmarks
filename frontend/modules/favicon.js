@@ -3,7 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { isPrivateOrLocalAddress } from './utils.js';
+import { isPrivateOrLocalAddress, shouldUseProxyUrl, toProxyUrl } from './utils.js';
 import { renderIconSelection } from './render.js';
 
 const FALLBACK_SOURCES = [
@@ -11,35 +11,6 @@ const FALLBACK_SOURCES = [
     domain => `https://favicon.im/${domain}`,
     domain => `https://icon.horse/icon/${domain}`
 ];
-
-const PREFER_PROXY_HOSTS = new Set([
-    'grok.com',
-    'github.com',
-    'githubusercontent.com',
-    'google.com',
-    'huggingface.co',
-    'zhihu.com',
-    'tool.lu',
-    'leaflow.net',
-    'the-x.cn'
-]);
-
-export function toProxyUrl(url) {
-    return `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(url)}`;
-}
-
-export function shouldUseProxyUrl(url) {
-    try {
-        const host = new URL(url).hostname;
-        return PREFER_PROXY_HOSTS.has(host);
-    } catch (e) {
-        return false;
-    }
-}
-
-function toProxyIconUrl(url) {
-    return toProxyUrl(url);
-}
 
 async function tryLoadImage(url, timeout = 3000) {
     return new Promise(resolve => {
@@ -87,12 +58,9 @@ export async function fetchFavicon() {
 
         // 对于被墙的域名，仅使用代理 URL 避免浏览器直连失败
         const siteIcons = rawSiteIcons.map(iconUrl => {
-            try {
-                const host = new URL(iconUrl).hostname;
-                if (PREFER_PROXY_HOSTS.has(host)) {
-                    return toProxyIconUrl(iconUrl);
-                }
-            } catch (e) { }
+            if (shouldUseProxyUrl(iconUrl)) {
+                return toProxyUrl(iconUrl);
+            }
             return iconUrl;
         });
 

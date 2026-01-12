@@ -1,6 +1,7 @@
 /**
  * 工具函数模块
  */
+import * as state from './state.js';
 
 export function debounce(fn, delay = 300) {
     let timer = null;
@@ -94,4 +95,30 @@ export function isPrivateOrLocalAddress(hostname) {
         /^fe80:/i
     ];
     return privatePatterns.some(p => p.test(hostname));
+}
+
+const PREFER_PROXY_HOSTS = [
+    'grok.com',
+    'github.com',
+    'githubusercontent.com',
+    'google.com',
+    'huggingface.co',
+    'zhihu.com',
+    'tool.lu',
+    'leaflow.net',
+    'the-x.cn'
+];
+
+export function toProxyUrl(url) {
+    return `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(url)}`;
+}
+
+export function shouldUseProxyUrl(url) {
+    if (!url) return false;
+    try {
+        const host = new URL(url).hostname;
+        return PREFER_PROXY_HOSTS.some(domain => host === domain || host.endsWith('.' + domain));
+    } catch (e) {
+        return false;
+    }
 }
