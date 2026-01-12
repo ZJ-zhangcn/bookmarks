@@ -4,7 +4,19 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 
-const PROXY_ALLOWED_HOSTS = ['github.com', 'grok.com', 'www.google.com', 'favicon.im', 'icon.horse', 'favicons.githubusercontent.com'];
+const PROXY_ALLOWED_HOSTS = [
+    'github.com',
+    'grok.com',
+    'www.google.com',
+    'favicon.im',
+    'icon.horse',
+    'favicons.githubusercontent.com',
+    'huggingface.co',
+    'zhihu.com',
+    'tool.lu',
+    'leaflow.net',
+    'the-x.cn'
+];
 
 function shouldUseProxy(url) {
     try {
@@ -136,7 +148,7 @@ export function createBookmarkCard(item, searchTerm) {
         const escapedIcon = escapeHtml(item.icon || '🌐');
         if (shouldUseProxy(rawIconUrl)) {
             const proxyIconUrl = `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(rawIconUrl)}`;
-            iconHtml = `<img src="${rawIconUrl}" alt="${item.name}" loading="lazy" data-proxy-url="${proxyIconUrl}" onerror="if(!this.dataset.proxyTried && !this.src.includes('/api/proxy-icon?')){this.dataset.proxyTried='1';this.src=this.dataset.proxyUrl;}else{this.outerHTML='<span>${escapedIcon}</span>'}">`;
+            iconHtml = `<img src="${proxyIconUrl}" alt="${item.name}" loading="lazy" data-fallback-url="${rawIconUrl}" onerror="if(this.dataset.fallbackUrl && !this.dataset.fallbackTried){this.dataset.fallbackTried='1';this.src=this.dataset.fallbackUrl;}else{this.outerHTML='<span>${escapedIcon}</span>'}">`;
         } else {
             iconHtml = `<img src="${rawIconUrl}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${escapedIcon}</span>'">`;
         }
@@ -300,7 +312,7 @@ export function renderIconSelection(availableIcons) {
         if (shouldUseProxy(icon)) {
             const proxyUrl = `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(icon)}`;
             DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
-                <img src="${icon}" data-proxy-url="${proxyUrl}" onerror="if(!this.dataset.proxyTried && !this.src.includes('/api/proxy-icon?')){this.dataset.proxyTried='1';this.src=this.dataset.proxyUrl;}else{this.outerHTML='<span>🌐</span>'}">
+                <img src="${proxyUrl}" data-fallback-url="${icon}" onerror="if(this.dataset.fallbackUrl && !this.dataset.fallbackTried){this.dataset.fallbackTried='1';this.src=this.dataset.fallbackUrl;}else{this.outerHTML='<span>🌐</span>'}">
                 <span class="icon-source-label ${source.class}">${source.label}</span>
             </div>`;
         } else {
@@ -316,7 +328,7 @@ export function renderIconSelection(availableIcons) {
                 if (shouldUseProxy(icon)) {
                     const proxyUrl = `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(icon)}`;
                     return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
-                        <img src="${icon}" class="icon-option" data-proxy-url="${proxyUrl}" onerror="if(!this.dataset.proxyTried && !this.src.includes('/api/proxy-icon?')){this.dataset.proxyTried='1';this.src=this.dataset.proxyUrl;}else{this.parentElement.remove();}">
+                        <img src="${proxyUrl}" class="icon-option" data-fallback-url="${icon}" onerror="if(this.dataset.fallbackUrl && !this.dataset.fallbackTried){this.dataset.fallbackTried='1';this.src=this.dataset.fallbackUrl;}else{this.parentElement.remove();}">
                         <span class="icon-source-label ${source.class}">${source.label}</span>
                     </div>`;
                 } else {

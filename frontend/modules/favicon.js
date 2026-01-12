@@ -13,7 +13,15 @@ const FALLBACK_SOURCES = [
 ];
 
 const PREFER_PROXY_HOSTS = new Set([
-    'grok.com'
+    'grok.com',
+    'github.com',
+    'githubusercontent.com',
+    'google.com',
+    'huggingface.co',
+    'zhihu.com',
+    'tool.lu',
+    'leaflow.net',
+    'the-x.cn'
 ]);
 
 function toProxyIconUrl(url) {

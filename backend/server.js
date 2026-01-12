@@ -1308,7 +1308,13 @@ app.get('/api/proxy-icon', async (req, res) => {
             'www.google.com',
             'favicon.im',
             'icon.horse',
-            'favicons.githubusercontent.com'
+            'favicons.githubusercontent.com',
+            'huggingface.co',
+            'zhihu.com',
+            'static.zhihu.com',
+            'tool.lu',
+            'leaflow.net',
+            'the-x.cn'
         ];
 
         if (!allowedHosts.some(host => parsedUrl.hostname === host || parsedUrl.hostname.endsWith('.' + host))) {
