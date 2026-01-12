@@ -72,15 +72,15 @@ export async function fetchFavicon() {
         const rawSiteIcons = (proxyResult?.success && proxyResult?.icons) ? proxyResult.icons : [];
         const fallbackIcons = fallbackResults.filter(Boolean);
 
-        // 对于被墙的域名，优先添加代理 URL 避免浏览器直连失败
-        const siteIcons = rawSiteIcons.flatMap(iconUrl => {
+        // 对于被墙的域名，仅使用代理 URL 避免浏览器直连失败
+        const siteIcons = rawSiteIcons.map(iconUrl => {
             try {
                 const host = new URL(iconUrl).hostname;
                 if (PREFER_PROXY_HOSTS.has(host)) {
-                    return [toProxyIconUrl(iconUrl), iconUrl];
+                    return toProxyIconUrl(iconUrl);
                 }
             } catch (e) { }
-            return [iconUrl];
+            return iconUrl;
         });
 
         // 网站自带图标放前面，第三方服务图标放后面，去重

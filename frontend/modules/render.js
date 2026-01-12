@@ -4,29 +4,6 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 
-const PROXY_ALLOWED_HOSTS = [
-    'github.com',
-    'grok.com',
-    'www.google.com',
-    'favicon.im',
-    'icon.horse',
-    'favicons.githubusercontent.com',
-    'huggingface.co',
-    'zhihu.com',
-    'tool.lu',
-    'leaflow.net',
-    'the-x.cn'
-];
-
-function shouldUseProxy(url) {
-    try {
-        const hostname = new URL(url).hostname;
-        return PROXY_ALLOWED_HOSTS.some(host => hostname === host || hostname.endsWith('.' + host));
-    } catch {
-        return false;
-    }
-}
-
 function escapeHtml(str) {
     return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
@@ -146,12 +123,7 @@ export function createBookmarkCard(item, searchTerm) {
     } else if (item.icon_type === 'url' && item.icon_data) {
         const rawIconUrl = item.icon_data;
         const escapedIcon = escapeHtml(item.icon || '🌐');
-        if (shouldUseProxy(rawIconUrl)) {
-            const proxyIconUrl = `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(rawIconUrl)}`;
-            iconHtml = `<img src="${proxyIconUrl}" alt="${item.name}" loading="lazy" data-fallback-url="${rawIconUrl}" onerror="if(this.dataset.fallbackUrl && !this.dataset.fallbackTried){this.dataset.fallbackTried='1';this.src=this.dataset.fallbackUrl;}else{this.outerHTML='<span>${escapedIcon}</span>'}">`;
-        } else {
-            iconHtml = `<img src="${rawIconUrl}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${escapedIcon}</span>'">`;
-        }
+        iconHtml = `<img src="${rawIconUrl}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${escapedIcon}</span>'">`;
     } else if (item.icon_type === 'base64' && item.icon_data) {
         iconHtml = `<img src="${item.icon_data}" alt="${item.name}" loading="lazy">`;
     } else if (item.icon_type === 'base64') {
@@ -309,34 +281,18 @@ export function renderIconSelection(availableIcons) {
     if (availableIcons.length === 1) {
         const icon = availableIcons[0];
         const source = getIconSource(icon);
-        if (shouldUseProxy(icon)) {
-            const proxyUrl = `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(icon)}`;
-            DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
-                <img src="${proxyUrl}" data-fallback-url="${icon}" onerror="if(this.dataset.fallbackUrl && !this.dataset.fallbackTried){this.dataset.fallbackTried='1';this.src=this.dataset.fallbackUrl;}else{this.outerHTML='<span>🌐</span>'}">
-                <span class="icon-source-label ${source.class}">${source.label}</span>
-            </div>`;
-        } else {
-            DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
-                <img src="${icon}" onerror="this.outerHTML='<span>🌐</span>'">
-                <span class="icon-source-label ${source.class}">${source.label}</span>
-            </div>`;
-        }
+        DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
+            <img src="${icon}" onerror="this.outerHTML='<span>🌐</span>'">
+            <span class="icon-source-label ${source.class}">${source.label}</span>
+        </div>`;
     } else {
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
             ${availableIcons.slice(0, 6).map((icon, idx) => {
                 const source = getIconSource(icon);
-                if (shouldUseProxy(icon)) {
-                    const proxyUrl = `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(icon)}`;
-                    return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
-                        <img src="${proxyUrl}" class="icon-option" data-fallback-url="${icon}" onerror="if(this.dataset.fallbackUrl && !this.dataset.fallbackTried){this.dataset.fallbackTried='1';this.src=this.dataset.fallbackUrl;}else{this.parentElement.remove();}">
-                        <span class="icon-source-label ${source.class}">${source.label}</span>
-                    </div>`;
-                } else {
-                    return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
-                        <img src="${icon}" class="icon-option" onerror="this.parentElement.remove()">
-                        <span class="icon-source-label ${source.class}">${source.label}</span>
-                    </div>`;
-                }
+                return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
+                    <img src="${icon}" class="icon-option" onerror="this.parentElement.remove()">
+                    <span class="icon-source-label ${source.class}">${source.label}</span>
+                </div>`;
             }).join('')}
         </div>`;
         DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(wrap => {
