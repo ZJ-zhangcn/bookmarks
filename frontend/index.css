@@ -856,7 +856,7 @@ body {
 #iconLibraryGrid .icon-library-item,
 #engineIconLibraryGrid .icon-library-item {
     width: 40px;
-    height: 40px;
+    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1825,7 +1825,7 @@ body {
     align-items: center;
     justify-content: center;
     width: 60px;
-    height: 60px;
+    height: 70px;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
@@ -3737,14 +3737,4 @@ select:focus {
         width: 20px;
         height: 20px;
     }
-}
-
-/* 全局图标库项目尺寸优化 - 紧凑显示 */
-#settingsIconLibraryGrid .icon-library-item {
-    height: 70px !important;
-}
-
-#iconLibraryGrid .icon-library-item,
-#engineIconLibraryGrid .icon-library-item {
-    height: 50px !important;
 }
