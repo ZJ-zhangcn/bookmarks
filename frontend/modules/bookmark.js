@@ -6,7 +6,7 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderAll, renderCategoryNav } from './render.js';
 import { updateAiUiVisibility, getAiClientSettings, setAiButtonsDisabled, buildLocalFallbackSummary } from './ai.js';
-import { fetchFavicon } from './favicon.js';
+import { fetchFavicon, shouldUseProxyUrl, toProxyUrl } from './favicon.js';
 import { loadIconLibrary, refreshIconLibraryCache } from './icon-library.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 
@@ -59,7 +59,10 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
 
             if (bookmark.icon_data) {
                 if (originalIconType === 'base64' || originalIconType === 'url') {
-                    DOM.iconPreviewAuto.innerHTML = `<img src="${bookmark.icon_data}" class="selected">`;
+                    const displayUrl = (originalIconType === 'url' && shouldUseProxyUrl(bookmark.icon_data))
+                        ? toProxyUrl(bookmark.icon_data)
+                        : bookmark.icon_data;
+                    DOM.iconPreviewAuto.innerHTML = `<img src="${displayUrl}" class="selected">`;
                 } else if (originalIconType === 'emoji') {
                     DOM.iconPreviewAuto.innerHTML = `<span>${bookmark.icon_data}</span>`;
                 }

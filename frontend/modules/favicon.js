@@ -24,8 +24,21 @@ const PREFER_PROXY_HOSTS = new Set([
     'the-x.cn'
 ]);
 
-function toProxyIconUrl(url) {
+export function toProxyUrl(url) {
     return `${state.API_BASE}/api/proxy-icon?url=${encodeURIComponent(url)}`;
+}
+
+export function shouldUseProxyUrl(url) {
+    try {
+        const host = new URL(url).hostname;
+        return PREFER_PROXY_HOSTS.has(host);
+    } catch (e) {
+        return false;
+    }
+}
+
+function toProxyIconUrl(url) {
+    return toProxyUrl(url);
 }
 
 async function tryLoadImage(url, timeout = 3000) {
