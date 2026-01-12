@@ -1824,8 +1824,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 60px;
-    height: 56px;
+    width: 60px !important;
+    height: 56px !important;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
