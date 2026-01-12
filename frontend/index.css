@@ -842,8 +842,9 @@ body {
     overflow-y: auto;
 }
 
-/* 图标库网格 */
-.icon-library-grid {
+/* 图标库网格 - 书签和搜索引擎编辑弹窗 */
+#iconLibraryGrid,
+#engineIconLibraryGrid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
     gap: var(--spacing-xs);
@@ -852,7 +853,8 @@ body {
     padding: var(--spacing-xs);
 }
 
-.icon-library-item {
+#iconLibraryGrid .icon-library-item,
+#engineIconLibraryGrid .icon-library-item {
     width: 40px;
     height: 40px;
     display: flex;
@@ -865,17 +867,20 @@ body {
     transition: all var(--transition-fast);
 }
 
-.icon-library-item:hover {
+#iconLibraryGrid .icon-library-item:hover,
+#engineIconLibraryGrid .icon-library-item:hover {
     border-color: var(--accent-color);
     transform: scale(1.1);
 }
 
-.icon-library-item.selected {
+#iconLibraryGrid .icon-library-item.selected,
+#engineIconLibraryGrid .icon-library-item.selected {
     border-color: var(--accent-color);
     background: var(--accent-color-light);
 }
 
-.icon-library-item img {
+#iconLibraryGrid .icon-library-item img,
+#engineIconLibraryGrid .icon-library-item img {
     width: 24px;
     height: 24px;
     object-fit: contain;
@@ -1803,28 +1808,24 @@ body {
 }
 
 /* ========================================
-   图标库
+   图标库 - 设置面板
    ======================================== */
-.icon-library-grid {
+#settingsIconLibraryGrid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
     margin-top: var(--spacing-md);
-}
-
-/* 设置面板中的图标库 - 更大的显示区域 */
-#settingsIconLibraryGrid {
     max-height: 400px;
     overflow-y: auto;
     padding: var(--spacing-sm);
 }
 
-.icon-library-item {
+#settingsIconLibraryGrid .icon-library-item {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 60px;
-    height: 150px;
+    height: 60px;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
@@ -1832,31 +1833,31 @@ body {
     transition: all var(--transition-fast);
 }
 
-.icon-library-item:hover {
-    transform: scale(1.1);
+#settingsIconLibraryGrid .icon-library-item:hover {
+    transform: scale(1.05);
     border-color: var(--accent-primary);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-.icon-library-item img {
+#settingsIconLibraryGrid .icon-library-item img {
     width: 36px;
     height: 36px;
     object-fit: contain;
 }
 
-.icon-library-item.copied {
+#settingsIconLibraryGrid .icon-library-item.copied {
     background: var(--accent-gradient);
     border-color: var(--accent-primary);
 }
 
-.icon-library-item.copied::after {
+#settingsIconLibraryGrid .icon-library-item.copied::after {
     content: '✓';
     position: absolute;
     color: white;
     font-size: 1.5rem;
 }
 
-.icon-library-empty {
+#settingsIconLibraryGrid .icon-library-empty {
     grid-column: 1 / -1;
     text-align: center;
     padding: var(--spacing-xl);
@@ -1923,15 +1924,15 @@ body {
 }
 
 /* 图标管理网格样式 */
-.icon-library-manage .icon-library-item {
+#settingsIconLibraryGrid .icon-library-item {
     position: relative;
 }
 
-.icon-library-manage .icon-library-item.uploaded {
+#settingsIconLibraryGrid .icon-library-item.uploaded {
     border-color: var(--accent-primary);
 }
 
-.icon-library-manage .icon-library-item.selected {
+#settingsIconLibraryGrid .icon-library-item.selected {
     background: rgba(99, 102, 241, 0.2);
     border-color: var(--accent-primary);
 }
