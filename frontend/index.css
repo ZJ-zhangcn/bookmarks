@@ -1825,12 +1825,13 @@ body {
     align-items: center;
     justify-content: center;
     width: 60px;
-    height: 70px;
+    height: 56px;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
     cursor: pointer;
     transition: all var(--transition-fast);
+    padding: 4px;
 }
 
 #settingsIconLibraryGrid .icon-library-item:hover {
