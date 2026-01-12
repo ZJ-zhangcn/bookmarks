@@ -3739,8 +3739,12 @@ select:focus {
     }
 }
 
-/* 全局图标库项目尺寸强制覆盖 - 修复高度异常问题 */
-.icon-library-item {
-    height: auto !important;
-    aspect-ratio: 1 / 1 !important;
+/* 全局图标库项目尺寸优化 - 紧凑显示 */
+#settingsIconLibraryGrid .icon-library-item {
+    height: 70px !important;
+}
+
+#iconLibraryGrid .icon-library-item,
+#engineIconLibraryGrid .icon-library-item {
+    height: 50px !important;
 }
