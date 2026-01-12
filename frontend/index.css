@@ -3738,3 +3738,9 @@ select:focus {
         height: 20px;
     }
 }
+
+/* 全局图标库项目尺寸强制覆盖 - 修复高度异常问题 */
+.icon-library-item {
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+}
