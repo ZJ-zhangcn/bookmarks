@@ -2886,7 +2886,6 @@ input:checked+.slider:before {
 
 .icon-preview {
     width: 48px;
-    height: 48px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2894,6 +2893,10 @@ input:checked+.slider:before {
     border-radius: var(--radius-sm);
     font-size: 1.5rem;
     margin-bottom: var(--spacing-sm);
+}
+
+.icon-preview:not(.icon-preview-auto) {
+    height: 48px;
 }
 
 .icon-preview img {
@@ -2910,13 +2913,16 @@ input:checked+.slider:before {
 }
 
 .icon-preview-auto {
-    width: 100%;
-    min-height: 64px;
-    max-height: 72px;
-    height: auto;
-    display: flex;
+    width: 100%!important;
+    height: auto!important;
+    max-height: 72px!important;
+    display: flex!important;
     align-items: center;
+    justify-content: flex-start;
     padding: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 6px;
 }
 
 /* 多图标选择 */
@@ -2948,15 +2954,17 @@ input:checked+.slider:before {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 6px 4px;
+    gap: 2px;
+    padding: 4px 3px;
     border: 2px solid transparent;
     border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all var(--transition-fast);
     background: var(--bg-tertiary);
-    min-width: 56px;
-    max-height: 56px;
+    min-width: 48px;
+    max-width: 48px;
+    height: 52px;
+    max-height: 52px;
     flex-shrink: 0;
 }
 
@@ -2970,18 +2978,18 @@ input:checked+.slider:before {
 }
 
 .icon-option {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     object-fit: contain;
 }
 
 .icon-source-label {
-    font-size: 9px;
-    padding: 1px 5px;
-    border-radius: 3px;
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 2px;
     white-space: nowrap;
     font-weight: 600;
-    line-height: 1.1;
+    line-height: 1;
 }
 
 .source-google { background: #4285f4; color: white; }
