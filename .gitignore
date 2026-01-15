@@ -25,3 +25,4 @@ Thumbs.db
 
 # Vercel
 .vercel/
+.ace-tool/

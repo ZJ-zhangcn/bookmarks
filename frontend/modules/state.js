@@ -43,9 +43,11 @@ export let selectedIcons = new Set();
 export let clockInterval = null;
 export let systemStatsInterval = null;
 
+export let dataVersion = 0;
+
 // 状态更新函数
-export function setCategories(val) { categories = val; }
-export function setBookmarks(val) { bookmarks = val; }
+export function setCategories(val) { categories = val; dataVersion++; }
+export function setBookmarks(val) { bookmarks = val; dataVersion++; }
 export function setEngines(val) { engines = val; }
 export function setCurrentCategory(val) { currentCategory = val; }
 export function setCurrentSearch(val) { currentSearch = val; }

@@ -37,13 +37,17 @@ export function renderCategoryNav() {
 
 export function renderBookmarks() {
     const searchTerm = state.currentSearch.toLowerCase().trim();
+    const isSearchMode = !!searchTerm;
     let hasResults = false;
 
-    DOM.bookmarksContainer.innerHTML = '';
+    // 不再清空整个容器：DOM.bookmarksContainer.innerHTML = '';
+    // 而是复用已有的 DOM 结构，通过 CSS 控制显示隐藏
 
     state.categories.forEach((category, idx) => {
-        if (state.currentCategory !== 'all' && state.currentCategory !== category.id) return;
-
+        // 1. 判断该分类是否应该显示
+        // 如果当前选中了特定分类，且不是当前分类，则不显示（隐藏）
+        const isCurrentCategoryActive = state.currentCategory === 'all' || state.currentCategory === category.id;
+        
         const catBookmarks = state.bookmarks.filter(b => b.category_id === category.id);
         const filteredItems = catBookmarks.filter(item => {
             if (!searchTerm) return true;
@@ -54,40 +58,66 @@ export function renderBookmarks() {
                 (tagsText && tagsText.toLowerCase().includes(searchTerm));
         });
 
-        if (filteredItems.length === 0 && state.currentCategory === 'all') return;
+        // 如果是全部分类模式且该分类无内容，通常不显示（除非是当前选中的特定分类，可能显示空状态）
+        const shouldShow = isCurrentCategoryActive && (filteredItems.length > 0 || state.currentCategory !== 'all');
+
+        // 2. 获取或创建 DOM 节点
+        let section = DOM.bookmarksContainer.querySelector(`.category-section[data-category-id="${category.id}"]`);
+        
+        if (!shouldShow) {
+            if (section) section.style.display = 'none';
+            return;
+        }
 
         hasResults = true;
 
         const isCollapsed = state.collapsedCategories.has(category.id);
-        const section = document.createElement('section');
-        section.className = 'category-section' + (isCollapsed ? ' collapsed' : '');
-        section.dataset.categoryId = category.id;
-        section.style.animationDelay = `${idx * 0.1}s`;
+        
+        if (!section) {
+            section = createCategorySection(category, isCollapsed, idx);
+            DOM.bookmarksContainer.appendChild(section);
+        } else {
+            section.style.display = 'block';
+            // 更新折叠状态
+            if (isCollapsed) section.classList.add('collapsed');
+            else section.classList.remove('collapsed');
+            // 更新折叠按钮 title
+            const collapseBtn = section.querySelector('.collapse-btn');
+            if (collapseBtn) collapseBtn.title = isCollapsed ? '展开' : '折叠';
+            
+            // 更新 Grid 可见性
+            const grid = section.querySelector('.bookmarks-grid');
+            if (grid) grid.style.display = isCollapsed ? 'none' : ''; 
+        }
 
-        section.innerHTML = `
-            <header class="category-header">
-                <button class="collapse-btn" data-category="${category.id}" title="${isCollapsed ? '展开' : '折叠'}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="m6 9 6 6 6-6"/>
-                    </svg>
-                </button>
-                <h2 class="category-title">${category.name}</h2>
-                <div class="category-header-actions">
-                    <button class="header-action-btn add-btn" data-category="${category.id}" title="添加书签">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-                    </button>
-                    <button class="header-action-btn sort-btn" data-category="${category.id}" title="排序书签">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h6"/></svg>
-                    </button>
-                </div>
-                <span class="category-count">${filteredItems.length} 个</span>
-            </header>
-            <div class="bookmarks-grid" data-category="${category.id}" ${isCollapsed ? 'style="display:none;"' : ''}>
-                ${filteredItems.map((item, i) => createBookmarkCard(item, searchTerm, i)).join('')}
-            </div>
-        `;
+        // 3. 更新内容 (增量更新核心)
+        const grid = section.querySelector('.bookmarks-grid');
+        const countSpan = section.querySelector('.category-count');
+        
+        // 判定是否需要重绘 Grid 内容
+        // 重新渲染条件：
+        // a. 处于搜索模式 (内容随关键词变动)
+        // b. Grid 之前处于搜索模式渲染结果 (现在切回普通模式，需要恢复全量)
+        // c. 数据版本变动 (有新增/删除/修改)
+        // d. Grid 为空 (新创建)
+        
+        const currentRenderMode = grid.dataset.renderMode || 'none';
+        const targetRenderMode = isSearchMode ? 'search' : 'full';
+        const currentDataVersion = grid.dataset.version || '-1';
+        
+        const needsUpdate = 
+            isSearchMode || 
+            currentRenderMode === 'search' || 
+            currentDataVersion != state.dataVersion ||
+            grid.childElementCount === 0;
 
-        DOM.bookmarksContainer.appendChild(section);
+        if (needsUpdate) {
+            grid.innerHTML = filteredItems.map((item, i) => createBookmarkCard(item, searchTerm, i)).join('');
+            grid.dataset.renderMode = targetRenderMode;
+            grid.dataset.version = state.dataVersion;
+            
+            if (countSpan) countSpan.textContent = `${filteredItems.length} 个`;
+        }
     });
 
     DOM.emptyState.style.display = hasResults ? 'none' : 'block';
@@ -97,6 +127,36 @@ export function renderBookmarks() {
     requestAnimationFrame(() => {
         setTimeout(observeBookmarkIcons, 50);
     });
+}
+
+function createCategorySection(category, isCollapsed, idx) {
+    const section = document.createElement('section');
+    section.className = 'category-section' + (isCollapsed ? ' collapsed' : '');
+    section.dataset.categoryId = category.id;
+    section.style.animationDelay = `${idx * 0.1}s`;
+
+    section.innerHTML = `
+        <header class="category-header">
+            <button class="collapse-btn" data-category="${category.id}" title="${isCollapsed ? '展开' : '折叠'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m6 9 6 6 6-6"/>
+                </svg>
+            </button>
+            <h2 class="category-title">${category.name}</h2>
+            <div class="category-header-actions">
+                <button class="header-action-btn add-btn" data-category="${category.id}" title="添加书签">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+                <button class="header-action-btn sort-btn" data-category="${category.id}" title="排序书签">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h6"/></svg>
+                </button>
+            </div>
+            <span class="category-count">0 个</span>
+        </header>
+        <div class="bookmarks-grid" data-category="${category.id}" ${isCollapsed ? 'style="display:none;"' : ''}>
+        </div>
+    `;
+    return section;
 }
 
 export function createBookmarkCard(item, searchTerm) {
