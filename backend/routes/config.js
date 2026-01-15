@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { success, asyncHandler } = require('../utils');
+const { requireAdmin } = require('../middleware/security');
 
 module.exports = function(db) {
     // GET /api/config
@@ -13,7 +14,7 @@ module.exports = function(db) {
     }));
 
     // POST /api/config
-    router.post('/', asyncHandler(async (req, res) => {
+    router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         const value = JSON.stringify(req.body);
         if (db.USE_MYSQL) {
             await db.execute('INSERT INTO config (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)', ['personalization', value]);
@@ -30,7 +31,7 @@ module.exports = function(db) {
     }));
 
     // 旧路径兼容: POST /api/config/personalization
-    router.post('/personalization', asyncHandler(async (req, res) => {
+    router.post('/personalization', requireAdmin, asyncHandler(async (req, res) => {
         const value = JSON.stringify(req.body);
         if (db.USE_MYSQL) {
             await db.execute('INSERT INTO config (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)', ['personalization', value]);

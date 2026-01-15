@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
+const { requireAdmin } = require('../middleware/security');
 
 module.exports = function(db) {
     // GET /api/bookmarks
@@ -78,7 +79,7 @@ module.exports = function(db) {
     }));
 
     // POST /api/bookmarks (支持 action=icons 和普通创建)
-    router.post('/', asyncHandler(async (req, res) => {
+    router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         const action = req.query.action;
 
         // 批量获取图标
@@ -144,7 +145,7 @@ module.exports = function(db) {
     }));
 
     // DELETE /api/bookmarks?id=xxx
-    router.delete('/', asyncHandler(async (req, res) => {
+    router.delete('/', requireAdmin, asyncHandler(async (req, res) => {
         const { id } = req.query;
         if (!id) {
             throw new AppError('缺少书签 ID', 400);
@@ -154,7 +155,7 @@ module.exports = function(db) {
     }));
 
     // PUT /api/bookmarks (排序)
-    router.put('/', asyncHandler(async (req, res) => {
+    router.put('/', requireAdmin, asyncHandler(async (req, res) => {
         const { order } = req.body;
         if (!Array.isArray(order)) {
             throw new AppError('无效的排序数据', 400);
@@ -171,7 +172,7 @@ module.exports = function(db) {
     }));
 
     // 旧路径兼容: DELETE /api/bookmarks/:id
-    router.delete('/:id', asyncHandler(async (req, res) => {
+    router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
         await db.execute('DELETE FROM bookmarks WHERE id = ?', [req.params.id]);
         res.json(success());
     }));
@@ -192,7 +193,7 @@ module.exports = function(db) {
     }));
 
     // 旧路径兼容: POST /api/bookmarks/sort
-    router.post('/sort', asyncHandler(async (req, res) => {
+    router.post('/sort', requireAdmin, asyncHandler(async (req, res) => {
         const { order } = req.body;
         if (!Array.isArray(order)) {
             throw new AppError('无效的排序数据', 400);

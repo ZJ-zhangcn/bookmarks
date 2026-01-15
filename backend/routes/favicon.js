@@ -5,23 +5,11 @@ const express = require('express');
 const cheerio = require('cheerio');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
+const { assertSafeFetchUrl, isPrivateOrLocalAddress } = require('../middleware/security');
 
 const FETCH_TIMEOUT = 5000;
 const CACHE_TTL = 300000; // 5分钟缓存
 const faviconCache = new Map();
-
-function isPrivateOrLocalAddress(hostname) {
-    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
-    const privatePatterns = [
-        /^10\./,
-        /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-        /^192\.168\./,
-        /^169\.254\./,
-        /^fc00:/i,
-        /^fe80:/i
-    ];
-    return privatePatterns.some(p => p.test(hostname));
-}
 
 async function fetchWithTimeout(url, options = {}) {
     const controller = new AbortController();
@@ -71,9 +59,9 @@ module.exports = function(_db) {
 
         let parsedUrl;
         try {
-            parsedUrl = new URL(url);
-        } catch {
-            throw new AppError('Invalid URL format', 400);
+            parsedUrl = assertSafeFetchUrl(url);
+        } catch (e) {
+            throw new AppError(e.message, 400);
         }
 
         const domain = parsedUrl.host;

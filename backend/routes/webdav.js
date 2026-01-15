@@ -4,10 +4,11 @@
 const express = require('express');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
+const { requireAdmin, assertSafeFetchUrl } = require('../middleware/security');
 
 module.exports = function(_db) {
     // POST /api/webdav?action=upload/download
-    router.post('/', asyncHandler(async (req, res) => {
+    router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         const { url, username, password, path: filePath, data } = req.body;
         const action = req.query.action;
 
@@ -16,6 +17,7 @@ module.exports = function(_db) {
         }
 
         const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
+        assertSafeFetchUrl(fullUrl);
 
         if (action === 'upload') {
             const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
@@ -69,7 +71,7 @@ module.exports = function(_db) {
     }));
 
     // 旧路径兼容
-    router.post('/upload', asyncHandler(async (req, res) => {
+    router.post('/upload', requireAdmin, asyncHandler(async (req, res) => {
         const { url, username, password, path: filePath, data } = req.body;
 
         if (!url || !username || !password) {
@@ -77,6 +79,7 @@ module.exports = function(_db) {
         }
 
         const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
+        assertSafeFetchUrl(fullUrl);
         const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
         if (dirPath) {
             const dirUrl = url.endsWith('/') ? url + dirPath : url + '/' + dirPath;
@@ -102,7 +105,7 @@ module.exports = function(_db) {
         throw new AppError(`上传失败: ${response.status} ${text}`, response.status);
     }));
 
-    router.post('/download', asyncHandler(async (req, res) => {
+    router.post('/download', requireAdmin, asyncHandler(async (req, res) => {
         const { url, username, password, path: filePath } = req.body;
 
         if (!url || !username || !password) {
@@ -110,6 +113,7 @@ module.exports = function(_db) {
         }
 
         const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
+        assertSafeFetchUrl(fullUrl);
         const response = await fetch(fullUrl, {
             method: 'GET',
             headers: { 'Authorization': 'Basic ' + Buffer.from(username + ':' + password).toString('base64') }

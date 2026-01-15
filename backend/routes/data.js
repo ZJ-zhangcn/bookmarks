@@ -5,6 +5,7 @@ const express = require('express');
 const cheerio = require('cheerio');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
+const { requireAdmin } = require('../middleware/security');
 
 function parseNetscapeBookmarks(html) {
     const $ = cheerio.load(html, { xmlMode: false });
@@ -198,7 +199,7 @@ module.exports = function(db) {
     }));
 
     // POST /api/data
-    router.post('/', asyncHandler(async (req, res) => {
+    router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         await importData(req.body);
         res.json(success());
     }));
@@ -210,13 +211,13 @@ module.exports = function(db) {
         res.json(data);
     }));
 
-    router.post('/import', asyncHandler(async (req, res) => {
+    router.post('/import', requireAdmin, asyncHandler(async (req, res) => {
         await importData(req.body);
         res.json(success());
     }));
 
     // POST /api/data/browser-import - 导入浏览器书签 (Netscape HTML 格式)
-    router.post('/browser-import', asyncHandler(async (req, res) => {
+    router.post('/browser-import', requireAdmin, asyncHandler(async (req, res) => {
         const { html } = req.body;
         if (!html) {
             throw new AppError('缺少书签数据', 400);

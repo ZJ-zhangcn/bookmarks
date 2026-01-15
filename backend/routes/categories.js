@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { success, error, asyncHandler, AppError } = require('../utils');
+const { requireAdmin } = require('../middleware/security');
 
 module.exports = function(db) {
     // GET /api/categories
@@ -13,7 +14,7 @@ module.exports = function(db) {
     }));
 
     // POST /api/categories
-    router.post('/', asyncHandler(async (req, res) => {
+    router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         const { id, name, icon } = req.body;
 
         if (!name?.trim()) {
@@ -48,7 +49,7 @@ module.exports = function(db) {
     }));
 
     // DELETE /api/categories?id=xxx
-    router.delete('/', asyncHandler(async (req, res) => {
+    router.delete('/', requireAdmin, asyncHandler(async (req, res) => {
         const { id } = req.query;
         if (!id) {
             throw new AppError('缺少分类 ID', 400);
@@ -59,7 +60,7 @@ module.exports = function(db) {
     }));
 
     // PUT /api/categories (排序)
-    router.put('/', asyncHandler(async (req, res) => {
+    router.put('/', requireAdmin, asyncHandler(async (req, res) => {
         const { order } = req.body;
         if (!Array.isArray(order)) {
             throw new AppError('无效的排序数据', 400);
@@ -76,14 +77,14 @@ module.exports = function(db) {
     }));
 
     // 旧路径兼容: DELETE /api/categories/:id
-    router.delete('/:id', asyncHandler(async (req, res) => {
+    router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
         await db.execute('DELETE FROM bookmarks WHERE category_id = ?', [req.params.id]);
         await db.execute('DELETE FROM categories WHERE id = ?', [req.params.id]);
         res.json(success());
     }));
 
     // 旧路径兼容: POST /api/categories/sort
-    router.post('/sort', asyncHandler(async (req, res) => {
+    router.post('/sort', requireAdmin, asyncHandler(async (req, res) => {
         const { order } = req.body;
         if (!Array.isArray(order)) {
             throw new AppError('无效的排序数据', 400);

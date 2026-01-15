@@ -5,6 +5,7 @@ const express = require('express');
 const http = require('http');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
+const { requireAdmin } = require('../middleware/security');
 
 const DOCKER_SOCKET = process.platform === 'win32'
     ? '//./pipe/docker_engine'
@@ -60,7 +61,7 @@ module.exports = function(_db) {
     }));
 
     // POST /api/docker/containers/:id/:action
-    router.post('/containers/:id/:action', asyncHandler(async (req, res) => {
+    router.post('/containers/:id/:action', requireAdmin, asyncHandler(async (req, res) => {
         const { id, action } = req.params;
 
         let path;

@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
+const { requireAdmin } = require('../middleware/security');
 
 module.exports = function(db) {
     // GET /api/engines
@@ -13,7 +14,7 @@ module.exports = function(db) {
     }));
 
     // POST /api/engines
-    router.post('/', asyncHandler(async (req, res) => {
+    router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         const { id, name, icon, url, sort_order } = req.body;
 
         if (!name?.trim()) {
@@ -45,7 +46,7 @@ module.exports = function(db) {
     }));
 
     // DELETE /api/engines?id=xxx
-    router.delete('/', asyncHandler(async (req, res) => {
+    router.delete('/', requireAdmin, asyncHandler(async (req, res) => {
         const { id } = req.query;
         if (!id) {
             throw new AppError('缺少引擎 ID', 400);
@@ -55,7 +56,7 @@ module.exports = function(db) {
     }));
 
     // PUT /api/engines (排序)
-    router.put('/', asyncHandler(async (req, res) => {
+    router.put('/', requireAdmin, asyncHandler(async (req, res) => {
         const { orders } = req.body;
         if (!Array.isArray(orders)) {
             throw new AppError('无效的排序数据', 400);
@@ -72,13 +73,13 @@ module.exports = function(db) {
     }));
 
     // 旧路径兼容: DELETE /api/engines/:id
-    router.delete('/:id', asyncHandler(async (req, res) => {
+    router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
         await db.execute('DELETE FROM search_engines WHERE id = ?', [req.params.id]);
         res.json(success());
     }));
 
     // 旧路径兼容: PUT /api/engines/sort
-    router.put('/sort', asyncHandler(async (req, res) => {
+    router.put('/sort', requireAdmin, asyncHandler(async (req, res) => {
         const { orders } = req.body;
         if (!Array.isArray(orders)) {
             throw new AppError('无效的排序数据', 400);
