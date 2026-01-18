@@ -125,14 +125,22 @@ app.use(express.static(path.join(__dirname, '..', 'frontend'), {
 registerAiRoutes(app, db);
 
 // Bootstrap优化端点（MySQL高延迟优化）
-const registerBootstrapV2 = require('./bootstrap-v2');
-registerBootstrapV2(app, db);
+const bootstrapV2Module = require('./bootstrap-v2');
+bootstrapV2Module(app, db);
+const { clearBootstrapCache } = bootstrapV2Module;
 
 // ========================================
 // 系统状态 API
 // ========================================
 const HOST_PROC = process.env.HOST_PROC || '/proc';
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 let lastCpuTimes = null;
+
+// 磁盘信息缓存
+let diskCache = { ts: 0, data: { total: 0, used: 0, free: 0 } };
+const DISK_CACHE_TTL = 30000; // 30秒缓存
 
 function getCpuUsageFromProc() {
     try {
@@ -201,33 +209,40 @@ app.get('/api/system/stats', async (req, res) => {
         const cpuCores = os.cpus().length;
         const memory = getMemoryFromProc();
 
-        let diskInfo = { total: 0, used: 0, free: 0 };
-        try {
-            const { execSync } = require('child_process');
-            if (process.platform === 'win32') {
-                const output = execSync('wmic logicaldisk get size,freespace,caption', { encoding: 'utf8' });
-                const lines = output.trim().split('\n').slice(1);
-                lines.forEach(line => {
-                    const parts = line.trim().split(/\s+/);
-                    if (parts.length >= 3) {
-                        diskInfo.free += parseInt(parts[1]) || 0;
-                        diskInfo.total += parseInt(parts[2]) || 0;
+        let diskInfo = diskCache.data;
+        // 使用缓存或异步获取磁盘信息
+        if (Date.now() - diskCache.ts > DISK_CACHE_TTL) {
+            try {
+                if (process.platform === 'win32') {
+                    const { stdout } = await execAsync('wmic logicaldisk get size,freespace,caption', { encoding: 'utf8', timeout: 5000 });
+                    diskInfo = { total: 0, used: 0, free: 0 };
+                    const lines = stdout.trim().split('\n').slice(1);
+                    lines.forEach(line => {
+                        const parts = line.trim().split(/\s+/);
+                        if (parts.length >= 3) {
+                            diskInfo.free += parseInt(parts[1]) || 0;
+                            diskInfo.total += parseInt(parts[2]) || 0;
+                        }
+                    });
+                    diskInfo.used = diskInfo.total - diskInfo.free;
+                } else {
+                    const hostRoot = process.env.HOST_PROC ? '/host' : '/';
+                    const { stdout } = await execAsync(`df -B1 ${hostRoot} 2>/dev/null || df -B1 / | tail -1 | awk '{print $2,$3,$4}'`, { encoding: 'utf8', timeout: 5000 });
+                    const lastLine = stdout.trim().split('\n').pop();
+                    const parts = lastLine.split(/\s+/);
+                    if (parts.length >= 4) {
+                        diskInfo = {
+                            total: parseInt(parts[1]) || 0,
+                            used: parseInt(parts[2]) || 0,
+                            free: parseInt(parts[3]) || 0
+                        };
                     }
-                });
-                diskInfo.used = diskInfo.total - diskInfo.free;
-            } else {
-                const hostRoot = process.env.HOST_PROC ? '/host' : '/';
-                const output = execSync(`df -B1 ${hostRoot} 2>/dev/null || df -B1 / | tail -1 | awk '{print $2,$3,$4}'`, { encoding: 'utf8' });
-                const lastLine = output.trim().split('\n').pop();
-                const parts = lastLine.split(/\s+/);
-                if (parts.length >= 4) {
-                    diskInfo.total = parseInt(parts[1]) || 0;
-                    diskInfo.used = parseInt(parts[2]) || 0;
-                    diskInfo.free = parseInt(parts[3]) || 0;
                 }
+                diskCache = { ts: Date.now(), data: diskInfo };
+            } catch (e) {
+                console.error('获取磁盘信息失败:', e.message);
+                // 使用缓存的旧数据
             }
-        } catch (e) {
-            console.error('获取磁盘信息失败:', e.message);
         }
 
         res.json({
@@ -359,6 +374,7 @@ app.post('/api/categories', requireAdmin, async (req, res) => {
                 [categoryId, name, icon || '📁', sortOrder]
             );
         }
+        clearBootstrapCache();
         res.json({ success: true, data: { id: categoryId, name, icon: icon || '📁' } });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -374,6 +390,7 @@ app.delete('/api/categories', requireAdmin, async (req, res) => {
     try {
         await db.execute('DELETE FROM bookmarks WHERE category_id = ?', [id]);
         await db.execute('DELETE FROM categories WHERE id = ?', [id]);
+        clearBootstrapCache();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -393,6 +410,7 @@ app.put('/api/categories', requireAdmin, async (req, res) => {
                 await conn.execute('UPDATE categories SET sort_order = ? WHERE id = ?', [item.sort_order, item.id]);
             }
         });
+        clearBootstrapCache();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -422,6 +440,7 @@ app.post('/api/categories/sort', requireAdmin, async (req, res) => {
                 await conn.execute('UPDATE categories SET sort_order = ? WHERE id = ?', [item.sort_order, item.id]);
             }
         });
+        clearBootstrapCache();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -629,6 +648,7 @@ app.post('/api/bookmarks', requireAdmin, async (req, res) => {
             );
         }
 
+        clearBootstrapCache();
         res.json({ success: true, data: { id: bookmarkId } });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -643,6 +663,7 @@ app.delete('/api/bookmarks', requireAdmin, async (req, res) => {
     }
     try {
         await db.execute('DELETE FROM bookmarks WHERE id = ?', [id]);
+        clearBootstrapCache();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -662,6 +683,7 @@ app.put('/api/bookmarks', requireAdmin, async (req, res) => {
                 await conn.execute('UPDATE bookmarks SET sort_order = ? WHERE id = ?', [item.sort_order, item.id]);
             }
         });
+        clearBootstrapCache();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -716,6 +738,7 @@ app.delete('/api/engines', requireAdmin, async (req, res) => {
     }
     try {
         await db.execute('DELETE FROM search_engines WHERE id = ?', [id]);
+        clearBootstrapCache();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -731,6 +754,7 @@ app.put('/api/engines', requireAdmin, async (req, res) => {
                 await conn.execute('UPDATE search_engines SET sort_order = ? WHERE id = ?', [item.sort_order, item.id]);
             }
         });
+        clearBootstrapCache();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -759,6 +783,7 @@ app.post('/api/engines', requireAdmin, async (req, res) => {
                 [engineId, name, icon || '🔍', url, order]
             );
         }
+        clearBootstrapCache();
         res.json({ success: true, data: { id: engineId } });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -773,6 +798,7 @@ app.put('/api/engines/sort', requireAdmin, async (req, res) => {
                 await conn.execute('UPDATE search_engines SET sort_order = ? WHERE id = ?', [item.sort_order, item.id]);
             }
         });
+        clearBootstrapCache();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -782,6 +808,7 @@ app.put('/api/engines/sort', requireAdmin, async (req, res) => {
 app.delete('/api/engines/:id', requireAdmin, async (req, res) => {
     try {
         await db.execute('DELETE FROM search_engines WHERE id = ?', [req.params.id]);
+        clearBootstrapCache();
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -878,6 +905,7 @@ app.post('/api/icons', requireAdmin, async (req, res) => {
             return res.status(400).json({ success: false, error: '缺少 URL' });
         }
         try {
+            assertSafeFetchUrl(url);
             const response = await fetch(url, {
                 headers: { 'User-Agent': 'Mozilla/5.0' },
                 signal: AbortSignal.timeout(5000)
@@ -1924,7 +1952,7 @@ async function dockerRequest(path, method = 'GET', body = null) {
     });
 }
 
-app.get('/api/docker/containers', async (req, res) => {
+app.get('/api/docker/containers', requireAdmin, async (req, res) => {
     try {
         const result = await dockerRequest('/containers/json?all=true');
         if (result.status === 200) {

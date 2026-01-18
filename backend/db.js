@@ -135,6 +135,23 @@ async function createTables() {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
+            // 添加性能优化索引（忽略已存在的索引错误）
+            const indexStatements = [
+                'CREATE INDEX idx_bookmarks_sort ON bookmarks(category_id, sort_order, created_at)',
+                'CREATE INDEX idx_categories_sort ON categories(sort_order)',
+                'CREATE INDEX idx_engines_sort ON search_engines(sort_order)'
+            ];
+            for (const sql of indexStatements) {
+                try {
+                    await conn.execute(sql);
+                } catch (e) {
+                    // 索引已存在，忽略错误
+                    if (!e.message.includes('Duplicate')) {
+                        console.warn('索引创建警告:', e.message);
+                    }
+                }
+            }
+
             console.log('✅ MySQL 数据表创建/检查完成');
         } finally {
             conn.release();
@@ -258,6 +275,7 @@ async function execute(sql, params = []) {
 
 /**
  * 执行事务
+ * 支持 async callback，SQLite 模式使用手动事务管理
  */
 async function transaction(callback) {
     if (USE_MYSQL) {
@@ -278,10 +296,21 @@ async function transaction(callback) {
             conn.release();
         }
     } else {
-        const sqliteTransaction = db.transaction(callback);
-        sqliteTransaction({
-            execute: (sql, params) => db.prepare(sql).run(...params)
-        });
+        // SQLite 模式：手动管理事务以支持 async callback
+        db.exec('BEGIN IMMEDIATE');
+        try {
+            await callback({
+                execute: (sql, params = []) => {
+                    // 同步执行，返回 Promise 以保持 API 一致性
+                    const result = db.prepare(sql).run(...params);
+                    return Promise.resolve(result);
+                }
+            });
+            db.exec('COMMIT');
+        } catch (err) {
+            db.exec('ROLLBACK');
+            throw err;
+        }
     }
 }
 
