@@ -1,10 +1,10 @@
 /**
- * TODO 待办管理模块
+ * TODO 待办管理模块（简化版 - 只有标题）
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
 import { loadTodos } from './api.js';
-import { renderAll } from './render.js';
+import { renderTodos } from './render.js';
 
 export function handleTodoClick(e) {
     const checkBtn = e.target.closest('.todo-check');
@@ -26,37 +26,72 @@ export function handleTodoClick(e) {
     }
 }
 
-export function openTodoModal(todoId = null, categoryId = null) {
-    state.setEditingTodoId(todoId);
-
-    // 填充分类下拉框
-    DOM.todoInputCategory.innerHTML = '<option value="">无分类</option>' +
-        state.categories.map(c =>
-            `<option value="${c.id}" ${c.id === categoryId ? 'selected' : ''}>${c.name}</option>`
-        ).join('');
-
-    if (todoId) {
-        DOM.todoModalTitle.textContent = '编辑待办';
-        const todo = state.todos.find(t => t.id === todoId);
-        if (todo) {
-            DOM.todoInputTitle.value = todo.title || '';
-            DOM.todoInputNotes.value = todo.notes || '';
-            DOM.todoInputCategory.value = todo.category_id || '';
-            DOM.todoInputPriority.value = todo.priority || 0;
-            DOM.todoInputDueAt.value = todo.due_at ? formatDatetimeLocal(todo.due_at) : '';
+/**
+ * 快速输入框回车添加待办
+ */
+export function handleQuickInputKeydown(e) {
+    if (e.key === 'Enter') {
+        const input = e.target;
+        const title = input.value.trim();
+        if (title) {
+            quickAddTodo(title);
+            input.value = '';
         }
-    } else {
-        DOM.todoModalTitle.textContent = '添加待办';
-        DOM.todoInputTitle.value = '';
-        DOM.todoInputNotes.value = '';
-        DOM.todoInputCategory.value = categoryId || '';
-        DOM.todoInputPriority.value = '0';
-        DOM.todoInputDueAt.value = '';
+    }
+}
+
+/**
+ * 快速添加待办（只有标题）
+ */
+async function quickAddTodo(title) {
+    try {
+        const res = await fetch(`${state.API_BASE}/api/todos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title })
+        });
+        const result = await res.json().catch(() => null);
+
+        if (res.ok && result && result.success) {
+            await loadTodos();
+            renderTodos();
+            // 重新绑定快速输入事件
+            bindQuickInputEvent();
+        }
+    } catch (e) {
+        console.error('添加失败:', e);
+    }
+}
+
+/**
+ * 绑定快速输入框事件（每次渲染后调用）
+ */
+export function bindQuickInputEvent() {
+    const input = document.getElementById('todoQuickInput');
+    if (input) {
+        input.removeEventListener('keydown', handleQuickInputKeydown);
+        input.addEventListener('keydown', handleQuickInputKeydown);
+    }
+}
+
+/**
+ * 打开编辑弹窗（简化版 - 只编辑标题）
+ */
+export function openTodoModal(todoId) {
+    if (!todoId) return;
+
+    state.setEditingTodoId(todoId);
+    DOM.todoModalTitle.textContent = '编辑待办';
+
+    const todo = state.todos.find(t => t.id === todoId);
+    if (todo) {
+        DOM.todoInputTitle.value = todo.title || '';
     }
 
     DOM.todoModal.classList.add('open');
     document.body.style.overflow = 'hidden';
     DOM.todoInputTitle.focus();
+    DOM.todoInputTitle.select();
 }
 
 export function closeTodoModal() {
@@ -65,6 +100,9 @@ export function closeTodoModal() {
     state.setEditingTodoId(null);
 }
 
+/**
+ * 保存待办（编辑模式）
+ */
 export async function saveTodo() {
     const title = DOM.todoInputTitle.value.trim();
     if (!title) {
@@ -72,30 +110,22 @@ export async function saveTodo() {
         return;
     }
 
-    const category_id = DOM.todoInputCategory.value || null;
-    const notes = DOM.todoInputNotes.value.trim();
-    const priority = parseInt(DOM.todoInputPriority.value, 10) || 0;
-    const due_at = DOM.todoInputDueAt.value || null;
-
     try {
         const res = await fetch(`${state.API_BASE}/api/todos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 id: state.editingTodoId,
-                category_id,
-                title,
-                notes,
-                priority,
-                due_at
+                title
             })
         });
         const result = await res.json().catch(() => null);
 
         if (res.ok && result && result.success) {
             await loadTodos();
-            renderAll();
+            renderTodos();
             closeTodoModal();
+            bindQuickInputEvent();
         } else {
             const errMsg = result?.error || `HTTP ${res.status}`;
             alert('保存失败: ' + errMsg);
@@ -121,7 +151,8 @@ export async function toggleTodoStatus(id) {
             })
         });
         await loadTodos();
-        renderAll();
+        renderTodos();
+        bindQuickInputEvent();
     } catch (e) {
         console.error('切换状态失败:', e);
     }
@@ -133,17 +164,9 @@ export async function deleteTodo(id) {
     try {
         await fetch(`${state.API_BASE}/api/todos?id=${id}`, { method: 'DELETE' });
         await loadTodos();
-        renderAll();
+        renderTodos();
+        bindQuickInputEvent();
     } catch (e) {
         alert('删除失败: ' + e.message);
     }
-}
-
-function formatDatetimeLocal(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    // 格式: YYYY-MM-DDTHH:MM
-    const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

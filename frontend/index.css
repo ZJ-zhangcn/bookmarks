@@ -746,7 +746,9 @@ body {
     margin-bottom: var(--spacing-xs);
 }
 
-.form-group input {
+.form-group input,
+.form-group textarea,
+.form-group select {
     width: 100%;
     padding: var(--spacing-sm) var(--spacing-md);
     font-size: 0.95rem;
@@ -759,12 +761,20 @@ body {
     transition: all var(--transition-normal);
 }
 
-.form-group input:focus {
+.form-group textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px hsla(var(--primary-hue), 100%, 65%, 0.15);
 }
 
-.form-group input::placeholder {
+.form-group input::placeholder,
+.form-group textarea::placeholder {
     color: var(--text-tertiary);
 }
 
@@ -3744,60 +3754,77 @@ select:focus {
    TODO 待办功能样式
    ======================================== */
 .todos-container {
-    max-width: 1400px;
+    max-width: 800px;
     margin: 0 auto 2rem;
     padding: 0 2rem;
 }
 
+/* 快速输入框 */
+.todo-quick-add {
+    margin-bottom: 1rem;
+}
+
+.todo-quick-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.todo-quick-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px hsla(var(--primary-hue), 100%, 65%, 0.15);
+}
+
+.todo-quick-input::placeholder {
+    color: var(--text-muted);
+}
+
 .todos-section {
-    margin-bottom: 1.5rem;
+    margin-top: 1.5rem;
 }
 
 .todos-section-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    cursor: pointer;
 }
 
-.todos-section-title::before {
-    content: '';
-    display: inline-block;
-    width: 4px;
-    height: 14px;
-    background: var(--primary-color);
-    border-radius: 2px;
+.todos-section-title:hover {
+    color: var(--text-secondary);
 }
 
 .todos-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
 }
 
 .todo-card {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.75rem;
-    padding: 0.875rem 1rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    transition: all 0.2s ease;
-    border-left: 4px solid var(--primary-color);
+    padding: 0.625rem 0.75rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    transition: background 0.15s ease;
 }
 
 .todo-card:hover {
-    background: var(--bg-tertiary);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    background: var(--bg-secondary);
 }
 
 .todo-card.completed {
-    opacity: 0.6;
-    border-left-color: var(--text-muted);
+    opacity: 0.5;
 }
 
 .todo-card.completed .todo-title {
@@ -3805,50 +3832,30 @@ select:focus {
     color: var(--text-muted);
 }
 
-/* 优先级颜色 */
-.todo-card.priority-3 {
-    border-left-color: #ef4444;
-}
-
-.todo-card.priority-2 {
-    border-left-color: #f59e0b;
-}
-
-.todo-card.priority-1 {
-    border-left-color: #22c55e;
-}
-
-.todo-card.priority-0 {
-    border-left-color: var(--border-color);
-}
-
 /* 复选框 */
 .todo-check {
     flex-shrink: 0;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
     border: 2px solid var(--border-color);
     background: transparent;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
-    margin-top: 1px;
+    transition: all 0.15s ease;
 }
 
 .todo-check:hover {
     border-color: var(--primary-color);
-    background: hsla(var(--primary-hue), 100%, 65%, 0.1);
 }
 
 .todo-check svg {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     opacity: 0;
-    color: var(--primary-color);
-    transition: opacity 0.2s ease;
+    color: white;
 }
 
 .todo-card.completed .todo-check {
@@ -3858,7 +3865,6 @@ select:focus {
 
 .todo-card.completed .todo-check svg {
     opacity: 1;
-    color: white;
 }
 
 /* 内容区 */
@@ -3868,57 +3874,17 @@ select:focus {
 }
 
 .todo-title {
-    font-size: 0.9375rem;
-    font-weight: 500;
+    font-size: 0.9rem;
     color: var(--text-primary);
-    margin-bottom: 0.25rem;
     line-height: 1.4;
-}
-
-.todo-notes {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.375rem;
-    line-height: 1.5;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.todo-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.todo-meta span {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.todo-due {
-    padding: 0.125rem 0.5rem;
-    background: hsla(var(--primary-hue), 100%, 65%, 0.1);
-    color: var(--primary-color);
-    border-radius: 4px;
-    font-weight: 500;
-}
-
-.todo-due.overdue {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
 }
 
 /* 操作按钮 */
 .todo-actions {
     display: flex;
-    gap: 0.25rem;
+    gap: 0.125rem;
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.15s ease;
 }
 
 .todo-card:hover .todo-actions {
@@ -3926,17 +3892,17 @@ select:focus {
 }
 
 .todo-action-btn {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     border: none;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .todo-action-btn:hover {
@@ -3950,8 +3916,8 @@ select:focus {
 }
 
 .todo-action-btn svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
 }
 
 /* 空状态 */
@@ -3959,42 +3925,12 @@ select:focus {
     text-align: center;
     padding: 2rem;
     color: var(--text-muted);
-}
-
-.todos-empty svg {
-    width: 48px;
-    height: 48px;
-    margin-bottom: 1rem;
-    opacity: 0.5;
+    font-size: 0.875rem;
 }
 
 /* TODO 弹窗适配 */
 #todoModal .modal-sm {
     max-width: 480px;
-}
-
-#todoModal .form-group textarea {
-    min-height: 80px;
-    resize: vertical;
-    width: 100%;
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: 0.95rem;
-    font-family: inherit;
-    color: var(--text-primary);
-    background: var(--bg-tertiary);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-sm);
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-#todoModal .form-group textarea:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px hsla(var(--primary-hue), 100%, 65%, 0.15);
-}
-
-#todoModal .form-group textarea::placeholder {
-    color: var(--text-tertiary);
 }
 
 /* 响应式适配 */

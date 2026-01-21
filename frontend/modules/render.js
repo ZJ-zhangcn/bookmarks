@@ -371,26 +371,41 @@ export function renderTodos() {
     if (!DOM.todosContainer) return;
 
     const todos = state.todos || [];
-    if (todos.length === 0) {
-        DOM.todosContainer.innerHTML = '<div class="todos-empty">暂无待办事项</div>';
-        return;
-    }
-
     const pendingTodos = todos.filter(t => !t.is_done);
     const doneTodos = todos.filter(t => t.is_done);
 
     let html = '';
 
+    // 快速输入框
+    html += `
+        <div class="todo-quick-add">
+            <input type="text" id="todoQuickInput" class="todo-quick-input"
+                   placeholder="添加新待办，按回车确认..." autocomplete="off">
+        </div>
+    `;
+
+    // 待完成列表
     if (pendingTodos.length > 0) {
-        html += '<div class="todos-section"><h4 class="todos-section-title">待完成</h4><div class="todos-list">';
+        html += '<div class="todos-list">';
         html += pendingTodos.map(t => createTodoCard(t)).join('');
-        html += '</div></div>';
+        html += '</div>';
     }
 
+    // 已完成列表（可折叠）
     if (doneTodos.length > 0) {
-        html += '<div class="todos-section todos-done"><h4 class="todos-section-title">已完成</h4><div class="todos-list">';
-        html += doneTodos.map(t => createTodoCard(t)).join('');
-        html += '</div></div>';
+        html += `
+            <div class="todos-section todos-done">
+                <h4 class="todos-section-title">已完成 (${doneTodos.length})</h4>
+                <div class="todos-list">
+                    ${doneTodos.map(t => createTodoCard(t)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // 空状态提示
+    if (todos.length === 0) {
+        html += '<div class="todos-empty">暂无待办事项</div>';
     }
 
     DOM.todosContainer.innerHTML = html;
@@ -398,24 +413,10 @@ export function renderTodos() {
 
 export function createTodoCard(todo) {
     const isDone = todo.is_done ? 1 : 0;
-    const priorityClass = todo.priority > 0 ? `priority-${Math.min(todo.priority, 3)}` : '';
     const doneClass = isDone ? 'completed' : '';
 
-    let dueDateHtml = '';
-    if (todo.due_at) {
-        const dueDate = new Date(todo.due_at);
-        const now = new Date();
-        const isOverdue = !isDone && dueDate < now;
-        const dueDateStr = formatDueDate(dueDate);
-        dueDateHtml = `<span class="todo-due ${isOverdue ? 'overdue' : ''}">${dueDateStr}</span>`;
-    }
-
-    const categoryHtml = todo.category_name
-        ? `<span class="todo-category">${escapeHtml(todo.category_name)}</span>`
-        : '';
-
     return `
-        <div class="todo-card ${doneClass} ${priorityClass}" data-id="${todo.id}">
+        <div class="todo-card ${doneClass}" data-id="${todo.id}">
             <button class="todo-check" data-id="${todo.id}" title="${isDone ? '标记为未完成' : '标记为完成'}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     ${isDone ? '<path d="M20 6L9 17l-5-5"/>' : '<circle cx="12" cy="12" r="10"/>'}
@@ -423,11 +424,6 @@ export function createTodoCard(todo) {
             </button>
             <div class="todo-content">
                 <div class="todo-title">${escapeHtml(todo.title)}</div>
-                ${todo.notes ? `<div class="todo-notes">${escapeHtml(todo.notes)}</div>` : ''}
-                <div class="todo-meta">
-                    ${categoryHtml}
-                    ${dueDateHtml}
-                </div>
             </div>
             <div class="todo-actions">
                 <button class="todo-action-btn edit" data-id="${todo.id}" title="编辑">
@@ -441,19 +437,4 @@ export function createTodoCard(todo) {
     `;
 }
 
-function formatDueDate(date) {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-    const dueDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-    if (dueDay.getTime() === today.getTime()) {
-        return '今天';
-    } else if (dueDay.getTime() === tomorrow.getTime()) {
-        return '明天';
-    } else {
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        return `${month}/${day}`;
-    }
-}
+// 保留 formatDueDate 以备将来使用

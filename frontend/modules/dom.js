@@ -130,15 +130,11 @@ export function cacheDOMElements() {
         themeSelect: document.getElementById('themeSelect'),
         // TODO 相关
         todosContainer: document.getElementById('todosContainer'),
-        addTodoBtn: document.getElementById('addTodoBtn'),
+        todoQuickInput: document.getElementById('todoQuickInput'),
         todoModal: document.getElementById('todoModal'),
         todoModalTitle: document.getElementById('todoModalTitle'),
         todoModalClose: document.getElementById('todoModalClose'),
         todoInputTitle: document.getElementById('todoInputTitle'),
-        todoInputNotes: document.getElementById('todoInputNotes'),
-        todoInputCategory: document.getElementById('todoInputCategory'),
-        todoInputPriority: document.getElementById('todoInputPriority'),
-        todoInputDueAt: document.getElementById('todoInputDueAt'),
         saveTodoBtn: document.getElementById('saveTodoBtn'),
         cancelTodoBtn: document.getElementById('cancelTodoBtn'),
     };
