@@ -3815,45 +3815,37 @@ select:focus {
     color: var(--text-tertiary);
 }
 
-/* 复选框 - 修复不显示问题 */
+/* 复选框 */
 .todo-check {
     flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--text-secondary); /* 明确颜色 */
-    border-radius: 6px;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
     background: transparent;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all var(--transition-fast);
+    transition: all 0.15s ease;
     padding: 0;
 }
 
 .todo-check:hover {
     border-color: var(--primary);
-    background: hsla(var(--primary-hue), 100%, 65%, 0.1);
+    background: hsla(var(--primary-hue), 100%, 65%, 0.15);
 }
 
 .todo-check svg {
-    width: 14px;
-    height: 14px;
-    color: transparent; /* 默认透明 */
-    stroke: currentColor;
-    stroke-width: 3;
-    transition: color var(--transition-fast);
+    width: 12px;
+    height: 12px;
+    stroke: white;
 }
 
 /* 选中状态 */
 .todo-card.completed .todo-check {
     background: var(--primary);
     border-color: var(--primary);
-}
-
-.todo-card.completed .todo-check svg {
-    color: white; /* 选中时显示对勾 */
-    stroke: white;
 }
 
 /* 标题 */

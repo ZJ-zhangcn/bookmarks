@@ -428,9 +428,7 @@ export function createTodoCard(todo) {
     return `
         <div class="todo-card ${doneClass}" data-id="${todo.id}">
             <button class="todo-check" data-id="${todo.id}" title="${isDone ? '标记为未完成' : '标记为完成'}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    ${isDone ? '<path d="M20 6L9 17l-5-5"/>' : '<circle cx="12" cy="12" r="10"/>'}
-                </svg>
+                ${isDone ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>' : ''}
             </button>
             <div class="todo-content">
                 <div class="todo-title">${escapeHtml(todo.title)}</div>
