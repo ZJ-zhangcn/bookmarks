@@ -90,9 +90,8 @@ module.exports = function(db) {
                 t.due_at ASC,
                 t.sort_order ASC,
                 t.created_at ASC
-            LIMIT ? OFFSET ?
+            LIMIT ${limit} OFFSET ${offset}
         `;
-        params.push(limit, offset);
 
         const rows = await db.queryAll(sql, params);
         res.json(success(rows));

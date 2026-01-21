@@ -3976,6 +3976,25 @@ select:focus {
 #todoModal .form-group textarea {
     min-height: 80px;
     resize: vertical;
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#todoModal .form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px hsla(var(--primary-hue), 100%, 65%, 0.15);
+}
+
+#todoModal .form-group textarea::placeholder {
+    color: var(--text-tertiary);
 }
 
 /* 响应式适配 */
