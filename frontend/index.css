@@ -3820,7 +3820,9 @@ select:focus {
     flex-shrink: 0;
     width: 18px;
     height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.4);
+    min-width: 18px;
+    min-height: 18px;
+    border: 2px solid #888 !important;
     border-radius: 4px;
     background: transparent;
     cursor: pointer;
@@ -3829,10 +3831,11 @@ select:focus {
     justify-content: center;
     transition: all 0.15s ease;
     padding: 0;
+    box-sizing: border-box;
 }
 
 .todo-check:hover {
-    border-color: var(--primary);
+    border-color: var(--primary) !important;
     background: hsla(var(--primary-hue), 100%, 65%, 0.15);
 }
 
@@ -3845,7 +3848,7 @@ select:focus {
 /* 选中状态 */
 .todo-card.completed .todo-check {
     background: var(--primary);
-    border-color: var(--primary);
+    border-color: var(--primary) !important;
 }
 
 /* 标题 */
