@@ -24,6 +24,7 @@ export let aiStatus = { enabled: false, provider: null, model: null, note: null 
 export let sortingCategory = null;
 export let personalizationConfig = undefined;
 export let editingTodoId = null;
+export let collapsedTodoDone = true;
 
 export const AI_CLIENT_STORAGE = {
     apiBaseUrl: 'aiApiBaseUrl',
@@ -67,6 +68,7 @@ export function setAiStatus(val) { aiStatus = val; }
 export function setSortingCategory(val) { sortingCategory = val; }
 export function setPersonalizationConfig(val) { personalizationConfig = val; }
 export function setEditingTodoId(val) { editingTodoId = val; }
+export function setCollapsedTodoDone(val) { collapsedTodoDone = val; }
 export function setIsLoadingIcons(val) { isLoadingIcons = val; }
 export function setAvailableIcons(val) { availableIcons = val; }
 export function setIconLibraryCache(val) { iconLibraryCache = val; }

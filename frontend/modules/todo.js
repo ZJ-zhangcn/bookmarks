@@ -10,6 +10,7 @@ export function handleTodoClick(e) {
     const checkBtn = e.target.closest('.todo-check');
     const editBtn = e.target.closest('.todo-action-btn.edit');
     const deleteBtn = e.target.closest('.todo-action-btn.delete');
+    const toggleHeader = e.target.closest('.todos-section-title');
 
     if (checkBtn) {
         e.preventDefault();
@@ -23,6 +24,11 @@ export function handleTodoClick(e) {
         e.preventDefault();
         e.stopPropagation();
         deleteTodo(deleteBtn.dataset.id);
+    } else if (toggleHeader) {
+        e.preventDefault();
+        e.stopPropagation();
+        state.setCollapsedTodoDone(!state.collapsedTodoDone);
+        renderTodos();
     }
 }
 

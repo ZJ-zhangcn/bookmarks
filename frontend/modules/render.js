@@ -393,9 +393,19 @@ export function renderTodos() {
 
     // 已完成列表（可折叠）
     if (doneTodos.length > 0) {
+        // 检查是否应该折叠（默认为折叠状态，或者从 state 获取）
+        const isCollapsed = state.collapsedTodoDone !== false; // 默认为 true (折叠)
+
         html += `
-            <div class="todos-section todos-done">
-                <h4 class="todos-section-title">已完成 (${doneTodos.length})</h4>
+            <div class="todos-section todos-done ${isCollapsed ? 'collapsed' : ''}">
+                <h4 class="todos-section-title">
+                    <span class="toggle-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </span>
+                    已完成 (${doneTodos.length})
+                </h4>
                 <div class="todos-list">
                     ${doneTodos.map(t => createTodoCard(t)).join('')}
                 </div>

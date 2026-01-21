@@ -3754,137 +3754,129 @@ select:focus {
    TODO 待办功能样式
    ======================================== */
 .todos-container {
-    max-width: 800px;
-    margin: 0 auto 2rem;
-    padding: 0 2rem;
+    max-width: 500px;
+    margin: 0 auto var(--spacing-2xl); /* 增加底部间距 */
+    padding: 0 var(--spacing-md);
 }
 
 /* 快速输入框 */
 .todo-quick-add {
-    margin-bottom: 1rem;
+    margin-bottom: var(--spacing-sm);
 }
 
 .todo-quick-input {
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 10px 16px;
     font-size: 0.95rem;
     font-family: inherit;
     color: var(--text-primary);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     outline: none;
-    transition: all 0.2s ease;
+    transition: all var(--transition-normal);
 }
 
 .todo-quick-input:focus {
-    border-color: var(--primary-color);
+    border-color: var(--primary);
     box-shadow: 0 0 0 3px hsla(var(--primary-hue), 100%, 65%, 0.15);
 }
 
 .todo-quick-input::placeholder {
-    color: var(--text-muted);
+    color: var(--text-tertiary);
 }
 
-.todos-section {
-    margin-top: 1.5rem;
-}
-
-.todos-section-title {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--text-muted);
-    margin-bottom: 0.5rem;
-    cursor: pointer;
-}
-
-.todos-section-title:hover {
-    color: var(--text-secondary);
-}
-
+/* 待办列表容器 */
 .todos-list {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 6px;
 }
 
+/* 待办卡片 */
 .todo-card {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.625rem 0.75rem;
+    gap: 12px;
+    padding: 8px 12px;
     background: transparent;
-    border: none;
-    border-radius: 6px;
-    transition: background 0.15s ease;
+    border-radius: var(--radius-md);
+    transition: background var(--transition-fast);
 }
 
 .todo-card:hover {
-    background: var(--bg-secondary);
-}
-
-.todo-card.completed {
-    opacity: 0.5;
+    background: var(--bg-tertiary); /* Hover时给一点背景 */
 }
 
 .todo-card.completed .todo-title {
     text-decoration: line-through;
-    color: var(--text-muted);
+    color: var(--text-tertiary);
 }
 
-/* 复选框 */
+/* 复选框 - 修复不显示问题 */
 .todo-check {
     flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    border: 2px solid var(--border-color);
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--text-secondary); /* 明确颜色 */
+    border-radius: 6px;
     background: transparent;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    transition: all var(--transition-fast);
+    padding: 0;
 }
 
 .todo-check:hover {
-    border-color: var(--primary-color);
+    border-color: var(--primary);
+    background: hsla(var(--primary-hue), 100%, 65%, 0.1);
 }
 
 .todo-check svg {
-    width: 12px;
-    height: 12px;
-    opacity: 0;
-    color: white;
+    width: 14px;
+    height: 14px;
+    color: transparent; /* 默认透明 */
+    stroke: currentColor;
+    stroke-width: 3;
+    transition: color var(--transition-fast);
 }
 
+/* 选中状态 */
 .todo-card.completed .todo-check {
-    border-color: var(--primary-color);
-    background: var(--primary-color);
+    background: var(--primary);
+    border-color: var(--primary);
 }
 
 .todo-card.completed .todo-check svg {
-    opacity: 1;
+    color: white; /* 选中时显示对勾 */
+    stroke: white;
 }
 
-/* 内容区 */
+/* 标题 */
 .todo-content {
     flex: 1;
     min-width: 0;
+    display: flex;
+    align-items: center;
 }
 
 .todo-title {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     color: var(--text-primary);
     line-height: 1.4;
+    cursor: default;
 }
 
 /* 操作按钮 */
 .todo-actions {
     display: flex;
-    gap: 0.125rem;
+    gap: 4px;
     opacity: 0;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--transition-fast);
 }
 
 .todo-card:hover .todo-actions {
@@ -3892,17 +3884,17 @@ select:focus {
 }
 
 .todo-action-btn {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border: none;
     background: transparent;
-    color: var(--text-muted);
+    color: var(--text-tertiary);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    transition: all var(--transition-fast);
 }
 
 .todo-action-btn:hover {
@@ -3911,39 +3903,72 @@ select:focus {
 }
 
 .todo-action-btn.delete:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(239, 68, 68, 0.15);
     color: #ef4444;
 }
 
 .todo-action-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* 已完成区域标题 */
+.todos-section-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    margin: 12px 0 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+    transition: color var(--transition-fast);
+}
+
+.todos-section-title:hover {
+    color: var(--text-secondary);
+}
+
+.todos-section-title .toggle-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    transition: transform var(--transition-normal);
+}
+
+.todos-section-title .toggle-icon svg {
     width: 14px;
     height: 14px;
+}
+
+/* 折叠状态 */
+.todos-section.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.todos-section.collapsed .todos-list {
+    display: none;
 }
 
 /* 空状态 */
 .todos-empty {
     text-align: center;
     padding: 2rem;
-    color: var(--text-muted);
-    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    font-size: 0.9rem;
+    font-style: italic;
 }
 
-/* TODO 弹窗适配 */
-#todoModal .modal-sm {
-    max-width: 480px;
-}
-
-/* 响应式适配 */
+/* 移动端适配 */
 @media (max-width: 768px) {
     .todos-container {
-        padding: 0 1rem;
+        padding: 0 var(--spacing-md);
     }
-
-    .todo-card {
-        padding: 0.75rem;
-    }
-
+    
     .todo-actions {
-        opacity: 1;
+        opacity: 1; /* 移动端常显 */
     }
 }
