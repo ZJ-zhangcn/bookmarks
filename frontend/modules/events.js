@@ -15,6 +15,7 @@ import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from '.
 import { saveAiClientSettingsFromUi, clearAiClientSettings, updateAiUiVisibility } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
 import { initSearchSuggestions } from './suggest.js';
+import { handleTodoClick, openTodoModal, closeTodoModal, saveTodo } from './todo.js';
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -207,6 +208,26 @@ export function bindAllEvents() {
 
     if (DOM.refreshDockerBtn) {
         DOM.refreshDockerBtn.addEventListener('click', loadDockerContainers);
+    }
+
+    // TODO 事件绑定
+    if (DOM.todosContainer) {
+        DOM.todosContainer.addEventListener('click', handleTodoClick);
+    }
+    if (DOM.addTodoBtn) {
+        DOM.addTodoBtn.addEventListener('click', () => openTodoModal());
+    }
+    if (DOM.todoModalClose) {
+        DOM.todoModalClose.addEventListener('click', closeTodoModal);
+    }
+    if (DOM.todoModal) {
+        DOM.todoModal.addEventListener('click', e => { if (e.target === DOM.todoModal) closeTodoModal(); });
+    }
+    if (DOM.cancelTodoBtn) {
+        DOM.cancelTodoBtn.addEventListener('click', closeTodoModal);
+    }
+    if (DOM.saveTodoBtn) {
+        DOM.saveTodoBtn.addEventListener('click', saveTodo);
     }
 
     document.addEventListener('keydown', e => {

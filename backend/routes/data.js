@@ -103,6 +103,7 @@ module.exports = function(db) {
     async function exportData(includeIcons) {
         const categories = await db.queryAll('SELECT * FROM categories');
         let bookmarks = await db.queryAll('SELECT * FROM bookmarks');
+        const todos = await db.queryAll('SELECT * FROM todos');
         let engines = await db.queryAll('SELECT * FROM search_engines');
 
         let personalization = null;
@@ -118,23 +119,24 @@ module.exports = function(db) {
             }));
             engines = engines.map(e => ({
                 ...e,
-                icon: (e.icon && !e.icon.startsWith('data:') && !e.icon.startsWith('http')) ? e.icon : '🔍'
+                icon: (e.icon && !e.icon.startsWith('data:') && !e.icon.startsWith('http')) ? e.icon : ''
             }));
         }
 
         return {
-            version: '1.0',
+            version: '1.1',
             exportTime: new Date().toISOString(),
             includeIcons,
             categories,
             bookmarks,
+            todos,
             engines,
             personalization
         };
     }
 
     async function importData(data) {
-        const { categories, bookmarks, engines, personalization } = data;
+        const { categories, bookmarks, todos, engines, personalization } = data;
 
         await db.transaction(async (conn) => {
             if (categories) {
@@ -160,11 +162,55 @@ module.exports = function(db) {
                              ON DUPLICATE KEY UPDATE category_id = VALUES(category_id), name = VALUES(name), url = VALUES(url),
                              description = VALUES(description), icon = VALUES(icon), icon_type = VALUES(icon_type),
                              icon_data = VALUES(icon_data), item_type = VALUES(item_type), component_type = VALUES(component_type), sort_order = VALUES(sort_order)`,
-                            [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '🌐', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order ?? i]
+                            [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order ?? i]
                         );
                     } else {
                         await conn.execute('INSERT OR REPLACE INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                            [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '🌐', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order ?? i]);
+                            [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order ?? i]);
+                    }
+                }
+            }
+            if (todos) {
+                for (let i = 0; i < todos.length; i++) {
+                    const t = todos[i] || {};
+                    const isDone = (t.is_done === true || t.is_done === 1 || t.is_done === '1') ? 1 : 0;
+                    const params = [
+                        t.id,
+                        (t.category_id === '' || t.category_id == null) ? null : t.category_id,
+                        t.title || '',
+                        t.notes || '',
+                        isDone,
+                        Number.isFinite(t.priority) ? t.priority : (parseInt(t.priority, 10) || 0),
+                        (t.due_at === '' || t.due_at == null) ? null : t.due_at,
+                        Number.isFinite(t.sort_order) ? t.sort_order : (parseInt(t.sort_order, 10) || i),
+                        (t.completed_at === '' || t.completed_at == null) ? null : t.completed_at
+                    ];
+
+                    if (db.USE_MYSQL) {
+                        await conn.execute(
+                            `INSERT INTO todos (id, category_id, title, notes, is_done, priority, due_at, sort_order, completed_at)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             ON DUPLICATE KEY UPDATE category_id = VALUES(category_id), title = VALUES(title), notes = VALUES(notes),
+                             is_done = VALUES(is_done), priority = VALUES(priority), due_at = VALUES(due_at), sort_order = VALUES(sort_order),
+                             completed_at = VALUES(completed_at)`,
+                            params
+                        );
+                    } else {
+                        await conn.execute(
+                            `INSERT INTO todos (id, category_id, title, notes, is_done, priority, due_at, sort_order, completed_at)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             ON CONFLICT(id) DO UPDATE SET
+                               category_id = excluded.category_id,
+                               title = excluded.title,
+                               notes = excluded.notes,
+                               is_done = excluded.is_done,
+                               priority = excluded.priority,
+                               due_at = excluded.due_at,
+                               sort_order = excluded.sort_order,
+                               completed_at = excluded.completed_at,
+                               updated_at = CURRENT_TIMESTAMP`,
+                            params
+                        );
                     }
                 }
             }

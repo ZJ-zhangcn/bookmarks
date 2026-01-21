@@ -5,6 +5,7 @@ export const API_BASE = window.location.origin;
 
 export let categories = [];
 export let bookmarks = [];
+export let todos = [];
 export let engines = [];
 export let currentCategory = 'all';
 export let currentSearch = '';
@@ -22,6 +23,7 @@ export let collapsedCategories = new Set();
 export let aiStatus = { enabled: false, provider: null, model: null, note: null };
 export let sortingCategory = null;
 export let personalizationConfig = undefined;
+export let editingTodoId = null;
 
 export const AI_CLIENT_STORAGE = {
     apiBaseUrl: 'aiApiBaseUrl',
@@ -48,6 +50,7 @@ export let dataVersion = 0;
 // 状态更新函数
 export function setCategories(val) { categories = val; dataVersion++; }
 export function setBookmarks(val) { bookmarks = val; dataVersion++; }
+export function setTodos(val) { todos = val; dataVersion++; }
 export function setEngines(val) { engines = val; }
 export function setCurrentCategory(val) { currentCategory = val; }
 export function setCurrentSearch(val) { currentSearch = val; }
@@ -63,6 +66,7 @@ export function setAiLastActionAt(val) { aiLastActionAt = val; }
 export function setAiStatus(val) { aiStatus = val; }
 export function setSortingCategory(val) { sortingCategory = val; }
 export function setPersonalizationConfig(val) { personalizationConfig = val; }
+export function setEditingTodoId(val) { editingTodoId = val; }
 export function setIsLoadingIcons(val) { isLoadingIcons = val; }
 export function setAvailableIcons(val) { availableIcons = val; }
 export function setIconLibraryCache(val) { iconLibraryCache = val; }

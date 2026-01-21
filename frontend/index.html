@@ -154,6 +154,17 @@
             <!-- 书签将通过 JavaScript 动态渲染 -->
         </main>
 
+        <!-- TODO 待办区域 -->
+        <section class="todos-container" id="todosContainer">
+            <!-- TODO 将通过 JavaScript 动态渲染 -->
+        </section>
+        <button class="add-todo-btn" id="addTodoBtn" title="添加待办">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+            <span>添加待办</span>
+        </button>
+
         <!-- 空状态 -->
         <div class="empty-state" id="emptyState" style="display: none;">
             <div class="empty-icon">🔍</div>
@@ -392,6 +403,53 @@
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" id="cancelCategoryBtn">取消</button>
                     <button type="button" class="btn btn-primary" id="saveCategoryBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TODO 待办管理弹窗 -->
+    <div class="modal-overlay" id="todoModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3 class="modal-title" id="todoModalTitle">添加待办</h3>
+                <button class="modal-close" id="todoModalClose" aria-label="关闭">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="todoInputTitle">标题 *</label>
+                    <input type="text" id="todoInputTitle" placeholder="待办事项标题" autocomplete="off" data-form-type="other">
+                </div>
+                <div class="form-group">
+                    <label for="todoInputNotes">备注</label>
+                    <textarea id="todoInputNotes" placeholder="详细描述（可选）" rows="3" autocomplete="off" data-form-type="other"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="todoInputCategory">分类</label>
+                    <select id="todoInputCategory">
+                        <option value="">无分类</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="todoInputPriority">优先级</label>
+                    <select id="todoInputPriority">
+                        <option value="0">普通</option>
+                        <option value="1">低</option>
+                        <option value="2">中</option>
+                        <option value="3">高</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="todoInputDueAt">截止时间</label>
+                    <input type="datetime-local" id="todoInputDueAt" autocomplete="off" data-form-type="other">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelTodoBtn">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveTodoBtn">保存</button>
                 </div>
             </div>
         </div>

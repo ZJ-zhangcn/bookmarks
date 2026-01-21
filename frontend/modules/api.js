@@ -28,6 +28,9 @@ export async function loadData() {
             DOM.webdavPass.value = localStorage.getItem('webdavPass') || '';
             DOM.webdavPath.value = localStorage.getItem('webdavPath') || 'bookmarks/config.json';
         }
+
+        // 加载 TODO 数据
+        await loadTodos();
     } catch (e) {
         console.error('加载数据失败:', e);
     }
@@ -176,5 +179,21 @@ export function saveCollapsedState() {
         localStorage.setItem('collapsedCategories', JSON.stringify([...state.collapsedCategories]));
     } catch (e) {
         console.error('保存折叠状态失败:', e);
+    }
+}
+
+export async function loadTodos(categoryId = null, status = 'all') {
+    try {
+        let url = `${state.API_BASE}/api/todos?status=${status}`;
+        if (categoryId && categoryId !== 'all') {
+            url += `&category_id=${encodeURIComponent(categoryId)}`;
+        }
+        const res = await fetch(url);
+        const result = await res.json();
+        if (result && result.success) {
+            state.setTodos(result.data || []);
+        }
+    } catch (e) {
+        console.error('加载 TODO 失败:', e);
     }
 }

@@ -5,6 +5,7 @@ module.exports = function(db) {
     return {
         categories: require('./categories')(db),
         bookmarks: require('./bookmarks')(db),
+        todos: require('./todos')(db),
         engines: require('./engines')(db),
         icons: require('./icons')(db),
         icon: require('./icon')(db),

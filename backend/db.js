@@ -135,6 +135,27 @@ async function createTables() {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
+            // TODO 待办
+            await conn.execute(`
+                CREATE TABLE IF NOT EXISTS todos (
+                    id VARCHAR(50) PRIMARY KEY,
+                    category_id VARCHAR(50) NULL,
+                    title VARCHAR(255) NOT NULL,
+                    notes TEXT,
+                    is_done TINYINT DEFAULT 0,
+                    priority INT DEFAULT 0,
+                    due_at DATETIME NULL,
+                    sort_order INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    completed_at DATETIME NULL,
+                    INDEX idx_todos_category (category_id),
+                    INDEX idx_todos_done (is_done),
+                    INDEX idx_todos_due (due_at),
+                    INDEX idx_todos_list (category_id, is_done, sort_order, created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+
             // 添加性能优化索引（忽略已存在的索引错误）
             const indexStatements = [
                 'CREATE INDEX idx_bookmarks_sort ON bookmarks(category_id, sort_order, created_at)',
@@ -216,11 +237,32 @@ async function createTables() {
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
+            -- TODO 待办
+            CREATE TABLE IF NOT EXISTS todos (
+                id TEXT PRIMARY KEY,
+                category_id TEXT,
+                title TEXT NOT NULL,
+                notes TEXT,
+                is_done INTEGER DEFAULT 0,
+                priority INTEGER DEFAULT 0,
+                due_at DATETIME,
+                sort_order INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                completed_at DATETIME,
+                FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+                CHECK (is_done IN (0, 1))
+            );
+
             -- 性能优化索引
             CREATE INDEX IF NOT EXISTS idx_bookmarks_category_id ON bookmarks(category_id);
             CREATE INDEX IF NOT EXISTS idx_bookmarks_sort_order ON bookmarks(sort_order);
             CREATE INDEX IF NOT EXISTS idx_categories_sort_order ON categories(sort_order);
             CREATE INDEX IF NOT EXISTS idx_search_engines_sort_order ON search_engines(sort_order);
+            CREATE INDEX IF NOT EXISTS idx_todos_category_id ON todos(category_id);
+            CREATE INDEX IF NOT EXISTS idx_todos_is_done ON todos(is_done);
+            CREATE INDEX IF NOT EXISTS idx_todos_due_at ON todos(due_at);
+            CREATE INDEX IF NOT EXISTS idx_todos_list ON todos(category_id, is_done, sort_order, created_at);
         `);
 
         // 添加可能缺失的列

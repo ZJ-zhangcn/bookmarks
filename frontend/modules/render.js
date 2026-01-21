@@ -13,6 +13,7 @@ import { observeBookmarkIcons } from './api.js';
 export function renderAll() {
     renderCategoryNav();
     renderBookmarks();
+    renderTodos();
     renderEngineDropdown();
     updateEngineDisplay();
     if (window.i18n && window.i18n.applyTranslations) {
@@ -363,5 +364,96 @@ export function renderIconSelection(availableIcons) {
                 wrap.classList.add('selected');
             };
         });
+    }
+}
+
+export function renderTodos() {
+    if (!DOM.todosContainer) return;
+
+    const todos = state.todos || [];
+    if (todos.length === 0) {
+        DOM.todosContainer.innerHTML = '<div class="todos-empty">暂无待办事项</div>';
+        return;
+    }
+
+    const pendingTodos = todos.filter(t => !t.is_done);
+    const doneTodos = todos.filter(t => t.is_done);
+
+    let html = '';
+
+    if (pendingTodos.length > 0) {
+        html += '<div class="todos-section"><h4 class="todos-section-title">待完成</h4><div class="todos-list">';
+        html += pendingTodos.map(t => createTodoCard(t)).join('');
+        html += '</div></div>';
+    }
+
+    if (doneTodos.length > 0) {
+        html += '<div class="todos-section todos-done"><h4 class="todos-section-title">已完成</h4><div class="todos-list">';
+        html += doneTodos.map(t => createTodoCard(t)).join('');
+        html += '</div></div>';
+    }
+
+    DOM.todosContainer.innerHTML = html;
+}
+
+export function createTodoCard(todo) {
+    const isDone = todo.is_done ? 1 : 0;
+    const priorityClass = todo.priority > 0 ? `priority-${Math.min(todo.priority, 3)}` : '';
+    const doneClass = isDone ? 'completed' : '';
+
+    let dueDateHtml = '';
+    if (todo.due_at) {
+        const dueDate = new Date(todo.due_at);
+        const now = new Date();
+        const isOverdue = !isDone && dueDate < now;
+        const dueDateStr = formatDueDate(dueDate);
+        dueDateHtml = `<span class="todo-due ${isOverdue ? 'overdue' : ''}">${dueDateStr}</span>`;
+    }
+
+    const categoryHtml = todo.category_name
+        ? `<span class="todo-category">${escapeHtml(todo.category_name)}</span>`
+        : '';
+
+    return `
+        <div class="todo-card ${doneClass} ${priorityClass}" data-id="${todo.id}">
+            <button class="todo-check" data-id="${todo.id}" title="${isDone ? '标记为未完成' : '标记为完成'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    ${isDone ? '<path d="M20 6L9 17l-5-5"/>' : '<circle cx="12" cy="12" r="10"/>'}
+                </svg>
+            </button>
+            <div class="todo-content">
+                <div class="todo-title">${escapeHtml(todo.title)}</div>
+                ${todo.notes ? `<div class="todo-notes">${escapeHtml(todo.notes)}</div>` : ''}
+                <div class="todo-meta">
+                    ${categoryHtml}
+                    ${dueDateHtml}
+                </div>
+            </div>
+            <div class="todo-actions">
+                <button class="todo-action-btn edit" data-id="${todo.id}" title="编辑">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn delete" data-id="${todo.id}" title="删除">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function formatDueDate(date) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const dueDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    if (dueDay.getTime() === today.getTime()) {
+        return '今天';
+    } else if (dueDay.getTime() === tomorrow.getTime()) {
+        return '明天';
+    } else {
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `${month}/${day}`;
     }
 }

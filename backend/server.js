@@ -124,6 +124,10 @@ app.use(express.static(path.join(__dirname, '..', 'frontend'), {
 // AI（可选功能，不影响现有功能）
 registerAiRoutes(app, db);
 
+// TODO 待办路由
+const todosRouter = require('./routes/todos')(db);
+app.use('/api/todos', todosRouter);
+
 // Bootstrap优化端点（MySQL高延迟优化）
 const bootstrapV2Module = require('./bootstrap-v2');
 bootstrapV2Module(app, db);
