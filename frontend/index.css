@@ -3954,39 +3954,38 @@ select:focus {
     height: 16px;
 }
 
-/* 添加待办按钮 - 固定浮动按钮 */
+/* 添加待办按钮 - 固定圆形按钮，位于回到顶部按钮上方 */
 .add-todo-btn {
     position: fixed;
-    right: 24px;
-    bottom: 24px;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
+    bottom: 100px;
+    right: 40px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
     background: var(--primary-color);
     border: none;
-    border-radius: 50px;
     color: #fff;
-    font-size: 0.875rem;
-    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     box-shadow: 0 4px 12px hsla(var(--primary-hue), 100%, 50%, 0.35);
-    z-index: 100;
-}
-
-.add-todo-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px hsla(var(--primary-hue), 100%, 50%, 0.45);
-}
-
-.add-todo-btn:active {
-    transform: translateY(0);
 }
 
 .add-todo-btn svg {
-    width: 18px;
-    height: 18px;
+    width: 24px;
+    height: 24px;
+}
+
+.add-todo-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px hsla(var(--primary-hue), 100%, 50%, 0.45);
+}
+
+.add-todo-btn:active {
+    transform: translateY(-1px);
 }
 
 /* 空状态 */
@@ -4028,8 +4027,14 @@ select:focus {
     }
 
     .add-todo-btn {
-        right: 16px;
-        bottom: 16px;
-        padding: 0.625rem 1rem;
+        bottom: 86px;
+        right: 30px;
+        width: 44px;
+        height: 44px;
+    }
+
+    .add-todo-btn svg {
+        width: 22px;
+        height: 22px;
     }
 }
