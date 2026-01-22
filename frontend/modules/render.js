@@ -371,8 +371,6 @@ export function renderTodos() {
     if (!DOM.todosContainer) return;
 
     const todos = state.todos || [];
-    const pendingTodos = todos.filter(t => !t.is_done);
-    const doneTodos = todos.filter(t => t.is_done);
 
     let html = '';
 
@@ -384,37 +382,12 @@ export function renderTodos() {
         </div>
     `;
 
-    // 待完成列表
-    if (pendingTodos.length > 0) {
+    // 待办列表
+    if (todos.length > 0) {
         html += '<div class="todos-list">';
-        html += pendingTodos.map(t => createTodoCard(t)).join('');
+        html += todos.map(t => createTodoCard(t)).join('');
         html += '</div>';
-    }
-
-    // 已完成列表（可折叠）
-    if (doneTodos.length > 0) {
-        // 检查是否应该折叠（默认为折叠状态，或者从 state 获取）
-        const isCollapsed = state.collapsedTodoDone !== false; // 默认为 true (折叠)
-
-        html += `
-            <div class="todos-section todos-done ${isCollapsed ? 'collapsed' : ''}">
-                <h4 class="todos-section-title">
-                    <span class="toggle-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="m6 9 6 6 6-6"/>
-                        </svg>
-                    </span>
-                    已完成 (${doneTodos.length})
-                </h4>
-                <div class="todos-list">
-                    ${doneTodos.map(t => createTodoCard(t)).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    // 空状态提示
-    if (todos.length === 0) {
+    } else {
         html += '<div class="todos-empty">暂无待办事项</div>';
     }
 
@@ -422,14 +395,9 @@ export function renderTodos() {
 }
 
 export function createTodoCard(todo) {
-    const isDone = todo.is_done ? 1 : 0;
-    const doneClass = isDone ? 'completed' : '';
-
     return `
-        <div class="todo-card ${doneClass}" data-id="${todo.id}">
-            <button class="todo-check" data-id="${todo.id}" title="${isDone ? '标记为未完成' : '标记为完成'}">
-                ${isDone ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>' : ''}
-            </button>
+        <div class="todo-card" data-id="${todo.id}">
+            <button class="todo-check" data-id="${todo.id}" title="完成并删除"></button>
             <div class="todo-content">
                 <div class="todo-title">${escapeHtml(todo.title)}</div>
             </div>

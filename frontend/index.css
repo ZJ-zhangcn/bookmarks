@@ -3810,11 +3810,6 @@ select:focus {
     background: var(--bg-tertiary); /* Hover时给一点背景 */
 }
 
-.todo-card.completed .todo-title {
-    text-decoration: line-through;
-    color: var(--text-tertiary);
-}
-
 /* 复选框 */
 .todo-check {
     flex-shrink: 0;
@@ -3843,12 +3838,6 @@ select:focus {
     width: 12px;
     height: 12px;
     stroke: white;
-}
-
-/* 选中状态 */
-.todo-card.completed .todo-check {
-    background: var(--primary);
-    border-color: var(--primary) !important;
 }
 
 /* 标题 */
@@ -3905,47 +3894,6 @@ select:focus {
 .todo-action-btn svg {
     width: 16px;
     height: 16px;
-}
-
-/* 已完成区域标题 */
-.todos-section-title {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--text-tertiary);
-    margin: 12px 0 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    user-select: none;
-    transition: color var(--transition-fast);
-}
-
-.todos-section-title:hover {
-    color: var(--text-secondary);
-}
-
-.todos-section-title .toggle-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    transition: transform var(--transition-normal);
-}
-
-.todos-section-title .toggle-icon svg {
-    width: 14px;
-    height: 14px;
-}
-
-/* 折叠状态 */
-.todos-section.collapsed .toggle-icon {
-    transform: rotate(-90deg);
-}
-
-.todos-section.collapsed .todos-list {
-    display: none;
 }
 
 /* 空状态 */

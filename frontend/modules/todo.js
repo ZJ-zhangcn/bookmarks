@@ -10,12 +10,12 @@ export function handleTodoClick(e) {
     const checkBtn = e.target.closest('.todo-check');
     const editBtn = e.target.closest('.todo-action-btn.edit');
     const deleteBtn = e.target.closest('.todo-action-btn.delete');
-    const toggleHeader = e.target.closest('.todos-section-title');
 
     if (checkBtn) {
         e.preventDefault();
         e.stopPropagation();
-        toggleTodoStatus(checkBtn.dataset.id);
+        // 勾选后直接删除
+        deleteTodoSilent(checkBtn.dataset.id);
     } else if (editBtn) {
         e.preventDefault();
         e.stopPropagation();
@@ -24,11 +24,6 @@ export function handleTodoClick(e) {
         e.preventDefault();
         e.stopPropagation();
         deleteTodo(deleteBtn.dataset.id);
-    } else if (toggleHeader) {
-        e.preventDefault();
-        e.stopPropagation();
-        state.setCollapsedTodoDone(!state.collapsedTodoDone);
-        renderTodos();
     }
 }
 
@@ -141,26 +136,17 @@ export async function saveTodo() {
     }
 }
 
-export async function toggleTodoStatus(id) {
-    const todo = state.todos.find(t => t.id === id);
-    if (!todo) return;
-
-    const newIsDone = todo.is_done ? 0 : 1;
-
+/**
+ * 勾选完成后静默删除（无确认弹窗）
+ */
+async function deleteTodoSilent(id) {
     try {
-        await fetch(`${state.API_BASE}/api/todos`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                id: todo.id,
-                is_done: newIsDone
-            })
-        });
+        await fetch(`${state.API_BASE}/api/todos?id=${id}`, { method: 'DELETE' });
         await loadTodos();
         renderTodos();
         bindQuickInputEvent();
     } catch (e) {
-        console.error('切换状态失败:', e);
+        console.error('删除失败:', e);
     }
 }
 
