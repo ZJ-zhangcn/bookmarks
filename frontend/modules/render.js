@@ -370,8 +370,12 @@ export function renderIconSelection(availableIcons) {
 export function renderTodos() {
     if (!DOM.todosContainer) return;
 
-    // 只显示未完成的（is_done 为 0, false, null, undefined）
-    const todos = (state.todos || []).filter(t => t.is_done === 0 || t.is_done === false || t.is_done === null || t.is_done === undefined);
+    const allTodos = state.todos || [];
+    console.log('All todos:', allTodos.map(t => ({ id: t.id, title: t.title, is_done: t.is_done, type: typeof t.is_done })));
+
+    // 只显示未完成的
+    const todos = allTodos.filter(t => !t.is_done);
+    console.log('Filtered todos:', todos.length);
 
     let html = '';
 
