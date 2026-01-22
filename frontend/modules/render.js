@@ -370,8 +370,8 @@ export function renderIconSelection(availableIcons) {
 export function renderTodos() {
     if (!DOM.todosContainer) return;
 
-    // 过滤掉已完成的（勾选即删除，但可能有历史数据）
-    const todos = (state.todos || []).filter(t => !t.is_done);
+    // 只显示未完成的（is_done 为 0, false, null, undefined）
+    const todos = (state.todos || []).filter(t => t.is_done === 0 || t.is_done === false || t.is_done === null || t.is_done === undefined);
 
     let html = '';
 
