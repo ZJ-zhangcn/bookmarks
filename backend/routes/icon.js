@@ -6,6 +6,51 @@ const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
 
 module.exports = function(db) {
+    // GET /api/icon/proxy - 代理外部图标（解决被墙问题）
+    router.get('/proxy', asyncHandler(async (req, res) => {
+        const { url } = req.query;
+        if (!url) {
+            throw new AppError('缺少 url 参数', 400);
+        }
+
+        // 安全检查：只允许代理 http/https 图片
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(url);
+            if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                throw new AppError('仅支持 http/https 协议', 400);
+            }
+        } catch (e) {
+            throw new AppError('无效的 URL', 400);
+        }
+
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'image/*,*/*;q=0.8'
+                },
+                signal: AbortSignal.timeout(10000) // 10秒超时
+            });
+
+            if (!response.ok) {
+                throw new AppError(`上游返回 ${response.status}`, 502);
+            }
+
+            const contentType = response.headers.get('content-type') || 'image/png';
+            const buffer = Buffer.from(await response.arrayBuffer());
+
+            // 设置缓存头
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Cache-Control', 'public, max-age=604800'); // 7天缓存
+            res.setHeader('X-Proxy-Source', parsedUrl.hostname);
+            res.send(buffer);
+        } catch (e) {
+            if (e instanceof AppError) throw e;
+            throw new AppError(`代理请求失败: ${e.message}`, 502);
+        }
+    }));
+
     // POST /api/icon/convert
     router.post('/convert', asyncHandler(async (req, res) => {
         const { url } = req.body;

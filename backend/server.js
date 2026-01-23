@@ -173,6 +173,42 @@ app.use('/api/data', routes.data);
 app.use('/api/todos', routes.todos);
 app.use('/api/suggest', routes.suggest);
 
+// 图标代理（解决被墙图标无法显示问题）
+app.get('/api/proxy-icon', async (req, res) => {
+    const { url } = req.query;
+    if (!url) {
+        return res.status(400).json({ success: false, error: '缺少 url 参数' });
+    }
+
+    try {
+        const parsedUrl = new URL(url);
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+            return res.status(400).json({ success: false, error: '仅支持 http/https 协议' });
+        }
+
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'image/*,*/*;q=0.8'
+            },
+            signal: AbortSignal.timeout(10000)
+        });
+
+        if (!response.ok) {
+            return res.status(502).json({ success: false, error: `上游返回 ${response.status}` });
+        }
+
+        const contentType = response.headers.get('content-type') || 'image/png';
+        const buffer = Buffer.from(await response.arrayBuffer());
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+        res.send(buffer);
+    } catch (e) {
+        res.status(502).json({ success: false, error: `代理请求失败: ${e.message}` });
+    }
+});
+
 // ========================================
 // 初始化默认数据
 // ========================================
