@@ -14,6 +14,7 @@ module.exports = function(db) {
         webdav: require('./webdav')(db),
         docker: require('./docker')(db),
         system: require('./system')(db),
-        data: require('./data')(db)
+        data: require('./data')(db),
+        suggest: require('./suggest')(db)
     };
 };
