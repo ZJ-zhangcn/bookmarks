@@ -9,6 +9,7 @@ function escapeHtml(str) {
 }
 import { highlightText, shouldUseProxyUrl, toProxyUrl } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
+import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 
 export function renderAll() {
     renderCategoryNav();
@@ -397,6 +398,10 @@ export function renderTodos() {
     }
 
     DOM.todosContainer.innerHTML = html;
+    
+    // 渲染完成后绑定事件
+    bindQuickInputEvent();
+    bindTodoDragEvents();
 }
 
 export function createTodoCard(todo) {
