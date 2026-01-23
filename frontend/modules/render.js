@@ -401,7 +401,14 @@ export function renderTodos() {
 
 export function createTodoCard(todo) {
     return `
-        <div class="todo-card" data-id="${todo.id}">
+        <div class="todo-card" data-id="${todo.id}" draggable="true">
+            <div class="todo-drag-handle" title="拖动排序">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                    <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                    <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                    <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                </svg>
+            </div>
             <button class="todo-check" data-id="${todo.id}" title="完成并删除"></button>
             <div class="todo-content">
                 <div class="todo-title">${escapeHtml(todo.title)}</div>

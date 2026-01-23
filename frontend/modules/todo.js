@@ -6,6 +6,10 @@ import * as state from './state.js';
 import { loadTodos } from './api.js';
 import { renderTodos } from './render.js';
 
+// 拖拽状态
+let draggedTodo = null;
+let dragOverTodo = null;
+
 export function handleTodoClick(e) {
     const checkBtn = e.target.closest('.todo-check');
     const editBtn = e.target.closest('.todo-action-btn.edit');
@@ -56,8 +60,9 @@ async function quickAddTodo(title) {
         if (res.ok && result && result.success) {
             await loadTodos();
             renderTodos();
-            // 重新绑定快速输入事件
+            // 重新绑定快速输入事件和拖拽事件
             bindQuickInputEvent();
+            bindTodoDragEvents();
         }
     } catch (e) {
         console.error('添加失败:', e);
@@ -127,6 +132,7 @@ export async function saveTodo() {
             renderTodos();
             closeTodoModal();
             bindQuickInputEvent();
+            bindTodoDragEvents();
         } else {
             const errMsg = result?.error || `HTTP ${res.status}`;
             alert('保存失败: ' + errMsg);
@@ -145,6 +151,7 @@ async function deleteTodoSilent(id) {
         await loadTodos();
         renderTodos();
         bindQuickInputEvent();
+        bindTodoDragEvents();
     } catch (e) {
         console.error('删除失败:', e);
     }
@@ -158,7 +165,130 @@ export async function deleteTodo(id) {
         await loadTodos();
         renderTodos();
         bindQuickInputEvent();
+        bindTodoDragEvents();
     } catch (e) {
         alert('删除失败: ' + e.message);
+    }
+}
+
+/**
+ * 绑定 TODO 拖拽事件
+ */
+export function bindTodoDragEvents() {
+    const todosList = document.querySelector('.todos-list');
+    if (!todosList) return;
+
+    const todoCards = todosList.querySelectorAll('.todo-card');
+    todoCards.forEach(card => {
+        card.removeEventListener('dragstart', handleDragStart);
+        card.removeEventListener('dragend', handleDragEnd);
+        card.removeEventListener('dragover', handleDragOver);
+        card.removeEventListener('dragleave', handleDragLeave);
+        card.removeEventListener('drop', handleDrop);
+
+        card.addEventListener('dragstart', handleDragStart);
+        card.addEventListener('dragend', handleDragEnd);
+        card.addEventListener('dragover', handleDragOver);
+        card.addEventListener('dragleave', handleDragLeave);
+        card.addEventListener('drop', handleDrop);
+    });
+}
+
+function handleDragStart(e) {
+    draggedTodo = e.target.closest('.todo-card');
+    if (!draggedTodo) return;
+    
+    draggedTodo.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', draggedTodo.dataset.id);
+}
+
+function handleDragEnd(e) {
+    if (draggedTodo) {
+        draggedTodo.classList.remove('dragging');
+    }
+    document.querySelectorAll('.todo-card.drag-over').forEach(el => {
+        el.classList.remove('drag-over');
+    });
+    draggedTodo = null;
+    dragOverTodo = null;
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const target = e.target.closest('.todo-card');
+    if (!target || target === draggedTodo) return;
+    
+    if (dragOverTodo !== target) {
+        if (dragOverTodo) {
+            dragOverTodo.classList.remove('drag-over');
+        }
+        dragOverTodo = target;
+        dragOverTodo.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    const target = e.target.closest('.todo-card');
+    if (target && !target.contains(e.relatedTarget)) {
+        target.classList.remove('drag-over');
+    }
+}
+
+async function handleDrop(e) {
+    e.preventDefault();
+    
+    const target = e.target.closest('.todo-card');
+    if (!target || !draggedTodo || target === draggedTodo) return;
+    
+    target.classList.remove('drag-over');
+    
+    const todosList = document.querySelector('.todos-list');
+    if (!todosList) return;
+    
+    // 获取所有 todo 的 DOM 顺序
+    const allCards = Array.from(todosList.querySelectorAll('.todo-card'));
+    const draggedIndex = allCards.indexOf(draggedTodo);
+    const targetIndex = allCards.indexOf(target);
+    
+    // 在 DOM 中移动元素
+    if (draggedIndex < targetIndex) {
+        target.parentNode.insertBefore(draggedTodo, target.nextSibling);
+    } else {
+        target.parentNode.insertBefore(draggedTodo, target);
+    }
+    
+    // 获取新顺序并保存到服务器
+    const newOrder = Array.from(todosList.querySelectorAll('.todo-card')).map((card, index) => ({
+        id: card.dataset.id,
+        sort_order: index
+    }));
+    
+    await saveTodoOrder(newOrder);
+}
+
+/**
+ * 保存 TODO 排序到服务器
+ */
+async function saveTodoOrder(order) {
+    try {
+        const res = await fetch(`${state.API_BASE}/api/todos`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order })
+        });
+        
+        if (res.ok) {
+            // 更新本地 state 中的排序
+            await loadTodos();
+        }
+    } catch (e) {
+        console.error('保存排序失败:', e);
+        // 失败时重新渲染恢复原状
+        renderTodos();
+        bindQuickInputEvent();
+        bindTodoDragEvents();
     }
 }

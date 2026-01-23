@@ -3905,6 +3905,50 @@ select:focus {
     font-style: italic;
 }
 
+/* 拖拽手柄 */
+.todo-drag-handle {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    cursor: grab;
+    opacity: 0;
+    transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.todo-card:hover .todo-drag-handle {
+    opacity: 1;
+}
+
+.todo-drag-handle:hover {
+    color: var(--text-secondary);
+}
+
+.todo-drag-handle:active {
+    cursor: grabbing;
+}
+
+.todo-drag-handle svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* 拖拽中的卡片 */
+.todo-card.dragging {
+    opacity: 0.5;
+    background: var(--bg-tertiary);
+}
+
+/* 拖拽目标高亮 */
+.todo-card.drag-over {
+    background: hsla(var(--primary-hue), 100%, 65%, 0.15);
+    border-radius: var(--radius-md);
+    box-shadow: 0 0 0 2px var(--primary);
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
     .todos-container {
@@ -3913,5 +3957,9 @@ select:focus {
     
     .todo-actions {
         opacity: 1; /* 移动端常显 */
+    }
+    
+    .todo-drag-handle {
+        opacity: 1; /* 移动端常显拖拽手柄 */
     }
 }
