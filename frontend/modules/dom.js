@@ -140,7 +140,8 @@ export function cacheDOMElements() {
         todoInputDueAt: document.getElementById('todoInputDueAt'),
         todoInputCategory: document.getElementById('todoInputCategory'),
         todoInputCategoryText: document.getElementById('todoInputCategoryText'),
-        todoCategoryList: document.getElementById('todoCategoryList'),
+        todoCategoryDropdownBtn: document.getElementById('todoCategoryDropdownBtn'),
+        todoCategoryDropdown: document.getElementById('todoCategoryDropdown'),
         saveTodoBtn: document.getElementById('saveTodoBtn'),
         cancelTodoBtn: document.getElementById('cancelTodoBtn'),
     };

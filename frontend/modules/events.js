@@ -15,7 +15,7 @@ import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from '.
 import { saveAiClientSettingsFromUi, clearAiClientSettings, updateAiUiVisibility } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
 import { initSearchSuggestions } from './suggest.js';
-import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents, bindTodoFilterEvent, openTodoModal } from './todo.js';
+import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents, bindTodoFilterEvent, openTodoModal, toggleTodoCategoryDropdown, closeTodoCategoryDropdown, selectTodoCategory } from './todo.js';
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -226,6 +226,32 @@ export function bindAllEvents() {
     if (DOM.saveTodoBtn) {
         DOM.saveTodoBtn.addEventListener('click', saveTodo);
     }
+    
+    // TODO 分类下拉选择
+    if (DOM.todoCategoryDropdownBtn) {
+        DOM.todoCategoryDropdownBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleTodoCategoryDropdown();
+        });
+    }
+    if (DOM.todoCategoryDropdown) {
+        DOM.todoCategoryDropdown.addEventListener('click', (e) => {
+            const option = e.target.closest('.todo-category-option');
+            if (option) {
+                selectTodoCategory(option.dataset.id, option.dataset.name);
+            }
+        });
+    }
+    // 点击其他地方关闭下拉
+    document.addEventListener('click', (e) => {
+        if (DOM.todoCategoryDropdown && DOM.todoCategoryDropdown.classList.contains('open')) {
+            if (!e.target.closest('.todo-category-input-wrapper')) {
+                closeTodoCategoryDropdown();
+            }
+        }
+    });
+    
     // 快速输入框和拖拽事件在 renderTodos 后绑定
     bindQuickInputEvent();
     bindTodoDragEvents();

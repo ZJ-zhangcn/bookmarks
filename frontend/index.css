@@ -4286,11 +4286,14 @@ select:focus {
 /* TODO 分类输入框 */
 .todo-category-input-wrapper {
     position: relative;
+    display: flex;
+    gap: 0;
 }
 
 #todoInputCategoryText {
-    width: 100%;
+    flex: 1;
     padding: 10px 12px;
+    padding-right: 40px;
     font-size: 0.9rem;
     font-family: inherit;
     color: var(--text-primary);
@@ -4303,6 +4306,78 @@ select:focus {
 #todoInputCategoryText:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px hsla(var(--primary-hue), 100%, 65%, 0.15);
+}
+
+/* 下拉按钮 */
+.todo-category-dropdown-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.todo-category-dropdown-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.todo-category-dropdown-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* 下拉菜单 */
+.todo-category-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-lg);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+}
+
+.todo-category-dropdown.open {
+    display: block;
+}
+
+.todo-category-option {
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.todo-category-option:hover {
+    background: var(--bg-tertiary);
+}
+
+.todo-category-option:first-child {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.todo-category-option:last-child {
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 .form-hint {

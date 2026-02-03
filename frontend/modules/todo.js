@@ -130,12 +130,8 @@ export function bindQuickInputEvent() {
 export function openTodoModal(todoId = null) {
     state.setEditingTodoId(todoId);
     
-    // 更新分类 datalist 选项（使用 todoCategories）
-    if (DOM.todoCategoryList) {
-        DOM.todoCategoryList.innerHTML = state.todoCategories.map(c => 
-            `<option value="${c.name}" data-id="${c.id}">${c.icon || '📁'} ${c.name}</option>`
-        ).join('');
-    }
+    // 更新分类下拉选项（使用 todoCategories）
+    updateTodoCategoryDropdown();
 
     if (todoId) {
         DOM.todoModalTitle.textContent = '编辑待办';
@@ -176,6 +172,50 @@ export function openTodoModal(todoId = null) {
     document.body.style.overflow = 'hidden';
     DOM.todoInputTitle.focus();
     if (todoId) DOM.todoInputTitle.select();
+}
+
+/**
+ * 更新分类下拉选项
+ */
+function updateTodoCategoryDropdown() {
+    if (!DOM.todoCategoryDropdown) return;
+    
+    let html = '<div class="todo-category-option" data-id="" data-name="">未分类</div>';
+    html += state.todoCategories.map(c => 
+        `<div class="todo-category-option" data-id="${c.id}" data-name="${c.name}">${c.icon || '📁'} ${c.name}</div>`
+    ).join('');
+    
+    DOM.todoCategoryDropdown.innerHTML = html;
+}
+
+/**
+ * 切换分类下拉显示
+ */
+export function toggleTodoCategoryDropdown() {
+    if (!DOM.todoCategoryDropdown) return;
+    DOM.todoCategoryDropdown.classList.toggle('open');
+}
+
+/**
+ * 关闭分类下拉
+ */
+export function closeTodoCategoryDropdown() {
+    if (DOM.todoCategoryDropdown) {
+        DOM.todoCategoryDropdown.classList.remove('open');
+    }
+}
+
+/**
+ * 选择分类
+ */
+export function selectTodoCategory(id, name) {
+    if (DOM.todoInputCategoryText) {
+        DOM.todoInputCategoryText.value = name || '';
+    }
+    if (DOM.todoInputCategory) {
+        DOM.todoInputCategory.value = id || '';
+    }
+    closeTodoCategoryDropdown();
 }
 
 function formatDateTimeLocal(dateStr) {
