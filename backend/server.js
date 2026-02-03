@@ -174,38 +174,79 @@ app.use('/api/todos', routes.todos);
 app.use('/api/suggest', routes.suggest);
 
 // 图标代理（解决被墙图标无法显示问题）
+// 1x1 透明 PNG 作为 fallback
+const TRANSPARENT_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+
 app.get('/api/proxy-icon', async (req, res) => {
     const { url } = req.query;
     if (!url) {
-        return res.status(400).json({ success: false, error: '缺少 url 参数' });
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.send(TRANSPARENT_PNG);
     }
 
     try {
         const parsedUrl = new URL(url);
         if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-            return res.status(400).json({ success: false, error: '仅支持 http/https 协议' });
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            return res.send(TRANSPARENT_PNG);
         }
 
+        // 更真实的请求头
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': parsedUrl.origin + '/',
+            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'image',
+            'Sec-Fetch-Mode': 'no-cors',
+            'Sec-Fetch-Site': 'cross-site'
+        };
+
         const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'image/*,*/*;q=0.8'
-            },
-            signal: AbortSignal.timeout(10000)
+            headers,
+            signal: AbortSignal.timeout(15000), // 增加到15秒
+            redirect: 'follow'
         });
 
         if (!response.ok) {
-            return res.status(502).json({ success: false, error: `上游返回 ${response.status}` });
+            // 上游失败，返回透明图而非错误
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=3600'); // 失败缓存1小时
+            return res.send(TRANSPARENT_PNG);
         }
 
         const contentType = response.headers.get('content-type') || 'image/png';
+        
+        // 验证是否为图片类型
+        if (!contentType.startsWith('image/')) {
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            return res.send(TRANSPARENT_PNG);
+        }
+
         const buffer = Buffer.from(await response.arrayBuffer());
 
+        // 验证图片大小（防止恶意大文件）
+        if (buffer.length > 1024 * 1024) { // 超过1MB
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            return res.send(TRANSPARENT_PNG);
+        }
+
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Cache-Control', 'public, max-age=604800');
+        res.setHeader('Cache-Control', 'public, max-age=604800'); // 成功缓存7天
         res.send(buffer);
     } catch (e) {
-        res.status(502).json({ success: false, error: `代理请求失败: ${e.message}` });
+        // 任何异常都返回透明图，避免前端 onerror 循环
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.send(TRANSPARENT_PNG);
     }
 });
 
