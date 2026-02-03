@@ -3798,7 +3798,7 @@ select:focus {
 /* 待办卡片 */
 .todo-card {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
     padding: 8px 12px;
     background: transparent;
