@@ -9,7 +9,7 @@ function escapeHtml(str) {
 }
 import { highlightText, shouldUseProxyUrl, toProxyUrl } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
-import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
+import { bindQuickInputEvent, bindTodoDragEvents, bindTodoFilterEvent } from './todo.js';
 
 export function renderAll() {
     renderCategoryNav();
@@ -372,29 +372,82 @@ export function renderTodos() {
     if (!DOM.todosContainer) return;
 
     const allTodos = state.todos || [];
-    console.log('All todos:', allTodos.map(t => ({ id: t.id, title: t.title, is_done: t.is_done, type: typeof t.is_done })));
+    const filterCat = state.todoFilterCategory;
 
-    // 只显示未完成的
-    const todos = allTodos.filter(t => !t.is_done);
-    console.log('Filtered todos:', todos.length);
+    // 按分类筛选
+    const filteredTodos = allTodos.filter(t => {
+        if (filterCat === 'all') return true;
+        if (filterCat === 'uncategorized') return !t.category_id;
+        return t.category_id === filterCat;
+    });
+
+    // 分离未完成和已完成
+    const pendingTodos = filteredTodos.filter(t => !t.is_done);
+    const completedTodos = filteredTodos.filter(t => t.is_done);
+
+    // 按优先级和截止时间排序待办
+    pendingTodos.sort((a, b) => {
+        // 优先级高的在前 (3 > 2 > 1 > 0)
+        if (b.priority !== a.priority) return (b.priority || 0) - (a.priority || 0);
+        // 有截止时间的在前，且按时间升序
+        if (a.due_at && !b.due_at) return -1;
+        if (!a.due_at && b.due_at) return 1;
+        if (a.due_at && b.due_at) return new Date(a.due_at) - new Date(b.due_at);
+        // 其他按 sort_order
+        return (a.sort_order || 0) - (b.sort_order || 0);
+    });
 
     let html = '';
 
-    // 快速输入框
+    // 分类筛选下拉 + 快速输入框
     html += `
-        <div class="todo-quick-add">
-            <input type="text" id="todoQuickInput" class="todo-quick-input"
-                   placeholder="添加新待办，按回车确认..." autocomplete="off">
+        <div class="todo-header">
+            <div class="todo-filter">
+                <select id="todoFilterCategory" class="todo-filter-select">
+                    <option value="all" ${filterCat === 'all' ? 'selected' : ''}>全部分类</option>
+                    <option value="uncategorized" ${filterCat === 'uncategorized' ? 'selected' : ''}>未分类</option>
+                    ${state.categories.map(c => `<option value="${c.id}" ${filterCat === c.id ? 'selected' : ''}>${c.icon || '📁'} ${c.name}</option>`).join('')}
+                </select>
+            </div>
+            <div class="todo-quick-add">
+                <input type="text" id="todoQuickInput" class="todo-quick-input"
+                       placeholder="添加新待办，按回车确认..." autocomplete="off">
+            </div>
         </div>
     `;
 
     // 待办列表
-    if (todos.length > 0) {
-        html += '<div class="todos-list">';
-        html += todos.map(t => createTodoCard(t)).join('');
+    if (pendingTodos.length > 0) {
+        html += '<div class="todos-list" data-status="pending">';
+        html += pendingTodos.map(t => createTodoCard(t, false)).join('');
         html += '</div>';
     } else {
         html += '<div class="todos-empty">暂无待办事项</div>';
+    }
+
+    // 已完成区域（可折叠）
+    if (completedTodos.length > 0) {
+        html += `
+            <div class="todos-completed-section">
+                <div class="todos-completed-header" id="todosCompletedHeader">
+                    <span class="todos-completed-toggle">
+                        <svg class="toggle-icon ${state.todoShowCompleted ? 'expanded' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                        已完成 (${completedTodos.length})
+                    </span>
+                    <button class="todos-clear-btn" id="todosClearCompleted" title="清除所有已完成">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        清除已完成
+                    </button>
+                </div>
+                <div class="todos-completed-list ${state.todoShowCompleted ? '' : 'collapsed'}" id="todosCompletedList">
+                    ${completedTodos.map(t => createTodoCard(t, true)).join('')}
+                </div>
+            </div>
+        `;
     }
 
     DOM.todosContainer.innerHTML = html;
@@ -402,11 +455,65 @@ export function renderTodos() {
     // 渲染完成后绑定事件
     bindQuickInputEvent();
     bindTodoDragEvents();
+    bindTodoFilterEvent();
 }
 
-export function createTodoCard(todo) {
+export function createTodoCard(todo, isCompleted = false) {
+    const priorityLabels = ['', '低', '中', '高'];
+    const priorityClasses = ['', 'priority-low', 'priority-medium', 'priority-high'];
+    const priority = todo.priority || 0;
+    const priorityClass = priorityClasses[priority] || '';
+    const priorityLabel = priority > 0 ? `<span class="todo-priority ${priorityClass}">${priorityLabels[priority]}</span>` : '';
+
+    // 截止时间格式化
+    let dueDateHtml = '';
+    if (todo.due_at) {
+        const dueDate = new Date(todo.due_at);
+        const now = new Date();
+        const isOverdue = !isCompleted && dueDate < now;
+        const isToday = dueDate.toDateString() === now.toDateString();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const isTomorrow = dueDate.toDateString() === tomorrow.toDateString();
+
+        let dueDateLabel;
+        if (isToday) {
+            dueDateLabel = '今天 ' + dueDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        } else if (isTomorrow) {
+            dueDateLabel = '明天 ' + dueDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        } else {
+            dueDateLabel = dueDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        }
+
+        const dueClass = isOverdue ? 'overdue' : (isToday ? 'due-today' : '');
+        dueDateHtml = `<span class="todo-due ${dueClass}" title="${dueDate.toLocaleString('zh-CN')}">📅 ${dueDateLabel}</span>`;
+    }
+
+    // 备注展开
+    const hasNotes = todo.notes && todo.notes.trim();
+    const notesHtml = hasNotes ? `
+        <div class="todo-notes-toggle" data-id="${todo.id}" title="查看备注">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+            </svg>
+        </div>
+        <div class="todo-notes-content" id="todoNotes_${todo.id}" style="display:none;">
+            <div class="todo-notes-text">${escapeHtml(todo.notes)}</div>
+        </div>
+    ` : '';
+
+    // 分类标签
+    const categoryHtml = todo.category_name ? 
+        `<span class="todo-category">${todo.category_icon || '📁'} ${todo.category_name}</span>` : '';
+
+    const cardClass = isCompleted ? 'todo-card completed' : 'todo-card';
+    const checkClass = isCompleted ? 'todo-check checked' : 'todo-check';
+    const checkTitle = isCompleted ? '取消完成' : '标记完成';
+
     return `
-        <div class="todo-card" data-id="${todo.id}" draggable="true">
+        <div class="${cardClass} ${priorityClass}" data-id="${todo.id}" draggable="${!isCompleted}">
+            ${!isCompleted ? `
             <div class="todo-drag-handle" title="拖动排序">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                     <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
@@ -414,9 +521,21 @@ export function createTodoCard(todo) {
                     <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
                 </svg>
             </div>
-            <button class="todo-check" data-id="${todo.id}" title="完成并删除"></button>
+            ` : ''}
+            <button class="${checkClass}" data-id="${todo.id}" title="${checkTitle}"></button>
             <div class="todo-content">
-                <div class="todo-title">${escapeHtml(todo.title)}</div>
+                <div class="todo-title-row">
+                    <div class="todo-title">${escapeHtml(todo.title)}</div>
+                    ${priorityLabel}
+                </div>
+                <div class="todo-meta">
+                    ${categoryHtml}
+                    ${dueDateHtml}
+                    ${hasNotes ? notesHtml.split('<div class="todo-notes-content"')[0] : ''}
+                </div>
+                ${hasNotes ? `<div class="todo-notes-content" id="todoNotes_${todo.id}" style="display:none;">
+                    <div class="todo-notes-text">${escapeHtml(todo.notes)}</div>
+                </div>` : ''}
             </div>
             <div class="todo-actions">
                 <button class="todo-action-btn edit" data-id="${todo.id}" title="编辑">

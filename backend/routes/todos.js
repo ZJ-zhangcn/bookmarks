@@ -257,6 +257,13 @@ module.exports = function(db) {
         res.json(success());
     }));
 
+    // DELETE /api/todos/completed/all - 清除所有已完成的待办
+    // 必须在 /:id 路由之前定义
+    router.delete('/completed/all', requireAdmin, asyncHandler(async (req, res) => {
+        const result = await db.execute('DELETE FROM todos WHERE is_done = 1');
+        res.json(success({ deleted: result.changes || 0 }));
+    }));
+
     // 兼容: DELETE /api/todos/:id
     router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
         await db.execute('DELETE FROM todos WHERE id = ?', [req.params.id]);

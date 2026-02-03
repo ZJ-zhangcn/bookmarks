@@ -15,7 +15,7 @@ import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from '.
 import { saveAiClientSettingsFromUi, clearAiClientSettings, updateAiUiVisibility } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
 import { initSearchSuggestions } from './suggest.js';
-import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
+import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents, bindTodoFilterEvent, openTodoModal } from './todo.js';
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -229,6 +229,7 @@ export function bindAllEvents() {
     // 快速输入框和拖拽事件在 renderTodos 后绑定
     bindQuickInputEvent();
     bindTodoDragEvents();
+    bindTodoFilterEvent();
 
     document.addEventListener('keydown', e => {
         const isInputFocused = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
