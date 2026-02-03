@@ -3840,14 +3840,6 @@ select:focus {
     stroke: white;
 }
 
-/* 标题 */
-.todo-content {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-}
-
 .todo-title {
     font-size: 0.95rem;
     color: var(--text-primary);
