@@ -29,7 +29,8 @@ export async function loadData() {
             DOM.webdavPath.value = localStorage.getItem('webdavPath') || 'bookmarks/config.json';
         }
 
-        // 加载 TODO 数据
+        // 加载 TODO 数据和分类
+        await loadTodoCategories();
         await loadTodos();
     } catch (e) {
         console.error('加载数据失败:', e);
@@ -195,5 +196,17 @@ export async function loadTodos(categoryId = null, status = 'all') {
         }
     } catch (e) {
         console.error('加载 TODO 失败:', e);
+    }
+}
+
+export async function loadTodoCategories() {
+    try {
+        const res = await fetch(`${state.API_BASE}/api/categories?type=todo`);
+        const result = await res.json();
+        if (result && result.success) {
+            state.setTodoCategories(result.data || []);
+        }
+    } catch (e) {
+        console.error('加载 TODO 分类失败:', e);
     }
 }

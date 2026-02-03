@@ -437,10 +437,15 @@
                 </div>
                 <div class="form-group">
                     <label for="todoInputCategory">分类</label>
-                    <select id="todoInputCategory" class="form-select">
-                        <option value="">未分类</option>
-                        <!-- 由 JavaScript 动态填充 -->
-                    </select>
+                    <div class="todo-category-input-wrapper">
+                        <input type="text" id="todoInputCategoryText" class="form-input" 
+                               placeholder="选择或输入新分类..." autocomplete="off" list="todoCategoryList">
+                        <datalist id="todoCategoryList">
+                            <!-- 由 JavaScript 动态填充 -->
+                        </datalist>
+                        <input type="hidden" id="todoInputCategory" value="">
+                    </div>
+                    <div class="form-hint">输入已有分类名称，或输入新名称创建</div>
                 </div>
                 <div class="form-group">
                     <label for="todoInputNotes">备注</label>

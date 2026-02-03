@@ -8,14 +8,26 @@ const { requireAdmin } = require('../middleware/security');
 
 module.exports = function(db) {
     // GET /api/categories
+    // 支持 ?type=bookmark|todo 筛选
     router.get('/', asyncHandler(async (req, res) => {
-        const categories = await db.queryAll('SELECT * FROM categories ORDER BY sort_order, created_at');
+        const type = req.query.type;
+        let sql = 'SELECT * FROM categories';
+        const params = [];
+        
+        if (type && ['bookmark', 'todo'].includes(type)) {
+            sql += ' WHERE type = ?';
+            params.push(type);
+        }
+        sql += ' ORDER BY sort_order, created_at';
+        
+        const categories = await db.queryAll(sql, params);
         res.json(success(categories));
     }));
 
     // POST /api/categories
+    // 支持 type 字段 (bookmark/todo)
     router.post('/', requireAdmin, asyncHandler(async (req, res) => {
-        const { id, name, icon } = req.body;
+        const { id, name, icon, type } = req.body;
 
         if (!name?.trim()) {
             throw new AppError('分类名称不能为空', 400);
@@ -24,28 +36,29 @@ module.exports = function(db) {
         const categoryId = id || `cat_${Date.now()}`;
         const isNewCategory = !id;
         const categoryIcon = icon || '📁';
+        const categoryType = (type === 'todo') ? 'todo' : 'bookmark';
 
         let sortOrder = 0;
         if (isNewCategory) {
-            const maxOrder = await db.queryOne('SELECT MAX(sort_order) as max_order FROM categories');
+            const maxOrder = await db.queryOne('SELECT MAX(sort_order) as max_order FROM categories WHERE type = ?', [categoryType]);
             sortOrder = (maxOrder?.max_order ?? -1) + 1;
         } else {
-            const existing = await db.queryOne('SELECT sort_order FROM categories WHERE id = ?', [categoryId]);
+            const existing = await db.queryOne('SELECT sort_order, type FROM categories WHERE id = ?', [categoryId]);
             sortOrder = existing?.sort_order ?? 0;
         }
 
         if (db.USE_MYSQL) {
             await db.execute(
-                'INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), sort_order = VALUES(sort_order)',
-                [categoryId, name.trim(), categoryIcon, sortOrder]
+                'INSERT INTO categories (id, name, icon, type, sort_order) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), type = VALUES(type), sort_order = VALUES(sort_order)',
+                [categoryId, name.trim(), categoryIcon, categoryType, sortOrder]
             );
         } else {
             await db.execute(
-                'INSERT OR REPLACE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)',
-                [categoryId, name.trim(), categoryIcon, sortOrder]
+                'INSERT OR REPLACE INTO categories (id, name, icon, type, sort_order) VALUES (?, ?, ?, ?, ?)',
+                [categoryId, name.trim(), categoryIcon, categoryType, sortOrder]
             );
         }
-        res.json(success({ id: categoryId, name: name.trim(), icon: categoryIcon }));
+        res.json(success({ id: categoryId, name: name.trim(), icon: categoryIcon, type: categoryType }));
     }));
 
     // DELETE /api/categories?id=xxx

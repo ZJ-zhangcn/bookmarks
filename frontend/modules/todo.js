@@ -4,7 +4,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { loadTodos } from './api.js';
+import { loadTodos, loadTodoCategories } from './api.js';
 import { renderTodos } from './render.js';
 
 // 拖拽状态
@@ -130,13 +130,11 @@ export function bindQuickInputEvent() {
 export function openTodoModal(todoId = null) {
     state.setEditingTodoId(todoId);
     
-    // 更新分类下拉选项
-    const categorySelect = DOM.todoInputCategory;
-    if (categorySelect) {
-        categorySelect.innerHTML = `
-            <option value="">未分类</option>
-            ${state.categories.map(c => `<option value="${c.id}">${c.icon || '📁'} ${c.name}</option>`).join('')}
-        `;
+    // 更新分类 datalist 选项（使用 todoCategories）
+    if (DOM.todoCategoryList) {
+        DOM.todoCategoryList.innerHTML = state.todoCategories.map(c => 
+            `<option value="${c.name}" data-id="${c.id}">${c.icon || '📁'} ${c.name}</option>`
+        ).join('');
     }
 
     if (todoId) {
@@ -147,7 +145,13 @@ export function openTodoModal(todoId = null) {
             DOM.todoInputNotes.value = todo.notes || '';
             DOM.todoInputPriority.value = todo.priority || '0';
             DOM.todoInputDueAt.value = todo.due_at ? formatDateTimeLocal(todo.due_at) : '';
-            if (categorySelect) categorySelect.value = todo.category_id || '';
+            // 设置分类输入框
+            if (DOM.todoInputCategoryText) {
+                DOM.todoInputCategoryText.value = todo.category_name || '';
+            }
+            if (DOM.todoInputCategory) {
+                DOM.todoInputCategory.value = todo.category_id || '';
+            }
         }
     } else {
         DOM.todoModalTitle.textContent = '添加待办';
@@ -155,12 +159,16 @@ export function openTodoModal(todoId = null) {
         DOM.todoInputNotes.value = '';
         DOM.todoInputPriority.value = '0';
         DOM.todoInputDueAt.value = '';
-        if (categorySelect) {
-            // 默认使用当前筛选分类
-            const defaultCat = state.todoFilterCategory === 'all' || state.todoFilterCategory === 'uncategorized' 
-                ? '' 
-                : state.todoFilterCategory;
-            categorySelect.value = defaultCat;
+        // 默认使用当前筛选分类
+        if (DOM.todoInputCategoryText && DOM.todoInputCategory) {
+            if (state.todoFilterCategory === 'all' || state.todoFilterCategory === 'uncategorized') {
+                DOM.todoInputCategoryText.value = '';
+                DOM.todoInputCategory.value = '';
+            } else {
+                const cat = state.todoCategories.find(c => c.id === state.todoFilterCategory);
+                DOM.todoInputCategoryText.value = cat ? cat.name : '';
+                DOM.todoInputCategory.value = state.todoFilterCategory;
+            }
         }
     }
 
@@ -195,13 +203,41 @@ export async function saveTodo() {
         return;
     }
 
-    const categorySelect = DOM.todoInputCategory;
+    // 处理分类：可能是已有分类或新建分类
+    let categoryId = null;
+    const categoryText = DOM.todoInputCategoryText ? DOM.todoInputCategoryText.value.trim() : '';
+    
+    if (categoryText) {
+        // 查找是否匹配已有分类
+        const existingCat = state.todoCategories.find(c => c.name === categoryText);
+        if (existingCat) {
+            categoryId = existingCat.id;
+        } else {
+            // 创建新分类
+            try {
+                const res = await fetch(`${state.API_BASE}/api/categories`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: categoryText, type: 'todo' })
+                });
+                const result = await res.json().catch(() => null);
+                if (res.ok && result && result.success && result.data) {
+                    categoryId = result.data.id;
+                    // 刷新 todoCategories
+                    await loadTodoCategories();
+                }
+            } catch (e) {
+                console.error('创建分类失败:', e);
+            }
+        }
+    }
+
     const data = {
         title,
         notes: DOM.todoInputNotes.value.trim(),
         priority: parseInt(DOM.todoInputPriority.value, 10) || 0,
         due_at: DOM.todoInputDueAt.value || null,
-        category_id: categorySelect ? (categorySelect.value || null) : null
+        category_id: categoryId
     };
 
     if (state.editingTodoId) {
@@ -217,6 +253,7 @@ export async function saveTodo() {
         const result = await res.json().catch(() => null);
 
         if (res.ok && result && result.success) {
+            await loadTodoCategories();
             await loadTodos();
             renderTodos();
             closeTodoModal();

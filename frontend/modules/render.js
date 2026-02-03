@@ -399,14 +399,14 @@ export function renderTodos() {
 
     let html = '';
 
-    // 分类筛选下拉 + 快速输入框
+    // 分类筛选下拉 + 快速输入框（使用 todoCategories）
     html += `
         <div class="todo-header">
             <div class="todo-filter">
                 <select id="todoFilterCategory" class="todo-filter-select">
                     <option value="all" ${filterCat === 'all' ? 'selected' : ''}>全部分类</option>
                     <option value="uncategorized" ${filterCat === 'uncategorized' ? 'selected' : ''}>未分类</option>
-                    ${state.categories.map(c => `<option value="${c.id}" ${filterCat === c.id ? 'selected' : ''}>${c.icon || '📁'} ${c.name}</option>`).join('')}
+                    ${state.todoCategories.map(c => `<option value="${c.id}" ${filterCat === c.id ? 'selected' : ''}>${c.icon || '📁'} ${c.name}</option>`).join('')}
                 </select>
             </div>
             <div class="todo-quick-add">

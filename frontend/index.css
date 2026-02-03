@@ -4283,6 +4283,34 @@ select:focus {
     box-shadow: 0 0 0 3px hsla(var(--primary-hue), 100%, 65%, 0.15);
 }
 
+/* TODO 分类输入框 */
+.todo-category-input-wrapper {
+    position: relative;
+}
+
+#todoInputCategoryText {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    outline: none;
+}
+
+#todoInputCategoryText:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px hsla(var(--primary-hue), 100%, 65%, 0.15);
+}
+
+.form-hint {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
     .todos-container {

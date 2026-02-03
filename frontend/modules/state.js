@@ -4,6 +4,7 @@
 export const API_BASE = window.location.origin;
 
 export let categories = [];
+export let todoCategories = []; // TODO 专用分类
 export let bookmarks = [];
 export let todos = [];
 export let engines = [];
@@ -51,6 +52,7 @@ export let dataVersion = 0;
 
 // 状态更新函数
 export function setCategories(val) { categories = val; dataVersion++; }
+export function setTodoCategories(val) { todoCategories = val; }
 export function setBookmarks(val) { bookmarks = val; dataVersion++; }
 export function setTodos(val) { todos = val; dataVersion++; }
 export function setEngines(val) { engines = val; }

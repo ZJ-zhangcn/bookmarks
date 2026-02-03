@@ -71,8 +71,10 @@ async function createTables() {
                     id VARCHAR(50) PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
                     icon VARCHAR(50) DEFAULT '📁',
+                    type VARCHAR(20) DEFAULT 'bookmark',
                     sort_order INT DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_categories_type (type)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
@@ -173,6 +175,21 @@ async function createTables() {
                 }
             }
 
+            // 添加可能缺失的列（数据库迁移）
+            const alterStatements = [
+                "ALTER TABLE categories ADD COLUMN type VARCHAR(20) DEFAULT 'bookmark'"
+            ];
+            for (const sql of alterStatements) {
+                try {
+                    await conn.execute(sql);
+                } catch (e) {
+                    // 列已存在，忽略错误
+                    if (!e.message.includes('Duplicate')) {
+                        // ignore
+                    }
+                }
+            }
+
             console.log('✅ MySQL 数据表创建/检查完成');
         } finally {
             conn.release();
@@ -184,6 +201,7 @@ async function createTables() {
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 icon TEXT DEFAULT '📁',
+                type TEXT DEFAULT 'bookmark',
                 sort_order INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -269,6 +287,7 @@ async function createTables() {
         try { db.exec(`ALTER TABLE bookmarks ADD COLUMN item_type TEXT DEFAULT 'bookmark'`); } catch (e) {}
         try { db.exec(`ALTER TABLE bookmarks ADD COLUMN component_type TEXT`); } catch (e) {}
         try { db.exec(`ALTER TABLE search_engines ADD COLUMN sort_order INTEGER DEFAULT 0`); } catch (e) {}
+        try { db.exec(`ALTER TABLE categories ADD COLUMN type TEXT DEFAULT 'bookmark'`); } catch (e) {}
 
         console.log('✅ SQLite 数据表创建/检查完成');
     }
