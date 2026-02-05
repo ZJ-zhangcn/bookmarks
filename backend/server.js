@@ -233,7 +233,7 @@ app.get('/api/proxy-icon', async (req, res) => {
         const buffer = Buffer.from(await response.arrayBuffer());
 
         // 验证图片大小（防止恶意大文件）
-        if (buffer.length > 1024 * 1024) { // 超过1MB
+        if (buffer.length > 10 * 1024 * 1024) { // 超过10MB
             res.setHeader('Content-Type', 'image/png');
             res.setHeader('Cache-Control', 'public, max-age=3600');
             return res.send(TRANSPARENT_PNG);
