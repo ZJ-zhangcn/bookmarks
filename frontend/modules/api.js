@@ -7,7 +7,7 @@ import * as state from './state.js';
 export async function loadCoreData() {
     let payload = null;
     try {
-        const res = await fetch(`${state.API_BASE}/api/bootstrap-v2`);
+        const res = await fetch(`${state.API_BASE}/api/bootstrap-v2`, { cache: 'no-store' });
         const result = await res.json();
 
         payload = result && result.success ? result.data : null;
@@ -216,7 +216,7 @@ export async function loadTodos(categoryId = null, status = 'all') {
         if (categoryId && categoryId !== 'all') {
             url += `&category_id=${encodeURIComponent(categoryId)}`;
         }
-        const res = await fetch(url);
+        const res = await fetch(url, { cache: 'no-store' });
         const result = await res.json();
         if (result && result.success) {
             state.setTodos(result.data || []);
@@ -228,7 +228,7 @@ export async function loadTodos(categoryId = null, status = 'all') {
 
 export async function loadTodoCategories() {
     try {
-        const res = await fetch(`${state.API_BASE}/api/categories?type=todo`);
+        const res = await fetch(`${state.API_BASE}/api/categories?type=todo`, { cache: 'no-store' });
         const result = await res.json();
         if (result && result.success) {
             state.setTodoCategories(result.data || []);

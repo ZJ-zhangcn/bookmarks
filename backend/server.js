@@ -53,7 +53,22 @@ app.use((req, res, next) => {
 });
 app.use((req, res, next) => {
     if (req.method === 'GET' && req.path.startsWith('/api/')) {
-        res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
+        // 动态数据不缓存
+        const noStorePaths = [
+            '/api/todos',
+            '/api/bootstrap-v2',
+            '/api/categories',
+            '/api/config'
+        ];
+        const isDynamic = noStorePaths.some(p => req.path.startsWith(p));
+        
+        if (isDynamic) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        } else {
+            res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
+        }
     }
     next();
 });
