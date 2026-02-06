@@ -4,15 +4,25 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 
-export async function loadData() {
+export async function loadCoreData() {
+    let payload = null;
     try {
         const res = await fetch(`${state.API_BASE}/api/bootstrap-v2`);
         const result = await res.json();
 
-        const payload = result && result.success ? result.data : null;
+        payload = result && result.success ? result.data : null;
         state.setCategories(payload?.categories || []);
         state.setBookmarks(payload?.bookmarks || []);
         state.setEngines(payload?.engines || []);
+
+        // 单请求首屏：如果后端提供了 TODO 数据，则直接落状态
+        if (payload && 'todoCategories' in payload) {
+            state.setTodoCategories(payload.todoCategories || []);
+        }
+        if (payload && 'todos' in payload) {
+            state.setTodos(payload.todos || []);
+        }
+
         if (payload && 'config' in payload) {
             state.setPersonalizationConfig(payload.config ?? null);
         }
@@ -28,14 +38,31 @@ export async function loadData() {
             DOM.webdavPass.value = localStorage.getItem('webdavPass') || '';
             DOM.webdavPath.value = localStorage.getItem('webdavPath') || 'bookmarks/config.json';
         }
+    } catch (e) {
+        console.error('加载核心数据失败:', e);
+    }
 
-        // 加载 TODO 数据和分类
-        await loadTodoCategories();
-        await loadTodos();
+    return {
+        payload,
+        hasTodoCategories: Array.isArray(payload?.todoCategories),
+        hasTodos: Array.isArray(payload?.todos)
+    };
+}
+
+export async function loadData() {
+    try {
+        const core = await loadCoreData();
+
+        // 后端未合并 TODO 数据时，回退到旧行为
+        const tasks = [];
+        if (!core?.hasTodoCategories) tasks.push(loadTodoCategories());
+        if (!core?.hasTodos) tasks.push(loadTodos());
+        await Promise.all(tasks);
     } catch (e) {
         console.error('加载数据失败:', e);
     }
 }
+
 
 export async function loadAiStatus() {
     try {
