@@ -80,6 +80,37 @@ registerAiRoutes(app, db);
 const bootstrapV2Module = require('./bootstrap-v2');
 bootstrapV2Module(app, db);
 
+// 写入操作后自动清除缓存中间件
+app.use((req, res, next) => {
+    const writeMethods = ['POST', 'PUT', 'DELETE'];
+    if (writeMethods.includes(req.method)) {
+        const affectedPaths = [
+            '/api/categories',
+            '/api/bookmarks',
+            '/api/engines',
+            '/api/config',
+            '/api/todos',
+            '/api/data'
+        ];
+        
+        const isAffected = affectedPaths.some(p => req.path.startsWith(p));
+        if (isAffected) {
+            res.on('finish', () => {
+                if (res.statusCode < 400) {
+                    try {
+                        if (typeof bootstrapV2Module.clearBootstrapCache === 'function') {
+                            bootstrapV2Module.clearBootstrapCache();
+                        }
+                    } catch (e) {
+                        console.warn('[Bootstrap-v2] Failed to clear cache:', e.message);
+                    }
+                }
+            });
+        }
+    }
+    next();
+});
+
 // ========================================
 // 启动加载聚合 API
 // ========================================

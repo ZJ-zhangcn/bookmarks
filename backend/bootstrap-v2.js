@@ -40,9 +40,36 @@ module.exports = function registerBootstrapV2(app, db) {
                 ORDER BY row_type, sort_order, created_at
             `;
 
-            const [rows, configRow] = await Promise.all([
+            // TODO 分类：与 backend/routes/categories.js 一致
+            const todoCategoriesSql = `
+                SELECT * FROM categories
+                WHERE type = ?
+                ORDER BY sort_order, created_at
+            `;
+
+            // TODO 列表：与 backend/routes/todos.js 默认一致 (status=all, limit=200, offset=0)
+            const todosSql = `
+                SELECT
+                    t.*,
+                    c.name as category_name,
+                    c.icon as category_icon
+                FROM todos t
+                LEFT JOIN categories c ON t.category_id = c.id
+                ORDER BY
+                    t.is_done ASC,
+                    t.priority DESC,
+                    (t.due_at IS NULL) ASC,
+                    t.due_at ASC,
+                    t.sort_order ASC,
+                    t.created_at ASC
+                LIMIT 200 OFFSET 0
+            `;
+
+            const [rows, configRow, todoCategories, todos] = await Promise.all([
                 db.queryAll(sql),
-                db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization'])
+                db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization']),
+                db.queryAll(todoCategoriesSql, ['todo']),
+                db.queryAll(todosSql)
             ]);
 
             console.log(`[Bootstrap-v2] Query: ${Date.now() - start}ms (${rows.length} rows)`);
@@ -102,7 +129,14 @@ module.exports = function registerBootstrapV2(app, db) {
 
             const responseData = {
                 success: true,
-                data: { categories, bookmarks, engines, config }
+                data: {
+                    categories,
+                    bookmarks,
+                    engines,
+                    config,
+                    todoCategories: todoCategories || [],
+                    todos: todos || []
+                }
             };
 
             // 更新缓存
@@ -121,5 +155,5 @@ module.exports = function registerBootstrapV2(app, db) {
 // 导出缓存清除函数（供其他模块调用）
 module.exports.clearBootstrapCache = function() {
     bootstrapCache = { ts: 0, data: null };
-    console.log('[Bootstrap-v2] Cache cleared');
 };
+
