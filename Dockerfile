@@ -23,8 +23,11 @@ RUN npm install --production && \
 # 复制后端代码
 COPY backend/ ./
 
-# 复制前端
+# 复制共享模块
 WORKDIR /app
+COPY shared/ ./shared/
+
+# 复制前端
 COPY frontend/ ./frontend/
 
 # 创建数据目录
