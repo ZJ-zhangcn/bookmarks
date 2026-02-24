@@ -4,8 +4,9 @@
  * POST /api/config - 保存个性化配置
  */
 
-const { execute, queryOne } = require('./_lib/db');
+const db = require('./_lib/db');
 const { requireAdmin, setCors } = require('./_lib/auth');
+const configService = require('../shared/services/config');
 
 module.exports = async function handler(req, res) {
     setCors(res, req);
@@ -16,22 +17,13 @@ module.exports = async function handler(req, res) {
 
     try {
         if (req.method === 'GET') {
-            const row = await queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization']);
-            if (row) {
-                return res.json({ success: true, data: JSON.parse(row.value) });
-            } else {
-                return res.json({ success: true, data: null });
-            }
+            const data = await configService.getConfig(db);
+            return res.json({ success: true, data });
         }
 
         if (req.method === 'POST') {
             if (!requireAdmin(req, res)) return;
-
-            const value = JSON.stringify(req.body);
-            await execute(
-                'INSERT INTO config (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
-                ['personalization', value]
-            );
+            await configService.saveConfig(db, req.body);
             return res.json({ success: true });
         }
 

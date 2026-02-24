@@ -3,29 +3,18 @@
  */
 const express = require('express');
 const router = express.Router();
-const { success, error, asyncHandler, AppError } = require('../utils');
+const { success, asyncHandler, AppError } = require('../utils');
 const { requireAdmin } = require('../middleware/security');
+const categoriesService = require('../../shared/services/categories');
 
 module.exports = function(db) {
     // GET /api/categories
-    // 支持 ?type=bookmark|todo 筛选
     router.get('/', asyncHandler(async (req, res) => {
-        const type = req.query.type;
-        let sql = 'SELECT * FROM categories';
-        const params = [];
-        
-        if (type && ['bookmark', 'todo'].includes(type)) {
-            sql += ' WHERE type = ?';
-            params.push(type);
-        }
-        sql += ' ORDER BY sort_order, created_at';
-        
-        const categories = await db.queryAll(sql, params);
+        const categories = await categoriesService.getAllCategories(db, req.query.type);
         res.json(success(categories));
     }));
 
     // POST /api/categories
-    // 支持 type 字段 (bookmark/todo)
     router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         const { id, name, icon, type } = req.body;
 
@@ -33,32 +22,8 @@ module.exports = function(db) {
             throw new AppError('分类名称不能为空', 400);
         }
 
-        const categoryId = id || `cat_${Date.now()}`;
-        const isNewCategory = !id;
-        const categoryIcon = icon || '📁';
-        const categoryType = (type === 'todo') ? 'todo' : 'bookmark';
-
-        let sortOrder = 0;
-        if (isNewCategory) {
-            const maxOrder = await db.queryOne('SELECT MAX(sort_order) as max_order FROM categories WHERE type = ?', [categoryType]);
-            sortOrder = (maxOrder?.max_order ?? -1) + 1;
-        } else {
-            const existing = await db.queryOne('SELECT sort_order, type FROM categories WHERE id = ?', [categoryId]);
-            sortOrder = existing?.sort_order ?? 0;
-        }
-
-        if (db.USE_MYSQL) {
-            await db.execute(
-                'INSERT INTO categories (id, name, icon, type, sort_order) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), type = VALUES(type), sort_order = VALUES(sort_order)',
-                [categoryId, name.trim(), categoryIcon, categoryType, sortOrder]
-            );
-        } else {
-            await db.execute(
-                'INSERT OR REPLACE INTO categories (id, name, icon, type, sort_order) VALUES (?, ?, ?, ?, ?)',
-                [categoryId, name.trim(), categoryIcon, categoryType, sortOrder]
-            );
-        }
-        res.json(success({ id: categoryId, name: name.trim(), icon: categoryIcon, type: categoryType }));
+        const result = await categoriesService.saveCategory(db, { id, name, icon, type });
+        res.json(success(result));
     }));
 
     // DELETE /api/categories?id=xxx
@@ -67,8 +32,7 @@ module.exports = function(db) {
         if (!id) {
             throw new AppError('缺少分类 ID', 400);
         }
-        await db.execute('DELETE FROM bookmarks WHERE category_id = ?', [id]);
-        await db.execute('DELETE FROM categories WHERE id = ?', [id]);
+        await categoriesService.deleteCategory(db, id);
         res.json(success());
     }));
 
@@ -78,21 +42,13 @@ module.exports = function(db) {
         if (!Array.isArray(order)) {
             throw new AppError('无效的排序数据', 400);
         }
-
-        await db.transaction(async (conn) => {
-            for (const item of order) {
-                if (item.id && typeof item.sort_order === 'number') {
-                    await conn.execute('UPDATE categories SET sort_order = ? WHERE id = ?', [item.sort_order, item.id]);
-                }
-            }
-        });
+        await categoriesService.sortCategories(db, order);
         res.json(success());
     }));
 
     // 旧路径兼容: DELETE /api/categories/:id
     router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
-        await db.execute('DELETE FROM bookmarks WHERE category_id = ?', [req.params.id]);
-        await db.execute('DELETE FROM categories WHERE id = ?', [req.params.id]);
+        await categoriesService.deleteCategory(db, req.params.id);
         res.json(success());
     }));
 
@@ -102,14 +58,7 @@ module.exports = function(db) {
         if (!Array.isArray(order)) {
             throw new AppError('无效的排序数据', 400);
         }
-
-        await db.transaction(async (conn) => {
-            for (const item of order) {
-                if (item.id && typeof item.sort_order === 'number') {
-                    await conn.execute('UPDATE categories SET sort_order = ? WHERE id = ?', [item.sort_order, item.id]);
-                }
-            }
-        });
+        await categoriesService.sortCategories(db, order);
         res.json(success());
     }));
 

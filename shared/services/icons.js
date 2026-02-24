@@ -1,0 +1,129 @@
+/**
+ * 图标库服务
+ */
+
+async function getAllIcons(db) {
+    const icons = [];
+
+    const uploadedIcons = await db.queryAll(`
+        SELECT id, name, data, type, created_at
+        FROM icon_library
+        ORDER BY created_at DESC
+    `);
+
+    uploadedIcons.forEach(icon => {
+        icons.push({
+            id: icon.id,
+            data: icon.data,
+            type: icon.type,
+            source: icon.name || '手动上传',
+            uploaded: true
+        });
+    });
+
+    const bookmarkIcons = await db.queryAll(`
+        SELECT DISTINCT icon_data, icon_type, name
+        FROM bookmarks
+        WHERE icon_type IN ('base64', 'url') AND icon_data IS NOT NULL AND icon_data != ''
+    `);
+
+    const engineIcons = await db.queryAll(`
+        SELECT DISTINCT icon, name
+        FROM search_engines
+        WHERE icon IS NOT NULL AND icon != '' AND (icon LIKE 'http%' OR icon LIKE 'data:%')
+    `);
+
+    bookmarkIcons.forEach(b => {
+        if (b.icon_data && !icons.find(i => i.data === b.icon_data)) {
+            icons.push({
+                data: b.icon_data,
+                type: b.icon_type,
+                source: b.name,
+                uploaded: false
+            });
+        }
+    });
+
+    engineIcons.forEach(e => {
+        if (e.icon && !icons.find(i => i.data === e.icon)) {
+            icons.push({
+                data: e.icon,
+                type: e.icon.startsWith('data:') ? 'base64' : 'url',
+                source: e.name,
+                uploaded: false
+            });
+        }
+    });
+
+    return icons;
+}
+
+async function uploadIcon(db, { name, data, type }) {
+    const iconId = `icon_${Date.now()}`;
+    await db.execute(
+        'INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)',
+        [iconId, name || '', data, type || 'base64']
+    );
+    return { id: iconId };
+}
+
+async function uploadIconFromUrl(db, { url, name }, assertSafeFetchUrl) {
+    assertSafeFetchUrl(url);
+    const response = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5000)
+    });
+    if (!response.ok) {
+        const err = new Error(`HTTP ${response.status}`);
+        err.statusCode = 500;
+        throw err;
+    }
+    const buffer = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const base64 = Buffer.from(buffer).toString('base64');
+    const data = `data:${contentType.split(';')[0]};base64,${base64}`;
+
+    const iconId = `icon_${Date.now()}`;
+    await db.execute(
+        'INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)',
+        [iconId, name || url, data, 'base64']
+    );
+    return { id: iconId, data };
+}
+
+async function deleteIcon(db, id) {
+    await db.execute('DELETE FROM icon_library WHERE id = ?', [id]);
+}
+
+async function batchDeleteIcons(db, ids) {
+    if (!Array.isArray(ids) || ids.length === 0) return;
+    const placeholders = ids.map(() => '?').join(',');
+    await db.execute(`DELETE FROM icon_library WHERE id IN (${placeholders})`, ids);
+}
+
+async function clearIconFromBookmarks(db, iconData) {
+    await db.execute(
+        "UPDATE bookmarks SET icon_data = '', icon_type = 'auto' WHERE icon_data = ?",
+        [iconData]
+    );
+}
+
+async function batchClearIconsFromBookmarks(db, iconDataList) {
+    if (!Array.isArray(iconDataList) || iconDataList.length === 0) return;
+    for (const iconData of iconDataList) {
+        await db.execute(
+            "UPDATE bookmarks SET icon_data = '', icon_type = 'auto' WHERE icon_data = ?",
+            [iconData]
+        );
+    }
+}
+
+module.exports = {
+    getAllIcons,
+    uploadIcon,
+    uploadIconFromUrl,
+    deleteIcon,
+    batchDeleteIcons,
+    clearIconFromBookmarks,
+    batchClearIconsFromBookmarks
+};

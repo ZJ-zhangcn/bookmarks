@@ -79,10 +79,15 @@ async function transaction(callback) {
     }
 }
 
+// Vercel 始终使用 MySQL
+const USE_MYSQL = true;
+
 module.exports = {
     getPool,
     query,
+    queryAll: query,
     queryOne,
     execute,
-    transaction
+    transaction,
+    USE_MYSQL
 };
