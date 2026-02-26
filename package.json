@@ -4,7 +4,10 @@
   "description": "书签导航 - 支持 Docker 和 Vercel 部署",
   "scripts": {
     "dev": "cd backend && node server.js",
+    "dev:frontend": "cd frontend && npx vite",
     "build": "echo 'No build step required'",
+    "build:frontend": "cd frontend && npx vite build",
+    "preview": "cd frontend && npx vite preview",
     "db:init": "node scripts/init-mysql.js",
     "db:migrate": "node scripts/migrate-to-mysql.js"
   },
@@ -16,6 +19,9 @@
     "express": "^4.21.2",
     "mysql2": "^3.11.0",
     "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
   },
   "engines": {
     "node": ">=18"

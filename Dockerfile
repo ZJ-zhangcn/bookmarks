@@ -30,6 +30,15 @@ COPY shared/ ./shared/
 # 复制前端
 COPY frontend/ ./frontend/
 
+# 复制根目录 package.json（包含 vite）
+COPY package*.json ./
+
+# 安装 vite 并构建前端
+RUN npm install vite --save-dev && \
+    npm run build:frontend && \
+    npm uninstall vite && \
+    npm cache clean --force
+
 # 创建数据目录
 RUN mkdir -p /app/backend/data
 

@@ -11,8 +11,10 @@ const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
 const path = require('path');
+const fs = require('fs');
 const db = require('./db');
 const { registerAiRoutes } = require('./ai');
+const { asyncHandler, errorHandler } = require('./utils');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -72,7 +74,13 @@ app.use((req, res, next) => {
     }
     next();
 });
-app.use(express.static(path.join(__dirname, '..', 'frontend'), {
+
+// 静态文件服务：优先使用构建产物（dist/），开发模式使用源文件（frontend/）
+const distPath = path.join(__dirname, '..', 'dist');
+const frontendPath = path.join(__dirname, '..', 'frontend');
+const staticRoot = fs.existsSync(distPath) ? distPath : frontendPath;
+
+app.use(express.static(staticRoot, {
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.html')) {
             res.setHeader('Cache-Control', 'no-cache');
@@ -127,77 +135,49 @@ app.use((req, res, next) => {
 });
 
 // ========================================
-// 启动加载聚合 API
+// 启动加载聚合 API（优化：LEFT JOIN 消除 N+1 查询）
 // ========================================
-app.get('/api/bootstrap', async (req, res) => {
-    try {
-        const [categories, engines, configRow] = await Promise.all([
-            db.queryAll('SELECT * FROM categories ORDER BY sort_order, created_at'),
-            db.queryAll('SELECT * FROM search_engines ORDER BY sort_order ASC, created_at ASC'),
-            db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization'])
-        ]);
+app.get('/api/bootstrap', asyncHandler(async (req, res) => {
+    const [categories, engines, configRow] = await Promise.all([
+        db.queryAll('SELECT * FROM categories ORDER BY sort_order, created_at'),
+        db.queryAll('SELECT * FROM search_engines ORDER BY sort_order ASC, created_at ASC'),
+        db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization'])
+    ]);
 
-        let config = null;
-        if (configRow && configRow.value) {
-            try { config = JSON.parse(configRow.value); } catch { config = null; }
-        }
-
-        const sql = `
-            SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
-                   CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
-                   b.item_type, b.component_type, b.sort_order, b.created_at,
-                   c.name as category_name, c.icon as category_icon
-            FROM bookmarks b
-            LEFT JOIN categories c ON b.category_id = c.id
-            ORDER BY c.sort_order, b.sort_order, b.created_at
-        `;
-        const bookmarks = await db.queryAll(sql);
-
-        try {
-            const ids = bookmarks.map(b => b.id).filter(Boolean);
-            if (ids.length > 0) {
-                const placeholders = ids.map(() => '?').join(',');
-                const rows = await db.queryAll(
-                    `SELECT bookmark_id, tags, summary FROM bookmark_ai WHERE bookmark_id IN (${placeholders})`,
-                    ids
-                );
-
-                const aiMap = new Map();
-                rows.forEach(row => {
-                    let tags = [];
-                    try { tags = JSON.parse(row.tags || '[]'); } catch {}
-                    aiMap.set(row.bookmark_id, {
-                        tags: Array.isArray(tags) ? tags : [],
-                        summary: row.summary || ''
-                    });
-                });
-
-                bookmarks.forEach(b => {
-                    const ai = aiMap.get(b.id);
-                    b.tags = ai ? ai.tags : [];
-                    b.ai_summary = ai ? ai.summary : '';
-                });
-            } else {
-                bookmarks.forEach(b => {
-                    b.tags = [];
-                    b.ai_summary = '';
-                });
-            }
-        } catch {
-            bookmarks.forEach(b => {
-                if (!('tags' in b)) b.tags = [];
-                if (!('ai_summary' in b)) b.ai_summary = '';
-            });
-        }
-
-        res.json({
-            success: true,
-            data: { categories, bookmarks, engines, config }
-        });
-    } catch (e) {
-        res.status(500).json({ success: false, error: e.message });
+    let config = null;
+    if (configRow && configRow.value) {
+        try { config = JSON.parse(configRow.value); } catch { config = null; }
     }
-});
+
+    // 单次查询：bookmarks + categories + bookmark_ai 一次性 JOIN
+    const bookmarks = await db.queryAll(`
+        SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
+               CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
+               b.item_type, b.component_type, b.sort_order, b.created_at,
+               c.name as category_name, c.icon as category_icon,
+               ba.tags as _ai_tags, ba.summary as ai_summary
+        FROM bookmarks b
+        LEFT JOIN categories c ON b.category_id = c.id
+        LEFT JOIN bookmark_ai ba ON b.id = ba.bookmark_id
+        ORDER BY c.sort_order, b.sort_order, b.created_at
+    `);
+
+    // 解析 AI tags JSON
+    bookmarks.forEach(b => {
+        let tags = [];
+        if (b._ai_tags) {
+            try { tags = JSON.parse(b._ai_tags); } catch {}
+        }
+        b.tags = Array.isArray(tags) ? tags : [];
+        b.ai_summary = b.ai_summary || '';
+        delete b._ai_tags;
+    });
+
+    res.json({
+        success: true,
+        data: { categories, bookmarks, engines, config }
+    });
+}));
 
 // ========================================
 // 模块化路由
@@ -349,9 +329,17 @@ async function initDefaultData() {
     console.log('✅ 默认数据初始化完成');
 }
 
-// 前端路由
+// ========================================
+// 统一错误处理（必须在所有路由之后）
+// ========================================
+app.use(errorHandler);
+
+// 前端路由（SPA fallback）
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
+    const indexPath = fs.existsSync(distPath)
+        ? path.join(distPath, 'index.html')
+        : path.join(frontendPath, 'index.html');
+    res.sendFile(indexPath);
 });
 
 // 启动服务器

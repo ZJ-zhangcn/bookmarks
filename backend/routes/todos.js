@@ -3,41 +3,8 @@
  */
 const express = require('express');
 const router = express.Router();
-const { success, asyncHandler, AppError } = require('../utils');
+const { success, asyncHandler, AppError, clampInt, toInt01, normalizeDatetime, nowDatetime } = require('../utils');
 const { requireAdmin } = require('../middleware/security');
-
-function clampInt(raw, min, max, fallback) {
-    const n = parseInt(String(raw ?? ''), 10);
-    if (!Number.isFinite(n)) return fallback;
-    return Math.min(max, Math.max(min, n));
-}
-
-function toInt01(raw, fallback = 0) {
-    if (raw === true) return 1;
-    if (raw === false) return 0;
-    const s = String(raw ?? '').trim().toLowerCase();
-    if (s === '1' || s === 'true' || s === 'yes') return 1;
-    if (s === '0' || s === 'false' || s === 'no') return 0;
-    return fallback;
-}
-
-function toMysqlDatetimeString(date) {
-    return date.toISOString().slice(0, 19).replace('T', ' ');
-}
-
-function normalizeDatetime(raw, useMysql) {
-    if (raw == null) return null;
-    const s = String(raw).trim();
-    if (!s) return null;
-    const d = new Date(s);
-    if (Number.isNaN(d.getTime())) return null;
-    return useMysql ? toMysqlDatetimeString(d) : d.toISOString();
-}
-
-function nowDatetime(useMysql) {
-    const d = new Date();
-    return useMysql ? toMysqlDatetimeString(d) : d.toISOString();
-}
 
 module.exports = function(db) {
     // GET /api/todos
