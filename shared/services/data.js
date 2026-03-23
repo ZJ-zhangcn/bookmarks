@@ -90,12 +90,12 @@ async function importData(db, data) {
                 const isDone = (t.is_done === true || t.is_done === 1 || t.is_done === '1') ? 1 : 0;
                 const params = [
                     t.id,
-                    (t.category_id === '' || t.category_id == null) ? null : t.category_id,
+                    null, // category_id 不再使用
                     t.title || '',
-                    t.notes || '',
+                    '', // notes 不再使用
                     isDone,
-                    Number.isFinite(t.priority) ? t.priority : (parseInt(t.priority, 10) || 0),
-                    (t.due_at === '' || t.due_at == null) ? null : t.due_at,
+                    0, // priority 不再使用
+                    null, // due_at 不再使用
                     Number.isFinite(t.sort_order) ? t.sort_order : (parseInt(t.sort_order, 10) || i),
                     (t.completed_at === '' || t.completed_at == null) ? null : t.completed_at
                 ];
@@ -104,8 +104,8 @@ async function importData(db, data) {
                     await conn.execute(
                         `INSERT INTO todos (id, category_id, title, notes, is_done, priority, due_at, sort_order, completed_at)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                         ON DUPLICATE KEY UPDATE category_id = VALUES(category_id), title = VALUES(title), notes = VALUES(notes),
-                         is_done = VALUES(is_done), priority = VALUES(priority), due_at = VALUES(due_at), sort_order = VALUES(sort_order),
+                         ON DUPLICATE KEY UPDATE title = VALUES(title),
+                         is_done = VALUES(is_done), sort_order = VALUES(sort_order),
                          completed_at = VALUES(completed_at)`,
                         params
                     );
@@ -114,12 +114,8 @@ async function importData(db, data) {
                         `INSERT INTO todos (id, category_id, title, notes, is_done, priority, due_at, sort_order, completed_at)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                          ON CONFLICT(id) DO UPDATE SET
-                           category_id = excluded.category_id,
                            title = excluded.title,
-                           notes = excluded.notes,
                            is_done = excluded.is_done,
-                           priority = excluded.priority,
-                           due_at = excluded.due_at,
                            sort_order = excluded.sort_order,
                            completed_at = excluded.completed_at,
                            updated_at = CURRENT_TIMESTAMP`,

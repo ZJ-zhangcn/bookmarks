@@ -81,7 +81,7 @@ export function closeSettingsModal() {
 }
 
 export function closeAllModals() {
-    [DOM.engineModal, DOM.bookmarkModal, DOM.categoryModal, DOM.settingsModal, DOM.bookmarkSearchOverlay].forEach(m => m?.classList.remove('open'));
+    [DOM.engineModal, DOM.bookmarkModal, DOM.categoryModal, DOM.settingsModal, DOM.bookmarkSearchOverlay, DOM.todoModal].forEach(m => m?.classList.remove('open'));
     document.body.style.overflow = '';
 }
 
@@ -456,7 +456,7 @@ export async function importConfig(e) {
 
             if (sizeInMB > 4) {
                 const choice = confirm(
-                    `导入文件较大 (${sizeInMB.toFixed(1)}MB)，超出 Vercel 免费版 4.5MB 限制。\n\n` +
+                    `导入文件较大 (${sizeInMB.toFixed(1)}MB)，可能影响导入性能。\n\n` +
                     `点击"确定"：清理 base64 图标后导入（URL 和 emoji 图标会保留）\n` +
                     `点击"取消"：取消导入\n\n` +
                     `提示：导入后可使用"批量获取图标"功能重新获取被清理的图标`

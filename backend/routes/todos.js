@@ -9,7 +9,6 @@ const { requireAdmin } = require('../middleware/security');
 module.exports = function(db) {
     // GET /api/todos
     router.get('/', asyncHandler(async (req, res) => {
-        const categoryId = req.query.category_id != null ? String(req.query.category_id) : null;
         const status = String(req.query.status || 'all').trim().toLowerCase();
         const q = String(req.query.q || '').trim();
         const limit = clampInt(req.query.limit, 1, 200, 200);
@@ -17,13 +16,6 @@ module.exports = function(db) {
 
         const where = [];
         const params = [];
-
-        if (categoryId && categoryId !== 'null' && categoryId !== '__null__') {
-            where.push('t.category_id = ?');
-            params.push(categoryId);
-        } else if (categoryId === 'null' || categoryId === '__null__') {
-            where.push('t.category_id IS NULL');
-        }
 
         if (status === 'pending') {
             where.push('t.is_done = 0');
@@ -34,27 +26,17 @@ module.exports = function(db) {
         }
 
         if (q) {
-            where.push('(t.title LIKE ? OR t.notes LIKE ?)');
-            params.push(`%${q}%`, `%${q}%`);
+            where.push('t.title LIKE ?');
+            params.push(`%${q}%`);
         }
 
-        let sql = `
-            SELECT
-                t.*,
-                c.name as category_name,
-                c.icon as category_icon
-            FROM todos t
-            LEFT JOIN categories c ON t.category_id = c.id
-        `;
+        let sql = `SELECT t.* FROM todos t`;
         if (where.length > 0) {
             sql += ` WHERE ${where.join(' AND ')} `;
         }
         sql += `
             ORDER BY
                 t.is_done ASC,
-                t.priority DESC,
-                (t.due_at IS NULL) ASC,
-                t.due_at ASC,
                 t.sort_order ASC,
                 t.created_at ASC
             LIMIT ${limit} OFFSET ${offset}
@@ -67,16 +49,14 @@ module.exports = function(db) {
     // GET /api/todos/:id
     router.get('/:id', asyncHandler(async (req, res) => {
         const row = await db.queryOne(
-            `SELECT t.*, c.name as category_name, c.icon as category_icon
-             FROM todos t LEFT JOIN categories c ON t.category_id = c.id
-             WHERE t.id = ?`,
+            'SELECT * FROM todos WHERE id = ?',
             [req.params.id]
         );
         if (!row) throw new AppError('TODO 不存在', 404);
         res.json(success(row));
     }));
 
-    // POST /api/todos (创建/更新)
+    // POST /api/todos (创建/更新，简化版 - 仅标题)
     router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         const body = req.body || {};
         const todoId = body.id ? String(body.id) : `td_${Date.now()}`;
@@ -88,23 +68,7 @@ module.exports = function(db) {
         const title = (body.title !== undefined) ? String(body.title || '').trim() : String(existing?.title || '').trim();
         if (!title) throw new AppError('TODO 标题不能为空', 400);
 
-        const notes = (body.notes !== undefined) ? String(body.notes || '') : String(existing?.notes || '');
-
-        const rawCategoryId = (body.category_id !== undefined) ? body.category_id : existing?.category_id;
-        const categoryId = (rawCategoryId == null || String(rawCategoryId).trim() === '') ? null : String(rawCategoryId).trim();
-        if (categoryId) {
-            const cat = await db.queryOne('SELECT id FROM categories WHERE id = ?', [categoryId]);
-            if (!cat) throw new AppError('分类不存在', 400);
-        }
-
         const isDone = (body.is_done !== undefined) ? toInt01(body.is_done, 0) : toInt01(existing?.is_done, 0);
-
-        const priorityRaw = (body.priority !== undefined) ? body.priority : existing?.priority;
-        const priority = clampInt(priorityRaw, 0, 3, 0);
-
-        const dueAt = (body.due_at !== undefined)
-            ? normalizeDatetime(body.due_at, db.USE_MYSQL)
-            : (existing?.due_at ?? null);
 
         const sortOrderRaw = (body.sort_order !== undefined) ? body.sort_order : existing?.sort_order;
         let sortOrder = parseInt(sortOrderRaw, 10);
@@ -112,10 +76,7 @@ module.exports = function(db) {
             if (existing) {
                 sortOrder = existing.sort_order ?? 0;
             } else {
-                const max = await db.queryOne(
-                    'SELECT MAX(sort_order) as max_order FROM todos WHERE ((category_id = ?) OR (category_id IS NULL AND ? IS NULL))',
-                    [categoryId, categoryId]
-                );
+                const max = await db.queryOne('SELECT MAX(sort_order) as max_order FROM todos');
                 sortOrder = (max?.max_order ?? -1) + 1;
             }
         }
@@ -136,12 +97,12 @@ module.exports = function(db) {
 
         const params = [
             todoId,
-            categoryId,
+            null, // category_id
             title,
-            notes,
+            '', // notes
             isDone,
-            priority,
-            dueAt,
+            0, // priority
+            null, // due_at
             sortOrder,
             completedAt
         ];
@@ -151,12 +112,8 @@ module.exports = function(db) {
                 `INSERT INTO todos (id, category_id, title, notes, is_done, priority, due_at, sort_order, completed_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON DUPLICATE KEY UPDATE
-                    category_id = VALUES(category_id),
                     title = VALUES(title),
-                    notes = VALUES(notes),
                     is_done = VALUES(is_done),
-                    priority = VALUES(priority),
-                    due_at = VALUES(due_at),
                     sort_order = VALUES(sort_order),
                     completed_at = VALUES(completed_at)`,
                 params
@@ -166,12 +123,8 @@ module.exports = function(db) {
                 `INSERT INTO todos (id, category_id, title, notes, is_done, priority, due_at, sort_order, completed_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON CONFLICT(id) DO UPDATE SET
-                    category_id = excluded.category_id,
                     title = excluded.title,
-                    notes = excluded.notes,
                     is_done = excluded.is_done,
-                    priority = excluded.priority,
-                    due_at = excluded.due_at,
                     sort_order = excluded.sort_order,
                     completed_at = excluded.completed_at,
                     updated_at = CURRENT_TIMESTAMP`,
@@ -182,7 +135,7 @@ module.exports = function(db) {
         res.json(success({ id: todoId }));
     }));
 
-    // PUT /api/todos (排序/移动)
+    // PUT /api/todos (排序)
     router.put('/', requireAdmin, asyncHandler(async (req, res) => {
         const { order } = req.body || {};
         if (!Array.isArray(order)) throw new AppError('无效的排序数据', 400);
@@ -193,21 +146,7 @@ module.exports = function(db) {
                 if (!id) continue;
 
                 const sortOrder = parseInt(item.sort_order, 10);
-                const hasSort = Number.isFinite(sortOrder);
-
-                const rawCategoryId = (item.category_id !== undefined) ? item.category_id : undefined;
-                const categoryId = (rawCategoryId == null || String(rawCategoryId).trim() === '') ? null : String(rawCategoryId).trim();
-
-                if (item.category_id !== undefined && categoryId) {
-                    const cat = await db.queryOne('SELECT id FROM categories WHERE id = ?', [categoryId]);
-                    if (!cat) throw new AppError('分类不存在', 400);
-                }
-
-                if (item.category_id !== undefined && hasSort) {
-                    await conn.execute('UPDATE todos SET category_id = ?, sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [categoryId, sortOrder, id]);
-                } else if (item.category_id !== undefined) {
-                    await conn.execute('UPDATE todos SET category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [categoryId, id]);
-                } else if (hasSort) {
+                if (Number.isFinite(sortOrder)) {
                     await conn.execute('UPDATE todos SET sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [sortOrder, id]);
                 }
             }

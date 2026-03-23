@@ -1,7 +1,7 @@
 /**
  * AI 服务 - 共享业务逻辑
  *
- * 统一入口，供 Express 和 Vercel 使用
+ * 统一入口，供 Express 使用
  * - getAiPublicStatus() - 获取 AI 状态
  * - getBookmarkAi(db, id) - 获取书签 AI 数据
  * - saveBookmarkAi(db, { bookmarkId, tags, summary }) - 保存书签 AI 数据

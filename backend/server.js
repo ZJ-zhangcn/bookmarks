@@ -135,49 +135,27 @@ app.use((req, res, next) => {
 });
 
 // ========================================
-// 启动加载聚合 API（优化：LEFT JOIN 消除 N+1 查询）
+// 健康检查端点（用于 Docker HEALTHCHECK 等）
 // ========================================
-app.get('/api/bootstrap', asyncHandler(async (req, res) => {
-    const [categories, engines, configRow] = await Promise.all([
-        db.queryAll('SELECT * FROM categories ORDER BY sort_order, created_at'),
-        db.queryAll('SELECT * FROM search_engines ORDER BY sort_order ASC, created_at ASC'),
-        db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization'])
-    ]);
-
-    let config = null;
-    if (configRow && configRow.value) {
-        try { config = JSON.parse(configRow.value); } catch { config = null; }
+app.get('/api/health', async (req, res) => {
+    try {
+        // 简单检查数据库可用性
+        await db.queryOne('SELECT 1 as ok');
+        res.json({
+            success: true,
+            status: 'healthy',
+            database: db.getDatabaseType(),
+            uptime: Math.floor(process.uptime()),
+            timestamp: new Date().toISOString()
+        });
+    } catch (e) {
+        res.status(503).json({
+            success: false,
+            status: 'unhealthy',
+            error: e.message
+        });
     }
-
-    // 单次查询：bookmarks + categories + bookmark_ai 一次性 JOIN
-    const bookmarks = await db.queryAll(`
-        SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
-               CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
-               b.item_type, b.component_type, b.sort_order, b.created_at,
-               c.name as category_name, c.icon as category_icon,
-               ba.tags as _ai_tags, ba.summary as ai_summary
-        FROM bookmarks b
-        LEFT JOIN categories c ON b.category_id = c.id
-        LEFT JOIN bookmark_ai ba ON b.id = ba.bookmark_id
-        ORDER BY c.sort_order, b.sort_order, b.created_at
-    `);
-
-    // 解析 AI tags JSON
-    bookmarks.forEach(b => {
-        let tags = [];
-        if (b._ai_tags) {
-            try { tags = JSON.parse(b._ai_tags); } catch {}
-        }
-        b.tags = Array.isArray(tags) ? tags : [];
-        b.ai_summary = b.ai_summary || '';
-        delete b._ai_tags;
-    });
-
-    res.json({
-        success: true,
-        data: { categories, bookmarks, engines, config }
-    });
-}));
+});
 
 // ========================================
 // 模块化路由
@@ -342,9 +320,56 @@ app.get('*', (req, res) => {
     res.sendFile(indexPath);
 });
 
+// ========================================
+// 启动环境变量校验
+// ========================================
+function validateEnv() {
+    const warnings = [];
+
+    // MySQL 连接字符串格式校验
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl) {
+        if (!dbUrl.startsWith('mysql://')) {
+            warnings.push('DATABASE_URL 必须以 mysql:// 开头');
+        }
+        try {
+            new URL(dbUrl);
+        } catch {
+            warnings.push('DATABASE_URL 格式无效，请检查连接字符串');
+        }
+    }
+
+    // AI 配置校验
+    if (String(process.env.AI_ENABLED || '').toLowerCase() === 'true') {
+        const provider = (process.env.AI_PROVIDER || '').toLowerCase();
+        const validProviders = ['openai', 'gemini', 'claude'];
+        if (provider && !validProviders.includes(provider)) {
+            warnings.push(`AI_PROVIDER "${provider}" 无效，支持: ${validProviders.join(', ')}`);
+        }
+        // 检查对应 Provider 的 API Key
+        const keyMap = { openai: 'OPENAI_API_KEY', gemini: 'GEMINI_API_KEY', claude: 'ANTHROPIC_API_KEY' };
+        const keyName = keyMap[provider];
+        if (keyName && !process.env[keyName]) {
+            warnings.push(`AI 已启用但 ${keyName} 未配置`);
+        }
+    }
+
+    // PORT 校验
+    const port = parseInt(process.env.PORT, 10);
+    if (process.env.PORT && (!Number.isFinite(port) || port < 1 || port > 65535)) {
+        warnings.push(`PORT "${process.env.PORT}" 无效，必须为 1-65535 的整数`);
+    }
+
+    if (warnings.length > 0) {
+        console.warn('⚠️ 环境变量校验警告:');
+        warnings.forEach(w => console.warn(`   - ${w}`));
+    }
+}
+
 // 启动服务器
 async function start() {
     try {
+        validateEnv();
         await db.initDatabase();
         await db.createTables();
         await initDefaultData();

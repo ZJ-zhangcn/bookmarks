@@ -135,13 +135,6 @@ export function cacheDOMElements() {
         todoModalTitle: document.getElementById('todoModalTitle'),
         todoModalClose: document.getElementById('todoModalClose'),
         todoInputTitle: document.getElementById('todoInputTitle'),
-        todoInputNotes: document.getElementById('todoInputNotes'),
-        todoInputPriority: document.getElementById('todoInputPriority'),
-        todoInputDueAt: document.getElementById('todoInputDueAt'),
-        todoInputCategory: document.getElementById('todoInputCategory'),
-        todoInputCategoryText: document.getElementById('todoInputCategoryText'),
-        todoCategoryDropdownBtn: document.getElementById('todoCategoryDropdownBtn'),
-        todoCategoryDropdown: document.getElementById('todoCategoryDropdown'),
         saveTodoBtn: document.getElementById('saveTodoBtn'),
         cancelTodoBtn: document.getElementById('cancelTodoBtn'),
     };

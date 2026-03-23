@@ -1,10 +1,10 @@
 /**
- * TODO 待办管理模块（完整版）
- * 支持：优先级、截止时间、备注、分类、已完成管理
+ * TODO 待办管理模块（简化版）
+ * 仅支持：添加、编辑标题、完成/取消完成、删除、拖拽排序
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { loadTodos, loadTodoCategories } from './api.js';
+import { loadTodos } from './api.js';
 import { renderTodos } from './render.js';
 
 // 拖拽状态
@@ -15,10 +15,8 @@ export function handleTodoClick(e) {
     const checkBtn = e.target.closest('.todo-check');
     const editBtn = e.target.closest('.todo-action-btn.edit');
     const deleteBtn = e.target.closest('.todo-action-btn.delete');
-    const notesToggle = e.target.closest('.todo-notes-toggle');
     const completedHeader = e.target.closest('#todosCompletedHeader');
     const clearBtn = e.target.closest('#todosClearCompleted');
-    const filterSelect = e.target.closest('#todoFilterCategory');
 
     if (checkBtn) {
         e.preventDefault();
@@ -32,10 +30,6 @@ export function handleTodoClick(e) {
         e.preventDefault();
         e.stopPropagation();
         deleteTodo(deleteBtn.dataset.id);
-    } else if (notesToggle) {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleTodoNotes(notesToggle.dataset.id);
     } else if (clearBtn) {
         e.preventDefault();
         e.stopPropagation();
@@ -43,31 +37,6 @@ export function handleTodoClick(e) {
     } else if (completedHeader && !clearBtn) {
         e.preventDefault();
         toggleCompletedSection();
-    }
-}
-
-/**
- * 分类筛选变更
- */
-export function handleTodoFilterChange(e) {
-    const select = e.target;
-    if (select && select.id === 'todoFilterCategory') {
-        state.setTodoFilterCategory(select.value);
-        renderTodos();
-        bindQuickInputEvent();
-        bindTodoDragEvents();
-        bindTodoFilterEvent();
-    }
-}
-
-/**
- * 绑定分类筛选事件
- */
-export function bindTodoFilterEvent() {
-    const select = document.getElementById('todoFilterCategory');
-    if (select) {
-        select.removeEventListener('change', handleTodoFilterChange);
-        select.addEventListener('change', handleTodoFilterChange);
     }
 }
 
@@ -86,18 +55,14 @@ export function handleQuickInputKeydown(e) {
 }
 
 /**
- * 快速添加待办（只有标题，使用当前筛选分类）
+ * 快速添加待办（只有标题）
  */
 async function quickAddTodo(title) {
     try {
-        const categoryId = state.todoFilterCategory === 'all' || state.todoFilterCategory === 'uncategorized' 
-            ? null 
-            : state.todoFilterCategory;
-
         const res = await fetch(`${state.API_BASE}/api/todos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, category_id: categoryId })
+            body: JSON.stringify({ title })
         });
         const result = await res.json().catch(() => null);
 
@@ -106,7 +71,6 @@ async function quickAddTodo(title) {
             renderTodos();
             bindQuickInputEvent();
             bindTodoDragEvents();
-            bindTodoFilterEvent();
         }
     } catch (e) {
         console.error('添加失败:', e);
@@ -125,106 +89,26 @@ export function bindQuickInputEvent() {
 }
 
 /**
- * 打开编辑弹窗（完整版 - 所有字段）
+ * 打开编辑弹窗（简化版 - 仅标题）
  */
 export function openTodoModal(todoId = null) {
     state.setEditingTodoId(todoId);
-    
-    // 更新分类下拉选项（使用 todoCategories）
-    updateTodoCategoryDropdown();
 
     if (todoId) {
         DOM.todoModalTitle.textContent = '编辑待办';
         const todo = state.todos.find(t => t.id === todoId);
         if (todo) {
             DOM.todoInputTitle.value = todo.title || '';
-            DOM.todoInputNotes.value = todo.notes || '';
-            DOM.todoInputPriority.value = todo.priority || '0';
-            DOM.todoInputDueAt.value = todo.due_at ? formatDateTimeLocal(todo.due_at) : '';
-            // 设置分类输入框
-            if (DOM.todoInputCategoryText) {
-                DOM.todoInputCategoryText.value = todo.category_name || '';
-            }
-            if (DOM.todoInputCategory) {
-                DOM.todoInputCategory.value = todo.category_id || '';
-            }
         }
     } else {
         DOM.todoModalTitle.textContent = '添加待办';
         DOM.todoInputTitle.value = '';
-        DOM.todoInputNotes.value = '';
-        DOM.todoInputPriority.value = '0';
-        DOM.todoInputDueAt.value = '';
-        // 默认使用当前筛选分类
-        if (DOM.todoInputCategoryText && DOM.todoInputCategory) {
-            if (state.todoFilterCategory === 'all' || state.todoFilterCategory === 'uncategorized') {
-                DOM.todoInputCategoryText.value = '';
-                DOM.todoInputCategory.value = '';
-            } else {
-                const cat = state.todoCategories.find(c => c.id === state.todoFilterCategory);
-                DOM.todoInputCategoryText.value = cat ? cat.name : '';
-                DOM.todoInputCategory.value = state.todoFilterCategory;
-            }
-        }
     }
 
     DOM.todoModal.classList.add('open');
     document.body.style.overflow = 'hidden';
     DOM.todoInputTitle.focus();
     if (todoId) DOM.todoInputTitle.select();
-}
-
-/**
- * 更新分类下拉选项
- */
-function updateTodoCategoryDropdown() {
-    if (!DOM.todoCategoryDropdown) return;
-    
-    let html = '<div class="todo-category-option" data-id="" data-name="">未分类</div>';
-    html += state.todoCategories.map(c => 
-        `<div class="todo-category-option" data-id="${c.id}" data-name="${c.name}">${c.icon || '📁'} ${c.name}</div>`
-    ).join('');
-    
-    DOM.todoCategoryDropdown.innerHTML = html;
-}
-
-/**
- * 切换分类下拉显示
- */
-export function toggleTodoCategoryDropdown() {
-    if (!DOM.todoCategoryDropdown) return;
-    DOM.todoCategoryDropdown.classList.toggle('open');
-}
-
-/**
- * 关闭分类下拉
- */
-export function closeTodoCategoryDropdown() {
-    if (DOM.todoCategoryDropdown) {
-        DOM.todoCategoryDropdown.classList.remove('open');
-    }
-}
-
-/**
- * 选择分类
- */
-export function selectTodoCategory(id, name) {
-    if (DOM.todoInputCategoryText) {
-        DOM.todoInputCategoryText.value = name || '';
-    }
-    if (DOM.todoInputCategory) {
-        DOM.todoInputCategory.value = id || '';
-    }
-    closeTodoCategoryDropdown();
-}
-
-function formatDateTimeLocal(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    // 格式化为 YYYY-MM-DDTHH:mm
-    const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function closeTodoModal() {
@@ -234,7 +118,7 @@ export function closeTodoModal() {
 }
 
 /**
- * 保存待办
+ * 保存待办（简化版 - 仅标题）
  */
 export async function saveTodo() {
     const title = DOM.todoInputTitle.value.trim();
@@ -243,42 +127,7 @@ export async function saveTodo() {
         return;
     }
 
-    // 处理分类：可能是已有分类或新建分类
-    let categoryId = null;
-    const categoryText = DOM.todoInputCategoryText ? DOM.todoInputCategoryText.value.trim() : '';
-    
-    if (categoryText) {
-        // 查找是否匹配已有分类
-        const existingCat = state.todoCategories.find(c => c.name === categoryText);
-        if (existingCat) {
-            categoryId = existingCat.id;
-        } else {
-            // 创建新分类
-            try {
-                const res = await fetch(`${state.API_BASE}/api/categories`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: categoryText, type: 'todo' })
-                });
-                const result = await res.json().catch(() => null);
-                if (res.ok && result && result.success && result.data) {
-                    categoryId = result.data.id;
-                    // 刷新 todoCategories
-                    await loadTodoCategories();
-                }
-            } catch (e) {
-                console.error('创建分类失败:', e);
-            }
-        }
-    }
-
-    const data = {
-        title,
-        notes: DOM.todoInputNotes.value.trim(),
-        priority: parseInt(DOM.todoInputPriority.value, 10) || 0,
-        due_at: DOM.todoInputDueAt.value || null,
-        category_id: categoryId
-    };
+    const data = { title };
 
     if (state.editingTodoId) {
         data.id = state.editingTodoId;
@@ -293,13 +142,11 @@ export async function saveTodo() {
         const result = await res.json().catch(() => null);
 
         if (res.ok && result && result.success) {
-            await loadTodoCategories();
             await loadTodos();
             renderTodos();
             closeTodoModal();
             bindQuickInputEvent();
             bindTodoDragEvents();
-            bindTodoFilterEvent();
         } else {
             const errMsg = result?.error || `HTTP ${res.status}`;
             alert('保存失败: ' + errMsg);
@@ -330,21 +177,9 @@ async function toggleTodoComplete(id) {
             renderTodos();
             bindQuickInputEvent();
             bindTodoDragEvents();
-            bindTodoFilterEvent();
         }
     } catch (e) {
         console.error('更新失败:', e);
-    }
-}
-
-/**
- * 切换备注展开
- */
-function toggleTodoNotes(id) {
-    const notesEl = document.getElementById(`todoNotes_${id}`);
-    if (notesEl) {
-        const isHidden = notesEl.style.display === 'none';
-        notesEl.style.display = isHidden ? 'block' : 'none';
     }
 }
 
@@ -381,7 +216,6 @@ async function clearCompletedTodos() {
             renderTodos();
             bindQuickInputEvent();
             bindTodoDragEvents();
-            bindTodoFilterEvent();
         } else {
             alert('清除失败: ' + (result?.error || `HTTP ${res.status}`));
         }
@@ -399,7 +233,6 @@ export async function deleteTodo(id) {
         renderTodos();
         bindQuickInputEvent();
         bindTodoDragEvents();
-        bindTodoFilterEvent();
     } catch (e) {
         alert('删除失败: ' + e.message);
     }
@@ -524,6 +357,5 @@ async function saveTodoOrder(order) {
         renderTodos();
         bindQuickInputEvent();
         bindTodoDragEvents();
-        bindTodoFilterEvent();
     }
 }

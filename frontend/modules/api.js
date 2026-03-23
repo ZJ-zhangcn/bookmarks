@@ -16,9 +16,6 @@ export async function loadCoreData() {
         state.setEngines(payload?.engines || []);
 
         // 单请求首屏：如果后端提供了 TODO 数据，则直接落状态
-        if (payload && 'todoCategories' in payload) {
-            state.setTodoCategories(payload.todoCategories || []);
-        }
         if (payload && 'todos' in payload) {
             state.setTodos(payload.todos || []);
         }
@@ -44,7 +41,6 @@ export async function loadCoreData() {
 
     return {
         payload,
-        hasTodoCategories: Array.isArray(payload?.todoCategories),
         hasTodos: Array.isArray(payload?.todos)
     };
 }
@@ -54,10 +50,9 @@ export async function loadData() {
         const core = await loadCoreData();
 
         // 后端未合并 TODO 数据时，回退到旧行为
-        const tasks = [];
-        if (!core?.hasTodoCategories) tasks.push(loadTodoCategories());
-        if (!core?.hasTodos) tasks.push(loadTodos());
-        await Promise.all(tasks);
+        if (!core?.hasTodos) {
+            await loadTodos();
+        }
     } catch (e) {
         console.error('加载数据失败:', e);
     }
@@ -210,13 +205,9 @@ export function saveCollapsedState() {
     }
 }
 
-export async function loadTodos(categoryId = null, status = 'all') {
+export async function loadTodos() {
     try {
-        let url = `${state.API_BASE}/api/todos?status=${status}`;
-        if (categoryId && categoryId !== 'all') {
-            url += `&category_id=${encodeURIComponent(categoryId)}`;
-        }
-        const res = await fetch(url, { cache: 'no-store' });
+        const res = await fetch(`${state.API_BASE}/api/todos?status=all`, { cache: 'no-store' });
         const result = await res.json();
         if (result && result.success) {
             state.setTodos(result.data || []);
@@ -226,14 +217,4 @@ export async function loadTodos(categoryId = null, status = 'all') {
     }
 }
 
-export async function loadTodoCategories() {
-    try {
-        const res = await fetch(`${state.API_BASE}/api/categories?type=todo`, { cache: 'no-store' });
-        const result = await res.json();
-        if (result && result.success) {
-            state.setTodoCategories(result.data || []);
-        }
-    } catch (e) {
-        console.error('加载 TODO 分类失败:', e);
-    }
-}
+

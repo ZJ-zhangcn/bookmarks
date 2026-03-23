@@ -3,6 +3,58 @@
  */
 import * as state from './state.js';
 
+/**
+ * 统一 API 请求函数
+ * 封装 fetch 调用，提供统一的错误处理、状态码检查和 JSON 解析
+ * @param {string} url - API 路径（如 '/api/todos'）或完整 URL
+ * @param {object} options - fetch 选项
+ * @param {object} extra - 额外配置
+ * @param {boolean} extra.silent - 为 true 时静默失败（不弹窗），默认 false
+ * @param {string} extra.errorPrefix - 错误消息前缀，默认 '操作失败'
+ * @returns {Promise<object|null>} - 成功时返回 result.data，失败时返回 null
+ */
+export async function apiFetch(url, options = {}, extra = {}) {
+    const { silent = false, errorPrefix = '操作失败' } = extra;
+    const fullUrl = url.startsWith('http') ? url : `${state.API_BASE}${url}`;
+
+    try {
+        const res = await fetch(fullUrl, options);
+
+        // HTTP 状态码异常
+        if (!res.ok) {
+            let errMsg = `HTTP ${res.status}`;
+            try {
+                const errBody = await res.json();
+                errMsg = errBody.error || errBody.message || errMsg;
+            } catch { /* 解析失败则使用状态码 */ }
+
+            if (!silent) {
+                console.error(`${errorPrefix}: ${errMsg}`);
+            }
+            return null;
+        }
+
+        const result = await res.json();
+
+        // 业务逻辑错误
+        if (result && !result.success) {
+            const errMsg = result.error || result.message || '未知错误';
+            if (!silent) {
+                console.error(`${errorPrefix}: ${errMsg}`);
+            }
+            return null;
+        }
+
+        return result?.data !== undefined ? result.data : result;
+    } catch (e) {
+        // 网络错误 / JSON 解析错误
+        if (!silent) {
+            console.error(`${errorPrefix}: ${e.message}`);
+        }
+        return null;
+    }
+}
+
 export function debounce(fn, delay = 300) {
     let timer = null;
     return function (...args) {

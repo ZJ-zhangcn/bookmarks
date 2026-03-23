@@ -40,35 +40,20 @@ module.exports = function registerBootstrapV2(app, db) {
                 ORDER BY row_type, sort_order, created_at
             `;
 
-            // TODO 分类：与 backend/routes/categories.js 一致
-            const todoCategoriesSql = `
-                SELECT * FROM categories
-                WHERE type = ?
-                ORDER BY sort_order, created_at
-            `;
-
-            // TODO 列表：与 backend/routes/todos.js 默认一致 (status=all, limit=200, offset=0)
+            // TODO 列表：简化版
             const todosSql = `
-                SELECT
-                    t.*,
-                    c.name as category_name,
-                    c.icon as category_icon
+                SELECT t.*
                 FROM todos t
-                LEFT JOIN categories c ON t.category_id = c.id
                 ORDER BY
                     t.is_done ASC,
-                    t.priority DESC,
-                    (t.due_at IS NULL) ASC,
-                    t.due_at ASC,
                     t.sort_order ASC,
                     t.created_at ASC
                 LIMIT 200 OFFSET 0
             `;
 
-            const [rows, configRow, todoCategories, todos] = await Promise.all([
+            const [rows, configRow, todos] = await Promise.all([
                 db.queryAll(sql),
                 db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization']),
-                db.queryAll(todoCategoriesSql, ['todo']),
                 db.queryAll(todosSql)
             ]);
 
@@ -134,7 +119,6 @@ module.exports = function registerBootstrapV2(app, db) {
                     bookmarks,
                     engines,
                     config,
-                    todoCategories: todoCategories || [],
                     todos: todos || []
                 }
             };

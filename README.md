@@ -25,39 +25,7 @@
 
 ## 🚀 快速部署
 
-### 方式一：Vercel 部署（推荐新手）
-
-一键部署到 Vercel，需要外部 MySQL 数据库（如 Aiven、PlanetScale）：
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/ZJ145013/bookmarks)
-
-**部署步骤：**
-
-1. 点击上方按钮，Fork 并部署到 Vercel
-2. 在 Vercel 项目设置中添加环境变量：
-   ```
-   DATABASE_URL=mysql://用户名:密码@主机:端口/bookmarks?ssl-mode=REQUIRED
-   ```
-3. 初始化数据库（首次部署需要）：
-   ```bash
-   # 克隆项目
-   git clone https://github.com/ZJ145013/bookmarks.git
-   cd bookmarks
-
-   # 安装依赖
-   npm install
-
-   # 设置环境变量并初始化
-   export DATABASE_URL="你的MySQL连接字符串"
-   npm run db:init
-   ```
-4. 重新部署 Vercel 项目
-
-> ⚠️ **注意**：Vercel 部署不支持系统监控和 Docker 管理功能，如需这些功能请使用 Docker 部署。
-
----
-
-### 方式二：Docker Compose（推荐自建服务器）
+### 方式一：Docker Compose（推荐自建服务器）
 
 #### SQLite 模式（默认，数据存储在本地）
 
@@ -100,7 +68,7 @@ docker compose -f docker-compose.mysql.yml up -d
 
 访问 http://localhost:8080 即可使用。
 
-### 方式三：Docker 命令
+### 方式二：Docker 命令
 
 ```bash
 docker run -d \
@@ -114,7 +82,7 @@ docker run -d \
   ghcr.io/zj145013/bookmarks:latest
 ```
 
-### 方式四：本地开发
+### 方式三：本地开发
 
 ```bash
 # 克隆仓库
@@ -132,31 +100,45 @@ npm start
 
 ```
 bookmarks/
-├── api/                   # Vercel Serverless Functions
-│   ├── _lib/              # 共享库
-│   │   └── db.js          # MySQL 数据库连接
-│   ├── bookmarks.js       # 书签 API
-│   ├── categories.js      # 分类 API
-│   ├── engines.js         # 搜索引擎 API
-│   └── ...
-├── backend/               # Docker 后端服务 (Express + SQLite/MySQL)
-│   ├── server.js          # 主服务文件
-│   ├── db.js              # 数据库抽象层（支持双模式）
-│   ├── data/              # SQLite 数据存储
-│   └── package.json
-├── frontend/              # 前端页面
-│   ├── index.html
-│   ├── index.css
-│   ├── index.js
-│   └── i18n.js            # 国际化
-├── scripts/               # 工具脚本
-│   ├── init-mysql.js      # MySQL 初始化
+├── backend/                # 后端服务 (Express + SQLite/MySQL)
+│   ├── server.js           # 主服务文件
+│   ├── db.js               # 数据库抽象层（支持双模式）
+│   ├── ai.js               # AI 功能路由
+│   ├── bootstrap-v2.js     # 首屏聚合端点
+│   ├── routes/             # API 路由模块
+│   │   ├── bookmarks.js    # 书签 CRUD
+│   │   ├── categories.js   # 分类 CRUD
+│   │   ├── todos.js        # 待办事项
+│   │   ├── engines.js      # 搜索引擎
+│   │   └── ...             # 其他路由
+│   ├── middleware/          # 中间件（鉴权等）
+│   ├── utils/              # 工具函数
+│   └── data/               # SQLite 数据存储
+├── frontend/               # 前端页面
+│   ├── index.html          # 主页面
+│   ├── index.css           # 样式
+│   ├── main.js             # 入口文件
+│   ├── i18n.js             # 国际化
+│   ├── vite.config.js      # Vite 构建配置
+│   └── modules/            # 模块化 JS
+│       ├── api.js           # 数据加载
+│       ├── render.js        # 渲染逻辑
+│       ├── events.js        # 事件绑定
+│       ├── todo.js          # 待办事项
+│       ├── settings.js      # 设置管理
+│       └── ...              # 其他模块
+├── shared/                 # 前后端共享
+│   └── services/           # 服务层
+│       ├── data.js          # 数据导入导出
+│       ├── ai/              # AI 服务
+│       └── ...
+├── scripts/                # 工具脚本
+│   ├── init-mysql.js       # MySQL 初始化
 │   └── migrate-to-mysql.js # SQLite → MySQL 迁移
 ├── .github/
-│   └── workflows/         # GitHub Actions
-├── Dockerfile             # Docker 构建
-├── docker-compose.yml     # Docker Compose 配置
-├── vercel.json            # Vercel 部署配置
+│   └── workflows/          # GitHub Actions
+├── Dockerfile              # Docker 多阶段构建
+├── docker-compose.yml      # Docker Compose 配置
 └── README.md
 ```
 
@@ -214,27 +196,19 @@ ports:
 | `ANTHROPIC_API_KEY` | - | Claude Key（Anthropic API Key） |
 | `ANTHROPIC_VERSION` | `2023-06-01` | Claude API 版本头（一般不用改） |
 
-#### Vercel 部署
-
-| 变量 | 必填 | 说明 |
-|------|------|------|
-| `DATABASE_URL` | ✅ | MySQL 连接字符串，格式：`mysql://user:pass@host:port/bookmarks?ssl-mode=REQUIRED` |
-| `AI_ENABLED` | ❌ | 建议保持关闭（Vercel 免费计划可能受执行时长/资源限制影响） |
-
 ## 🤖 AI 辅助（可选）
 
 当前已内置一个最小可用的 AI 能力：在“添加/编辑书签”弹窗里，支持一键生成“描述/标签”。
 
 注意事项：
-- Docker 主站：推荐开启（自用场景更稳定，且不受 Vercel 免费计划限制）
-- Vercel 备用站：推荐默认关闭（保持核心导航可用即可）
+- 推荐在 Docker 主站开启（自用场景更稳定）
 - 自定义 API / Key / Model：在「设置 → 数据同步 → AI 设置」填写并保存到本浏览器（localStorage）
   - 若要让前端传入 Key：需服务端设置 `AI_ALLOW_CLIENT_KEY=true`
   - 若要让前端覆盖 API 地址：需服务端设置 `AI_ALLOW_CLIENT_BASE_URL=true`
   - 若要让前端切换 Provider：需服务端设置 `AI_ALLOW_CLIENT_PROVIDER=true`
   - 若要使用内网/本地地址（如 Ollama）：还需设置 `AI_ALLOW_PRIVATE_BASE_URL=true`
 
-相关接口（两种部署形态共用）：
+相关接口：
 - `GET /api/ai?action=status`
 - `POST /api/ai?action=generate`
 - `GET /api/ai?action=bookmark&id=...`
@@ -266,7 +240,6 @@ docker run --rm -v bookmark-data:/data -v $(pwd):/backup alpine tar xzf /backup/
 |---------|------|------|--------|
 | **Docker (默认)** | 原生 HTML/CSS/JS | Express | SQLite |
 | **Docker (MySQL)** | 原生 HTML/CSS/JS | Express | MySQL |
-| **Vercel** | 原生 HTML/CSS/JS | Serverless Functions | MySQL |
 
 ## 📝 更新日志
 

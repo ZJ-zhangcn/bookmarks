@@ -4,7 +4,7 @@
  */
 
 import { cacheDOMElements } from './modules/dom.js';
-import { loadCoreData, loadTodoCategories, loadTodos, loadAiStatus, loadCollapsedState } from './modules/api.js';
+import { loadCoreData, loadTodos, loadAiStatus, loadCollapsedState } from './modules/api.js';
 
 import { renderAll } from './modules/render.js';
 import { bindAllEvents } from './modules/events.js';
@@ -27,13 +27,11 @@ async function init() {
     const core = await loadCoreData();
 
     // 向后兼容：旧后端未合并 TODO 数据时，再单独请求
-    const todoInitTasks = [];
-    if (!core?.hasTodoCategories) todoInitTasks.push(loadTodoCategories());
-    if (!core?.hasTodos) todoInitTasks.push(loadTodos());
+    const todoReady = core?.hasTodos ? Promise.resolve() : loadTodos();
 
     await Promise.all([
         loadPersonalization({ waitForWallpaper: true, avoidLateWallpaperSwap: true }),
-        Promise.all(todoInitTasks)
+        todoReady
     ]);
 
     renderAll();

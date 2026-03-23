@@ -422,42 +422,6 @@
                     <label for="todoInputTitle">标题 *</label>
                     <input type="text" id="todoInputTitle" placeholder="待办事项标题" autocomplete="off" data-form-type="other">
                 </div>
-                <div class="form-row">
-                    <div class="form-group form-group-half">
-                        <label for="todoInputPriority">优先级</label>
-                        <select id="todoInputPriority" class="form-select">
-                            <option value="0">无</option>
-                            <option value="1">低</option>
-                            <option value="2">中</option>
-                            <option value="3">高</option>
-                        </select>
-                    </div>
-                    <div class="form-group form-group-half">
-                        <label for="todoInputDueAt">截止时间</label>
-                        <input type="datetime-local" id="todoInputDueAt" class="form-input">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="todoInputCategoryText">分类</label>
-                    <div class="todo-category-input-wrapper">
-                        <input type="text" id="todoInputCategoryText" class="form-input" 
-                               placeholder="选择或输入新分类..." autocomplete="off">
-                        <button type="button" class="todo-category-dropdown-btn" id="todoCategoryDropdownBtn" title="选择分类">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="m6 9 6 6 6-6"/>
-                            </svg>
-                        </button>
-                        <div class="todo-category-dropdown" id="todoCategoryDropdown">
-                            <!-- 由 JavaScript 动态填充 -->
-                        </div>
-                        <input type="hidden" id="todoInputCategory" value="">
-                    </div>
-                    <div class="form-hint">选择已有分类或输入新名称创建</div>
-                </div>
-                <div class="form-group">
-                    <label for="todoInputNotes">备注</label>
-                    <textarea id="todoInputNotes" placeholder="添加备注..." rows="3" autocomplete="off" data-form-type="other"></textarea>
-                </div>
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" id="cancelTodoBtn">取消</button>
                     <button type="button" class="btn btn-primary" id="saveTodoBtn">保存</button>

@@ -1,13 +1,15 @@
 {
   "name": "bookmark-nav",
   "version": "1.0.0",
-  "description": "书签导航 - 支持 Docker 和 Vercel 部署",
+  "description": "书签导航 - 支持 Docker 部署",
   "scripts": {
     "dev": "cd backend && node server.js",
     "dev:frontend": "cd frontend && npx vite",
     "build": "echo 'No build step required'",
     "build:frontend": "cd frontend && npx vite build",
     "preview": "cd frontend && npx vite preview",
+    "lint": "npx eslint frontend/modules/ backend/ shared/ --ext .js",
+    "lint:fix": "npx eslint frontend/modules/ backend/ shared/ --ext .js --fix",
     "db:init": "node scripts/init-mysql.js",
     "db:migrate": "node scripts/migrate-to-mysql.js"
   },

@@ -4,7 +4,6 @@
 export const API_BASE = window.location.origin;
 
 export let categories = [];
-export let todoCategories = []; // TODO 专用分类
 export let bookmarks = [];
 export let todos = [];
 export let engines = [];
@@ -25,7 +24,6 @@ export let aiStatus = { enabled: false, provider: null, model: null, note: null 
 export let sortingCategory = null;
 export let personalizationConfig = undefined;
 export let editingTodoId = null;
-export let todoFilterCategory = 'all'; // 'all' | category_id | 'uncategorized'
 export let todoShowCompleted = true; // 是否显示已完成区域
 
 export const AI_CLIENT_STORAGE = {
@@ -52,7 +50,6 @@ export let dataVersion = 0;
 
 // 状态更新函数
 export function setCategories(val) { categories = val; dataVersion++; }
-export function setTodoCategories(val) { todoCategories = val; }
 export function setBookmarks(val) { bookmarks = val; dataVersion++; }
 export function setTodos(val) { todos = val; dataVersion++; }
 export function setEngines(val) { engines = val; }
@@ -71,7 +68,6 @@ export function setAiStatus(val) { aiStatus = val; }
 export function setSortingCategory(val) { sortingCategory = val; }
 export function setPersonalizationConfig(val) { personalizationConfig = val; }
 export function setEditingTodoId(val) { editingTodoId = val; }
-export function setTodoFilterCategory(val) { todoFilterCategory = val; }
 export function setTodoShowCompleted(val) { todoShowCompleted = val; }
 export function setIsLoadingIcons(val) { isLoadingIcons = val; }
 export function setAvailableIcons(val) { availableIcons = val; }
