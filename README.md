@@ -1,13 +1,13 @@
 # 📖 书签导航
 
-[![Docker Build](https://github.com/ZJ145013/bookmarks/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ZJ145013/bookmarks/actions/workflows/docker-publish.yml)
-[![GitHub release](https://img.shields.io/github/v/release/ZJ145013/bookmarks?include_prereleases)](https://github.com/ZJ145013/bookmarks/releases)
-[![Docker Pulls](https://img.shields.io/badge/ghcr.io-zj145013%2Fbookmarks-blue)](https://github.com/ZJ145013/bookmarks/pkgs/container/bookmarks)
-[![License](https://img.shields.io/github/license/ZJ145013/bookmarks)](LICENSE)
+[![Docker Build](https://github.com/ZJ-zhangcn/bookmarks/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ZJ-zhangcn/bookmarks/actions/workflows/docker-publish.yml)
+[![GitHub release](https://img.shields.io/github/v/release/ZJ-zhangcn/bookmarks?include_prereleases)](https://github.com/ZJ-zhangcn/bookmarks/releases)
+[![Docker Pulls](https://img.shields.io/badge/ghcr.io-zj-zhangcn%2Fbookmarks-blue)](https://github.com/ZJ-zhangcn/bookmarks/pkgs/container/bookmarks)
+[![License](https://img.shields.io/github/license/ZJ-zhangcn/bookmarks)](LICENSE)
 
 一个简洁美观的个人书签导航页面，支持自定义分类、搜索引擎、Docker 管理等功能。
 
-![预览图](https://github.com/ZJ145013/bookmarks/blob/main/%E9%A2%84%E8%A7%88%E5%9B%BE.png?raw=true)
+![预览图](https://github.com/ZJ-zhangcn/bookmarks/blob/main/%E9%A2%84%E8%A7%88%E5%9B%BE.png?raw=true)
 
 ## ✨ 功能特点
 
@@ -34,7 +34,7 @@
 mkdir bookmarks && cd bookmarks
 
 # 下载 docker-compose.yml
-curl -O https://raw.githubusercontent.com/ZJ145013/bookmarks/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/ZJ-zhangcn/bookmarks/main/docker-compose.yml
 
 # 创建环境变量文件（compose 使用 env_file: .env；SQLite 模式可留空）
 touch .env
@@ -47,7 +47,7 @@ docker compose up -d
 
 ```bash
 # 下载 MySQL 配置
-curl -O https://raw.githubusercontent.com/ZJ145013/bookmarks/main/docker-compose.mysql.yml
+curl -O https://raw.githubusercontent.com/ZJ-zhangcn/bookmarks/main/docker-compose.mysql.yml
 
 # 创建 .env 并写入数据库连接（必填）
 cat > .env <<'EOF'
@@ -79,14 +79,14 @@ docker run -d \
   -v /proc:/host/proc:ro \
   -e HOST_PROC=/host/proc \
   --restart unless-stopped \
-  ghcr.io/zj145013/bookmarks:latest
+  ghcr.io/zj-zhangcn/bookmarks:latest
 ```
 
 ### 方式三：本地开发
 
 ```bash
 # 克隆仓库
-git clone https://github.com/ZJ145013/bookmarks.git
+git clone https://github.com/ZJ-zhangcn/bookmarks.git
 cd bookmarks
 
 # 安装依赖

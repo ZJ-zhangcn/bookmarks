@@ -1,7 +1,7 @@
 services:
   bookmark-nav:
     # 使用 GitHub Container Registry 镜像
-    image: ghcr.io/zj145013/bookmarks:latest
+    image: ghcr.io/zj-zhangcn/bookmarks:latest
     # 如需本地构建，取消注释下面一行并注释上面的 image
     # build: .
     container_name: bookmark-nav
