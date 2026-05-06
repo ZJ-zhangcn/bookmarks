@@ -4,7 +4,7 @@
 const express = require('express');
 const { getSuggestions } = require('../../shared/services/suggest');
 
-module.exports = function(db) {
+module.exports = function(_db) {
     const router = express.Router();
 
     // GET /api/suggest

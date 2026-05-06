@@ -14,7 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./db');
 const { registerAiRoutes } = require('./ai');
-const { asyncHandler, errorHandler } = require('./utils');
+const { errorHandler } = require('./utils');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -171,7 +171,6 @@ app.use('/api/icon', routes.icon);
 app.use('/api/favicon', routes.favicon);
 app.use('/api/config', routes.config);
 app.use('/api/webdav', routes.webdav);
-app.use('/api/docker', routes.docker);
 app.use('/api/system', routes.system);
 app.use('/api/data', routes.data);
 app.use('/api/todos', routes.todos);
@@ -341,16 +340,21 @@ function validateEnv() {
 
     // AI 配置校验
     if (String(process.env.AI_ENABLED || '').toLowerCase() === 'true') {
-        const provider = (process.env.AI_PROVIDER || '').toLowerCase();
+        const provider = (process.env.AI_PROVIDER || 'openai').toLowerCase();
         const validProviders = ['openai', 'gemini', 'claude'];
         if (provider && !validProviders.includes(provider)) {
             warnings.push(`AI_PROVIDER "${provider}" 无效，支持: ${validProviders.join(', ')}`);
         }
-        // 检查对应 Provider 的 API Key
-        const keyMap = { openai: 'OPENAI_API_KEY', gemini: 'GEMINI_API_KEY', claude: 'ANTHROPIC_API_KEY' };
-        const keyName = keyMap[provider];
-        if (keyName && !process.env[keyName]) {
-            warnings.push(`AI 已启用但 ${keyName} 未配置`);
+        if (provider === 'gemini') {
+            if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+                warnings.push('AI 已启用但 GEMINI_API_KEY/GOOGLE_API_KEY 未配置');
+            }
+        } else {
+            const keyMap = { openai: 'OPENAI_API_KEY', claude: 'ANTHROPIC_API_KEY' };
+            const keyName = keyMap[provider];
+            if (keyName && !process.env[keyName]) {
+                warnings.push(`AI 已启用但 ${keyName} 未配置`);
+            }
         }
     }
 

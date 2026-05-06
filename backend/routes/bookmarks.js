@@ -75,31 +75,5 @@ module.exports = function(db) {
         res.json(success());
     }));
 
-    // 旧路径兼容: DELETE /api/bookmarks/:id
-    router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
-        await bookmarksService.deleteBookmark(db, req.params.id);
-        res.json(success());
-    }));
-
-    // 旧路径兼容: POST /api/bookmarks/icons
-    router.post('/icons', asyncHandler(async (req, res) => {
-        const { ids } = req.body;
-        if (!Array.isArray(ids) || ids.length === 0) {
-            return res.json(success({}));
-        }
-        const iconMap = await bookmarksService.getBatchIcons(db, ids);
-        res.json(success(iconMap));
-    }));
-
-    // 旧路径兼容: POST /api/bookmarks/sort
-    router.post('/sort', requireAdmin, asyncHandler(async (req, res) => {
-        const { order } = req.body;
-        if (!Array.isArray(order)) {
-            throw new AppError('无效的排序数据', 400);
-        }
-        await bookmarksService.sortBookmarks(db, order);
-        res.json(success());
-    }));
-
     return router;
 };

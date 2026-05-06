@@ -33,34 +33,5 @@ module.exports = function(_db) {
         throw new AppError('无效的操作，请使用 action=upload 或 action=download', 400);
     }));
 
-    // 旧路径兼容
-    router.post('/upload', requireAdmin, asyncHandler(async (req, res) => {
-        const { url, username, password, path: filePath, data } = req.body;
-
-        if (!url || !username || !password) {
-            throw new AppError('请填写完整的 WebDAV 配置', 400);
-        }
-
-        const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
-        assertSafeFetchUrl(fullUrl);
-
-        const result = await webdavService.upload({ url, username, password, path: filePath, data });
-        res.json(success(null, result.message));
-    }));
-
-    router.post('/download', requireAdmin, asyncHandler(async (req, res) => {
-        const { url, username, password, path: filePath } = req.body;
-
-        if (!url || !username || !password) {
-            throw new AppError('请填写完整的 WebDAV 配置', 400);
-        }
-
-        const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
-        assertSafeFetchUrl(fullUrl);
-
-        const downloadedData = await webdavService.download({ url, username, password, path: filePath });
-        res.json(success(downloadedData));
-    }));
-
     return router;
 };

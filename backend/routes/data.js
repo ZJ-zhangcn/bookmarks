@@ -114,18 +114,6 @@ module.exports = function(db) {
         res.json(success());
     }));
 
-    // 旧路径兼容
-    router.get('/export', asyncHandler(async (req, res) => {
-        const includeIcons = req.query.includeIcons !== 'false';
-        const data = await dataService.exportData(db, includeIcons);
-        res.json(data);
-    }));
-
-    router.post('/import', requireAdmin, asyncHandler(async (req, res) => {
-        await dataService.importData(db, req.body);
-        res.json(success());
-    }));
-
     // POST /api/data/browser-import - 导入浏览器书签 (Netscape HTML 格式)
     router.post('/browser-import', requireAdmin, asyncHandler(async (req, res) => {
         const { html } = req.body;

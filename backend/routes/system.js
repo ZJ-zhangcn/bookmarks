@@ -39,7 +39,7 @@ function getCpuUsageFromProc() {
         const cpus = os.cpus();
         let totalIdle = 0, totalTick = 0;
         cpus.forEach(cpu => {
-            for (let type in cpu.times) totalTick += cpu.times[type];
+            for (const type in cpu.times) totalTick += cpu.times[type];
             totalIdle += cpu.times.idle;
         });
         return totalTick > 0 ? Math.round((1 - totalIdle / totalTick) * 100 * 100) / 100 : 0;

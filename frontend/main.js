@@ -4,7 +4,7 @@
  */
 
 import { cacheDOMElements } from './modules/dom.js';
-import { loadCoreData, loadTodos, loadAiStatus, loadCollapsedState } from './modules/api.js';
+import { loadCoreData, loadAiStatus, loadCollapsedState } from './modules/api.js';
 
 import { renderAll } from './modules/render.js';
 import { bindAllEvents } from './modules/events.js';
@@ -24,15 +24,8 @@ async function init() {
     loadCollapsedState();
 
     // 完全不闪：首屏等待个性化（壁纸）和核心数据就绪后再揭开遮罩
-    const core = await loadCoreData();
-
-    // 向后兼容：旧后端未合并 TODO 数据时，再单独请求
-    const todoReady = core?.hasTodos ? Promise.resolve() : loadTodos();
-
-    await Promise.all([
-        loadPersonalization({ waitForWallpaper: true, avoidLateWallpaperSwap: true }),
-        todoReady
-    ]);
+    await loadCoreData();
+    await loadPersonalization({ waitForWallpaper: true, avoidLateWallpaperSwap: true });
 
     renderAll();
     bindAllEvents();

@@ -10,8 +10,6 @@ services:
     volumes:
       # 数据持久化（SQLite 模式使用，MySQL 模式可删除）
       - bookmark-data:/app/backend/data
-      # Docker 管理功能（可选，如不需要可删除）
-      - /var/run/docker.sock:/var/run/docker.sock
       # 系统状态监控（可选，如不需要可删除）
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro

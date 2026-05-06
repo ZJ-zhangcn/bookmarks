@@ -68,9 +68,6 @@ export function setTheme(theme) {
 export function openSettingsModal() {
     renderCategoryList();
     loadPersonalization();
-    if (window.i18n) {
-        DOM.languageSelect.value = window.i18n.getLanguage();
-    }
     DOM.settingsModal.classList.add('open');
     document.body.style.overflow = 'hidden';
 }
@@ -289,59 +286,6 @@ export function startClock() {
     state.setClockInterval(setInterval(updateClock, 1000));
 }
 
-export async function loadDockerContainers() {
-    DOM.dockerList.innerHTML = '<div class="docker-loading">加载中...</div>';
-    try {
-        const res = await fetch(`${state.API_BASE}/api/docker/containers`);
-        const result = await res.json();
-
-        if (!result.success || !result.data || result.data.length === 0) {
-            DOM.dockerList.innerHTML = `<div class="docker-loading">${result.error || '没有找到容器'}</div>`;
-            return;
-        }
-
-        DOM.dockerList.innerHTML = result.data.map(c => `
-            <div class="docker-item" data-id="${c.id}">
-                <div class="docker-item-info">
-                    <div class="docker-item-name">${c.name}</div>
-                    <div class="docker-item-image">${c.image}</div>
-                </div>
-                <span class="docker-status ${c.status === 'running' ? 'running' : 'stopped'}">
-                    ${c.status === 'running' ? '运行中' : '已停止'}
-                </span>
-                <div class="docker-actions">
-                    <label class="switch">
-                        <input type="checkbox" ${c.status === 'running' ? 'checked' : ''} onchange="toggleContainer('${c.id}', this.checked)">
-                        <span class="slider"></span>
-                    </label>
-                    <button class="btn btn-secondary btn-sm" onclick="restartContainer('${c.id}')">🔄</button>
-                </div>
-            </div>
-        `).join('');
-    } catch (e) {
-        DOM.dockerList.innerHTML = '<div class="docker-loading">无法连接 Docker</div>';
-    }
-}
-
-window.toggleContainer = async function(id, start) {
-    const action = start ? 'start' : 'stop';
-    try {
-        await fetch(`${state.API_BASE}/api/docker/containers/${id}/${action}`, { method: 'POST' });
-        setTimeout(loadDockerContainers, 1000);
-    } catch (e) {
-        alert('操作失败: ' + e.message);
-    }
-};
-
-window.restartContainer = async function(id) {
-    try {
-        await fetch(`${state.API_BASE}/api/docker/containers/${id}/restart`, { method: 'POST' });
-        setTimeout(loadDockerContainers, 1000);
-    } catch (e) {
-        alert('重启失败: ' + e.message);
-    }
-};
-
 export function saveWebdavSettings() {
     localStorage.setItem('webdavUrl', DOM.webdavUrl.value);
     localStorage.setItem('webdavUser', DOM.webdavUser.value);
@@ -457,9 +401,9 @@ export async function importConfig(e) {
             if (sizeInMB > 4) {
                 const choice = confirm(
                     `导入文件较大 (${sizeInMB.toFixed(1)}MB)，可能影响导入性能。\n\n` +
-                    `点击"确定"：清理 base64 图标后导入（URL 和 emoji 图标会保留）\n` +
-                    `点击"取消"：取消导入\n\n` +
-                    `提示：导入后可使用"批量获取图标"功能重新获取被清理的图标`
+                    '点击"确定"：清理 base64 图标后导入（URL 和 emoji 图标会保留）\n' +
+                    '点击"取消"：取消导入\n\n' +
+                    '提示：导入后可使用"批量获取图标"功能重新获取被清理的图标'
                 );
 
                 if (!choice) {

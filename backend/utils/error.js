@@ -17,7 +17,7 @@ function asyncHandler(fn) {
     };
 }
 
-function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res, _next) {
     const statusCode = err.statusCode || 500;
     const message = err.isOperational ? err.message : '服务器内部错误';
 

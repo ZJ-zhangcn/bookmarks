@@ -7,11 +7,7 @@ async function exportData(db, includeIcons) {
     let bookmarks = await db.queryAll('SELECT * FROM bookmarks');
     let engines = await db.queryAll('SELECT * FROM search_engines');
 
-    // 尝试获取 todos（可能不存在于旧版数据库）
-    let todos = [];
-    try {
-        todos = await db.queryAll('SELECT * FROM todos');
-    } catch {}
+    const todos = await db.queryAll('SELECT id, title, is_done, sort_order, created_at, updated_at, completed_at FROM todos');
 
     let personalization = null;
     const row = await db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization']);
@@ -90,20 +86,16 @@ async function importData(db, data) {
                 const isDone = (t.is_done === true || t.is_done === 1 || t.is_done === '1') ? 1 : 0;
                 const params = [
                     t.id,
-                    null, // category_id 不再使用
                     t.title || '',
-                    '', // notes 不再使用
                     isDone,
-                    0, // priority 不再使用
-                    null, // due_at 不再使用
                     Number.isFinite(t.sort_order) ? t.sort_order : (parseInt(t.sort_order, 10) || i),
                     (t.completed_at === '' || t.completed_at == null) ? null : t.completed_at
                 ];
 
                 if (db.USE_MYSQL) {
                     await conn.execute(
-                        `INSERT INTO todos (id, category_id, title, notes, is_done, priority, due_at, sort_order, completed_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `INSERT INTO todos (id, title, is_done, sort_order, completed_at)
+                         VALUES (?, ?, ?, ?, ?)
                          ON DUPLICATE KEY UPDATE title = VALUES(title),
                          is_done = VALUES(is_done), sort_order = VALUES(sort_order),
                          completed_at = VALUES(completed_at)`,
@@ -111,8 +103,8 @@ async function importData(db, data) {
                     );
                 } else {
                     await conn.execute(
-                        `INSERT INTO todos (id, category_id, title, notes, is_done, priority, due_at, sort_order, completed_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `INSERT INTO todos (id, title, is_done, sort_order, completed_at)
+                         VALUES (?, ?, ?, ?, ?)
                          ON CONFLICT(id) DO UPDATE SET
                            title = excluded.title,
                            is_done = excluded.is_done,

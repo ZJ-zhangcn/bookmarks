@@ -2,6 +2,8 @@
  * AI 配置管理模块
  */
 
+const { allowClientParams, resolveGenerationParams } = require('./params');
+
 function isAiEnabledFlag() {
     return String(process.env.AI_ENABLED).toLowerCase() === 'true';
 }
@@ -28,8 +30,8 @@ function getDefaultModelForProvider(provider) {
     if (globalModel) return globalModel;
 
     if (provider === 'openai') return 'gpt-4o-mini';
-    if (provider === 'gemini') return 'gemini-1.5-flash';
-    if (provider === 'claude') return 'claude-3-5-sonnet-latest';
+    if (provider === 'gemini') return 'gemini-2.5-flash';
+    if (provider === 'claude') return 'claude-opus-4-7';
     return 'gpt-4o-mini';
 }
 
@@ -79,6 +81,7 @@ function getAiPublicStatus() {
         allowClientKey: allowClientKey(),
         allowClientBaseUrl: allowClientBaseUrl(),
         allowClientProvider: allowClientProvider(),
+        allowClientParams: allowClientParams(),
         allowPrivateBaseUrl: allowPrivateBaseUrl(),
         hasServerKey: hasServerKey(),
         supportedProviders: ['openai', 'gemini', 'claude']
@@ -155,7 +158,8 @@ function resolveRuntimeConfig(body) {
         baseUrl: getDefaultBaseUrlForProvider(provider).replace(/\/+$/, ''),
         apiKey: getServerApiKeyForProvider(provider),
         model: getDefaultModelForProvider(provider),
-        timeoutMs: Number.parseInt(process.env.AI_TIMEOUT_MS || '8000', 10)
+        timeoutMs: Number.parseInt(process.env.AI_TIMEOUT_MS || '8000', 10),
+        generationParams: null
     };
 
     const modelOverride = String(requestBody.model || '').trim();
@@ -177,6 +181,13 @@ function resolveRuntimeConfig(body) {
         cfg.apiKey = keyOverride;
     }
 
+    cfg.generationParams = resolveGenerationParams({
+        provider: cfg.provider,
+        model: cfg.model,
+        baseUrl: cfg.baseUrl,
+        body: requestBody
+    });
+
     if (!cfg.apiKey) {
         if (allowClientKey()) {
             throw new Error('缺少 AI Key：请在"AI 设置"里填写，或在服务器环境变量中配置对应 Provider 的 Key');
@@ -195,6 +206,7 @@ module.exports = {
     allowClientKey,
     allowClientBaseUrl,
     allowClientProvider,
+    allowClientParams,
     allowPrivateBaseUrl,
     hasServerKey,
     getAiPublicStatus,

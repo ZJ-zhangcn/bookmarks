@@ -12,7 +12,6 @@ module.exports = function(db) {
         favicon: require('./favicon')(db),
         config: require('./config')(db),
         webdav: require('./webdav')(db),
-        docker: require('./docker')(db),
         system: require('./system')(db),
         data: require('./data')(db),
         suggest: require('./suggest')(db)

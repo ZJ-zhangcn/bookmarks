@@ -270,7 +270,7 @@ function handleDragStart(e) {
     e.dataTransfer.setData('text/plain', draggedTodo.dataset.id);
 }
 
-function handleDragEnd(e) {
+function handleDragEnd(_e) {
     if (draggedTodo) {
         draggedTodo.classList.remove('dragging');
     }

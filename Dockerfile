@@ -5,13 +5,11 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
 
-# 复制前端和构建配置
-COPY frontend/ ./frontend/
 COPY package*.json ./
+RUN npm ci
 
-# 安装 vite 并构建
-RUN npm install vite --save-dev && \
-    npm run build:frontend
+COPY frontend/ ./frontend/
+RUN npm run build:frontend
 
 # ============ 阶段二：运行时镜像 ============
 FROM node:20-alpine
@@ -22,26 +20,16 @@ RUN apk add --no-cache python3 make g++ ca-certificates && \
 
 WORKDIR /app
 
-# 复制后端 package.json 并安装依赖
-COPY backend/package*.json ./backend/
-WORKDIR /app/backend
-RUN npm install --production && \
+COPY package*.json ./
+RUN npm ci --omit=dev && \
     npm cache clean --force
 
-# 复制后端代码
-COPY backend/ ./
-
-# 复制共享模块
-WORKDIR /app
+COPY backend/ ./backend/
 COPY shared/ ./shared/
-
-# 从构建阶段复制前端产物
 COPY --from=frontend-builder /app/dist ./dist/
 
-# 创建数据目录
 RUN mkdir -p /app/backend/data
 
-# 健康检查
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 

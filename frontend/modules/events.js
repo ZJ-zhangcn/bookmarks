@@ -3,19 +3,19 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { debounce, throttle } from './utils.js';
-import { lazyLoadVisibleIcons } from './api.js';
-import { renderBookmarks, renderAll } from './render.js';
+import { debounce } from './utils.js';
+import { observeBookmarkIcons } from './api.js';
+import { renderBookmarks } from './render.js';
 import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload } from './bookmark.js';
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
 import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl } from './favicon.js';
-import { openSettingsModal, closeSettingsModal, closeAllModals, loadDockerContainers, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme } from './settings.js';
+import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme } from './settings.js';
 import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
-import { saveAiClientSettingsFromUi, clearAiClientSettings, updateAiUiVisibility } from './ai.js';
+import { saveAiClientSettingsFromUi, clearAiClientSettings } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
 import { initSearchSuggestions } from './suggest.js';
-import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents, openTodoModal } from './todo.js';
+import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -173,19 +173,11 @@ export function bindAllEvents() {
             tab.classList.add('active');
             const panel = document.querySelector(`[data-panel="${tab.dataset.tab}"]`);
             if (panel) panel.classList.add('active');
-            if (tab.dataset.tab === 'docker') loadDockerContainers();
             if (tab.dataset.tab === 'icons') {
                 renderIconLibrary();
                 bindIconLibraryManageEvents();
             }
         });
-    });
-
-    DOM.languageSelect.addEventListener('change', e => {
-        if (window.i18n) {
-            window.i18n.setLanguage(e.target.value);
-            location.reload();
-        }
     });
 
     if (DOM.themeSelect) {
@@ -204,10 +196,6 @@ export function bindAllEvents() {
     }
     if (DOM.savePersonalization) {
         DOM.savePersonalization.addEventListener('click', savePersonalization);
-    }
-
-    if (DOM.refreshDockerBtn) {
-        DOM.refreshDockerBtn.addEventListener('click', loadDockerContainers);
     }
 
     // TODO 事件绑定
@@ -288,7 +276,7 @@ export function bindAllEvents() {
 
     window.addEventListener('scroll', () => {
         if (scrollTimeout) clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(lazyLoadVisibleIcons, 100);
+        scrollTimeout = setTimeout(observeBookmarkIcons, 100);
 
         if (backToTopBtn) {
             if (window.scrollY > 300) {
@@ -307,6 +295,6 @@ export function bindAllEvents() {
 
     window.addEventListener('resize', () => {
         if (scrollTimeout) clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(lazyLoadVisibleIcons, 200);
+        scrollTimeout = setTimeout(observeBookmarkIcons, 200);
     }, { passive: true });
 }

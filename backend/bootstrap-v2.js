@@ -130,7 +130,7 @@ module.exports = function registerBootstrapV2(app, db) {
             res.json(responseData);
             console.log(`[Bootstrap-v2] Total: ${Date.now() - start}ms`);
         } catch (e) {
-            console.error(`[Bootstrap-v2] Error:`, e);
+            console.error('[Bootstrap-v2] Error:', e);
             res.status(500).json({ success: false, error: e.message });
         }
     });

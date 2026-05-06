@@ -46,21 +46,5 @@ module.exports = function(db) {
         res.json(success());
     }));
 
-    // 旧路径兼容: DELETE /api/categories/:id
-    router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
-        await categoriesService.deleteCategory(db, req.params.id);
-        res.json(success());
-    }));
-
-    // 旧路径兼容: POST /api/categories/sort
-    router.post('/sort', requireAdmin, asyncHandler(async (req, res) => {
-        const { order } = req.body;
-        if (!Array.isArray(order)) {
-            throw new AppError('无效的排序数据', 400);
-        }
-        await categoriesService.sortCategories(db, order);
-        res.json(success());
-    }));
-
     return router;
 };

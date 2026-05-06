@@ -30,7 +30,7 @@ module.exports = function(db) {
             params.push(`%${q}%`);
         }
 
-        let sql = `SELECT t.* FROM todos t`;
+        let sql = 'SELECT t.* FROM todos t';
         if (where.length > 0) {
             sql += ` WHERE ${where.join(' AND ')} `;
         }
@@ -97,20 +97,16 @@ module.exports = function(db) {
 
         const params = [
             todoId,
-            null, // category_id
             title,
-            '', // notes
             isDone,
-            0, // priority
-            null, // due_at
             sortOrder,
             completedAt
         ];
 
         if (db.USE_MYSQL) {
             await db.execute(
-                `INSERT INTO todos (id, category_id, title, notes, is_done, priority, due_at, sort_order, completed_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `INSERT INTO todos (id, title, is_done, sort_order, completed_at)
+                 VALUES (?, ?, ?, ?, ?)
                  ON DUPLICATE KEY UPDATE
                     title = VALUES(title),
                     is_done = VALUES(is_done),
@@ -120,8 +116,8 @@ module.exports = function(db) {
             );
         } else {
             await db.execute(
-                `INSERT INTO todos (id, category_id, title, notes, is_done, priority, due_at, sort_order, completed_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `INSERT INTO todos (id, title, is_done, sort_order, completed_at)
+                 VALUES (?, ?, ?, ?, ?)
                  ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     is_done = excluded.is_done,
@@ -164,16 +160,9 @@ module.exports = function(db) {
     }));
 
     // DELETE /api/todos/completed/all - 清除所有已完成的待办
-    // 必须在 /:id 路由之前定义
     router.delete('/completed/all', requireAdmin, asyncHandler(async (req, res) => {
         const result = await db.execute('DELETE FROM todos WHERE is_done = 1');
         res.json(success({ deleted: result.changes || 0 }));
-    }));
-
-    // 兼容: DELETE /api/todos/:id
-    router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
-        await db.execute('DELETE FROM todos WHERE id = ?', [req.params.id]);
-        res.json(success());
     }));
 
     return router;

@@ -20,8 +20,5 @@
     "prefer-const": "warn",
     "no-undef": "error"
   },
-  "globals": {
-    "i18n": "readonly"
-  },
   "ignorePatterns": ["node_modules/", "data/"]
 }

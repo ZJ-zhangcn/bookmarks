@@ -17,9 +17,6 @@ export function renderAll() {
     renderTodos();
     renderEngineDropdown();
     updateEngineDisplay();
-    if (window.i18n && window.i18n.applyTranslations) {
-        window.i18n.applyTranslations();
-    }
     refreshSystemStats();
 }
 
@@ -110,7 +107,7 @@ export function renderBookmarks() {
         const needsUpdate = 
             isSearchMode || 
             currentRenderMode === 'search' || 
-            currentDataVersion != state.dataVersion ||
+            currentDataVersion !== String(state.dataVersion) ||
             grid.childElementCount === 0;
 
         if (needsUpdate) {
@@ -351,12 +348,12 @@ export function renderIconSelection(availableIcons) {
     } else {
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
             ${availableIcons.slice(0, 6).map((icon, idx) => {
-                const source = getIconSource(icon);
-                return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
+        const source = getIconSource(icon);
+        return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
                     <img src="${icon}" class="icon-option" onerror="this.parentElement.remove()">
                     <span class="icon-source-label ${source.class}">${source.label}</span>
                 </div>`;
-            }).join('')}
+    }).join('')}
         </div>`;
         DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(wrap => {
             wrap.onclick = (e) => {

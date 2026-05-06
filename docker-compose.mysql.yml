@@ -10,9 +10,6 @@ services:
     ports:
       - "8080:3000"
     volumes:
-      # MySQL 模式不需要本地数据卷
-      # Docker 管理功能（可选）
-      - /var/run/docker.sock:/var/run/docker.sock
       # 系统状态监控（可选）
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro

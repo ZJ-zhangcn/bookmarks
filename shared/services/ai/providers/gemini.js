@@ -6,7 +6,7 @@ const { getAiSystemPrompt, buildAiUserPrompt, buildFallbackSummary, normalizeAiM
 const { parseAiTagsAndSummaryFromText, detectAiUpstreamErrorFromText, normalizeTagsInput } = require('../parser');
 const { fetchWithTimeout, createHttpError, formatFetchCause } = require('../http');
 
-async function geminiGenerateWithConfig({ name, url, description, tagsHint, categories, mode, baseUrl, apiKey, model, timeoutMs }) {
+async function geminiGenerateWithConfig({ name, url, description, tagsHint, categories, mode, baseUrl, apiKey, model, timeoutMs, generationParams }) {
     const userPayload = {
         name: String(name || '').slice(0, 200),
         url: String(url || '').slice(0, 2000),
@@ -18,7 +18,14 @@ async function geminiGenerateWithConfig({ name, url, description, tagsHint, cate
     const prompt = `${getAiSystemPrompt(mode)}\n\n${buildAiUserPrompt(userPayload, mode)}`;
 
     const base = String(baseUrl || '').replace(/\/+$/, '');
-    const endpoint = `${base}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const modelPath = String(model || '').replace(/^models\//, '');
+    const endpoint = `${base}/models/${encodeURIComponent(modelPath)}:generateContent`;
+    const params = generationParams || { maxTokens: 280, temperature: 0 };
+    const generationConfig = {
+        maxOutputTokens: params.maxTokens
+    };
+    if (params.temperature !== undefined) generationConfig.temperature = params.temperature;
+    if (params.topP !== undefined) generationConfig.topP = params.topP;
 
     let response;
     try {
@@ -30,7 +37,7 @@ async function geminiGenerateWithConfig({ name, url, description, tagsHint, cate
             },
             body: JSON.stringify({
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0, maxOutputTokens: 280 }
+                generationConfig
             })
         }, timeoutMs);
     } catch (e) {
@@ -50,7 +57,9 @@ async function geminiGenerateWithConfig({ name, url, description, tagsHint, cate
     const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
     const upstreamErr = detectAiUpstreamErrorFromText(text);
     if (upstreamErr) throw createHttpError(upstreamErr.statusCode, upstreamErr.message);
-    let { tags, summary, category, newCategory } = parseAiTagsAndSummaryFromText(text);
+    const parsed = parseAiTagsAndSummaryFromText(text);
+    const { tags, category, newCategory } = parsed;
+    let { summary } = parsed;
     if (normalizeAiMode(mode) === 'refine' && !summary) {
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);
         summary = buildFallbackSummary({ name, url, tags: effectiveTags });

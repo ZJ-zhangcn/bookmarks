@@ -136,8 +136,8 @@ module.exports = function(db) {
                         if (iconMatch) {
                             iconUrl = iconMatch[1].startsWith('http') ? iconMatch[1]
                                 : iconMatch[1].startsWith('//') ? 'https:' + iconMatch[1]
-                                : iconMatch[1].startsWith('/') ? baseUrl + iconMatch[1]
-                                : baseUrl + '/' + iconMatch[1];
+                                    : iconMatch[1].startsWith('/') ? baseUrl + iconMatch[1]
+                                        : baseUrl + '/' + iconMatch[1];
                         }
                     }
                 } catch { }

@@ -5,8 +5,9 @@
 const { getAiSystemPrompt, buildAiUserPrompt, buildFallbackSummary, normalizeAiMode } = require('../prompt');
 const { parseAiTagsAndSummaryFromText, detectAiUpstreamErrorFromText, normalizeTagsInput, safeJsonParse } = require('../parser');
 const { fetchWithTimeout, createHttpError, formatFetchCause, extractTextFromOpenAiLikeResponse, extractTextFromOpenAiSse, summarizeOpenAiLikeResponseShape } = require('../http');
+const { supportsOpenAiSampling, supportsOpenAiReasoningEffort } = require('../params');
 
-async function openaiGenerateWithConfig({ name, url, description, tagsHint, categories, mode, baseUrl, apiKey, model, timeoutMs }) {
+async function openaiGenerateWithConfig({ name, url, description, tagsHint, categories, mode, baseUrl, apiKey, model, timeoutMs, generationParams }) {
     const userPayload = {
         name: String(name || '').slice(0, 200),
         url: String(url || '').slice(0, 2000),
@@ -19,6 +20,31 @@ async function openaiGenerateWithConfig({ name, url, description, tagsHint, cate
     const userPrompt = buildAiUserPrompt(userPayload, mode);
 
     const endpoint = `${String(baseUrl || '').replace(/\/+$/, '')}/chat/completions`;
+    const params = generationParams || { maxTokens: 280, temperature: 0 };
+    const requestBody = {
+        model,
+        messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+        ],
+        stream: false
+    };
+
+    if (supportsOpenAiReasoningEffort(model, baseUrl)) {
+        requestBody.max_completion_tokens = params.maxTokens;
+    } else {
+        requestBody.max_tokens = params.maxTokens;
+    }
+
+    if (supportsOpenAiSampling(model, baseUrl)) {
+        if (params.temperature !== undefined) requestBody.temperature = params.temperature;
+        if (params.topP !== undefined) requestBody.top_p = params.topP;
+    }
+
+    if (params.reasoningEffort && supportsOpenAiReasoningEffort(model, baseUrl)) {
+        requestBody.reasoning_effort = params.reasoningEffort;
+    }
+
     let response;
     try {
         response = await fetchWithTimeout(endpoint, {
@@ -28,16 +54,7 @@ async function openaiGenerateWithConfig({ name, url, description, tagsHint, cate
                 'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                model,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userPrompt }
-                ],
-                stream: false,
-                temperature: 0,
-                max_tokens: 280
-            })
+            body: JSON.stringify(requestBody)
         }, timeoutMs);
     } catch (e) {
         if (e?.name === 'AbortError') {
@@ -63,7 +80,9 @@ async function openaiGenerateWithConfig({ name, url, description, tagsHint, cate
     console.log('[AI OpenAI] raw text from model:', text);
     const upstreamErr = detectAiUpstreamErrorFromText(text);
     if (upstreamErr) throw createHttpError(upstreamErr.statusCode, upstreamErr.message);
-    let { tags, summary, category, newCategory } = parseAiTagsAndSummaryFromText(text);
+    const parsed = parseAiTagsAndSummaryFromText(text);
+    const { tags, category, newCategory } = parsed;
+    let { summary } = parsed;
     console.log('[AI OpenAI] parsed result:', { tags, summary, category, newCategory });
     if (normalizeAiMode(mode) === 'refine' && !summary) {
         const effectiveTags = tags.length ? tags : normalizeTagsInput(tagsHint);

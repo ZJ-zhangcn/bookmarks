@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite';
 import path from 'path';
-import fs from 'fs';
 
 export default defineConfig({
   root: '.',
@@ -33,18 +32,6 @@ export default defineConfig({
     sourcemap: false,
     chunkSizeWarningLimit: 1000
   },
-  plugins: [
-    {
-      name: 'copy-i18n',
-      closeBundle() {
-        // 构建完成后复制 i18n.js 到 dist 目录
-        const src = path.resolve(__dirname, 'i18n.js');
-        const dest = path.resolve(__dirname, '..', 'dist', 'i18n.js');
-        fs.copyFileSync(src, dest);
-        console.log('✓ Copied i18n.js to dist/');
-      }
-    }
-  ],
   server: {
     port: 5173,
     strictPort: false,

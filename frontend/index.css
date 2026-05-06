@@ -2665,64 +2665,6 @@ input:checked+.slider:before {
     flex-shrink: 0;
 }
 
-/* Docker 列表 */
-.docker-list {
-    margin-bottom: var(--spacing-md);
-}
-
-.docker-loading {
-    text-align: center;
-    padding: var(--spacing-xl);
-    color: var(--text-tertiary);
-}
-
-.docker-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-md);
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--spacing-sm);
-}
-
-.docker-item-info {
-    flex: 1;
-}
-
-.docker-item-name {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.docker-item-image {
-    font-size: 0.8rem;
-    color: var(--text-tertiary);
-}
-
-.docker-status {
-    padding: 2px 10px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    border-radius: var(--radius-full);
-}
-
-.docker-status.running {
-    background: hsla(120, 100%, 40%, 0.15);
-    color: hsl(120, 100%, 50%);
-}
-
-.docker-status.stopped {
-    background: hsla(0, 100%, 50%, 0.15);
-    color: hsl(0, 100%, 60%);
-}
-
-.docker-actions {
-    display: flex;
-    gap: var(--spacing-xs);
-}
-
 /* 关于页面 */
 .about-card {
     text-align: center;
@@ -3259,10 +3201,8 @@ select:focus {
         text-overflow: ellipsis;
     }
 
-    /* 移动端隐藏 Docker 和图标库标签 */
-    .settings-tab[data-tab="docker"],
+    /* 移动端隐藏图标库标签 */
     .settings-tab[data-tab="icons"],
-    .settings-panel[data-panel="docker"],
     .settings-panel[data-panel="icons"] {
         display: none !important;
     }

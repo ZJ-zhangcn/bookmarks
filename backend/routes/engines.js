@@ -49,21 +49,5 @@ module.exports = function(db) {
         res.json(success());
     }));
 
-    // 旧路径兼容: DELETE /api/engines/:id
-    router.delete('/:id', requireAdmin, asyncHandler(async (req, res) => {
-        await enginesService.deleteEngine(db, req.params.id);
-        res.json(success());
-    }));
-
-    // 旧路径兼容: PUT /api/engines/sort
-    router.put('/sort', requireAdmin, asyncHandler(async (req, res) => {
-        const { orders } = req.body;
-        if (!Array.isArray(orders)) {
-            throw new AppError('无效的排序数据', 400);
-        }
-        await enginesService.sortEngines(db, orders);
-        res.json(success());
-    }));
-
     return router;
 };

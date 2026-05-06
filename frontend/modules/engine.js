@@ -5,7 +5,6 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderEngineDropdown, updateEngineDisplay } from './render.js';
-import { fetchEngineIcon, updateEngineIconPreviewUrl } from './favicon.js';
 import { loadIconLibrary } from './icon-library.js';
 
 export function openEngineModal() {

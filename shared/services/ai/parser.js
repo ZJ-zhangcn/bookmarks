@@ -57,8 +57,8 @@ function parseAiTagsAndSummaryFromText(text) {
     if (parsed && typeof parsed === 'object') {
         let tags = normalizeTagsInput(parsed.tags);
         let summary = String(parsed.summary || '').trim().slice(0, 80);
-        let category = String(parsed.category || parsed.recommended_category || '').trim().slice(0, 50);
-        let newCategory = String(parsed.new_category || parsed.newCategory || parsed.suggested_new_category || '').trim().slice(0, 50);
+        const category = String(parsed.category || parsed.recommended_category || '').trim().slice(0, 50);
+        const newCategory = String(parsed.new_category || parsed.newCategory || parsed.suggested_new_category || '').trim().slice(0, 50);
 
         if (!tags.length && typeof parsed.tags === 'string') {
             const maybe = safeJsonParse(parsed.tags);

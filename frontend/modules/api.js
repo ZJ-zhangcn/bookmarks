@@ -39,20 +39,12 @@ export async function loadCoreData() {
         console.error('加载核心数据失败:', e);
     }
 
-    return {
-        payload,
-        hasTodos: Array.isArray(payload?.todos)
-    };
+    return payload;
 }
 
 export async function loadData() {
     try {
-        const core = await loadCoreData();
-
-        // 后端未合并 TODO 数据时，回退到旧行为
-        if (!core?.hasTodos) {
-            await loadTodos();
-        }
+        await loadCoreData();
     } catch (e) {
         console.error('加载数据失败:', e);
     }
@@ -106,7 +98,7 @@ export async function loadIconsBatch(ids) {
         console.error('加载图标失败:', e);
     } finally {
         state.setIsLoadingIcons(false);
-        setTimeout(lazyLoadVisibleIcons, 100);
+        setTimeout(observeBookmarkIcons, 100);
     }
 }
 
@@ -132,7 +124,7 @@ export function initIconObserver() {
                 const id = el.dataset.id;
 
                 if (id && !state.iconCache.has(id)) {
-                    const bookmark = state.bookmarks.find(b => b.id == id);
+                    const bookmark = state.bookmarks.find(b => b.id === id);
                     if (bookmark && bookmark.icon_type === 'base64' && !bookmark.icon_data) {
                         visibleBookmarkIds.push(id);
                     }
@@ -163,12 +155,6 @@ export function observeBookmarkIcons() {
             observedElements.add(el);
         }
     });
-}
-
-// 保留旧函数以兼容（但标记为已废弃）
-export function lazyLoadVisibleIcons() {
-    // 已废弃：使用observeBookmarkIcons()替代
-    observeBookmarkIcons();
 }
 
 function updateBookmarkIcon(bookmarkId, iconInfo) {

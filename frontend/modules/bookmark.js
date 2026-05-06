@@ -4,11 +4,10 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 import { loadData } from './api.js';
-import { renderAll, renderCategoryNav } from './render.js';
+import { renderAll } from './render.js';
 import { updateAiUiVisibility, getAiClientSettings, setAiButtonsDisabled, buildLocalFallbackSummary } from './ai.js';
-import { fetchFavicon } from './favicon.js';
 import { shouldUseProxyUrl, toProxyUrl } from './utils.js';
-import { loadIconLibrary, refreshIconLibraryCache } from './icon-library.js';
+import { refreshIconLibraryCache } from './icon-library.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 
 export function handleBookmarkClick(e) {
@@ -287,7 +286,7 @@ export function toggleBookmarkSorting(categoryId) {
     }
 }
 
-export function enableBookmarkDrag(grid, categoryId) {
+export function enableBookmarkDrag(grid, _categoryId) {
     let draggedItem = null;
 
     const cards = grid.querySelectorAll('.bookmark-card, .component-card');

@@ -20,17 +20,5 @@ module.exports = function(db) {
         res.json(success());
     }));
 
-    // 旧路径兼容: GET /api/config/personalization
-    router.get('/personalization', asyncHandler(async (req, res) => {
-        const data = await configService.getConfig(db);
-        res.json(success(data));
-    }));
-
-    // 旧路径兼容: POST /api/config/personalization
-    router.post('/personalization', requireAdmin, asyncHandler(async (req, res) => {
-        await configService.saveConfig(db, req.body);
-        res.json(success());
-    }));
-
     return router;
 };

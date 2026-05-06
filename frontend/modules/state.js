@@ -35,12 +35,12 @@ export const AI_CLIENT_STORAGE = {
 
 // 图标缓存
 export const iconCache = new Map();
-export let iconLoadQueue = [];
+export const iconLoadQueue = [];
 export let isLoadingIcons = false;
 export let availableIcons = [];
 export let iconLibraryCache = null;
 export let selectedLibraryIcon = null;
-export let selectedIcons = new Set();
+export const selectedIcons = new Set();
 
 // 时钟
 export let clockInterval = null;
