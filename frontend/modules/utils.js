@@ -168,9 +168,15 @@ export function toProxyUrl(url) {
 export function shouldUseProxyUrl(url) {
     if (!url) return false;
     try {
-        const host = new URL(url).hostname;
+        const parsed = new URL(url);
+        if (window.location.protocol === 'https:' && parsed.protocol === 'http:') return true;
+        const host = parsed.hostname;
         return PREFER_PROXY_HOSTS.some(domain => host === domain || host.endsWith('.' + domain));
     } catch (e) {
         return false;
     }
+}
+
+export function toSafeImageUrl(url) {
+    return shouldUseProxyUrl(url) ? toProxyUrl(url) : url;
 }

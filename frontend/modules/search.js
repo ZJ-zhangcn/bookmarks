@@ -3,7 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { highlightText, escapeHtmlAttribute } from './utils.js';
+import { highlightText, escapeHtmlAttribute, toSafeImageUrl } from './utils.js';
 
 export function openBookmarkSearch() {
     DOM.bookmarkSearchOverlay.classList.add('open');
@@ -63,9 +63,9 @@ export function handleBookmarkSearch() {
         let iconHtml;
         const cachedIcon = state.iconCache.get(item.id);
         if (cachedIcon && cachedIcon.icon_data) {
-            iconHtml = `<img src="${cachedIcon.icon_data}" alt="${item.name}">`;
+            iconHtml = `<img src="${toSafeImageUrl(cachedIcon.icon_data)}" alt="${item.name}">`;
         } else if (item.icon_type === 'url' && item.icon_data) {
-            iconHtml = `<img src="${item.icon_data}" alt="${item.name}" onerror="this.outerHTML='<span>${item.icon || '🌐'}</span>'">`;
+            iconHtml = `<img src="${toSafeImageUrl(item.icon_data)}" alt="${item.name}" onerror="this.outerHTML='<span>${item.icon || '🌐'}</span>'">`;
         } else if (item.icon_type === 'base64' && item.icon_data) {
             iconHtml = `<img src="${item.icon_data}" alt="${item.name}">`;
         } else {

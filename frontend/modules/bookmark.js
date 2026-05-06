@@ -6,7 +6,7 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderAll } from './render.js';
 import { updateAiUiVisibility, getAiClientSettings, setAiButtonsDisabled, buildLocalFallbackSummary } from './ai.js';
-import { shouldUseProxyUrl, toProxyUrl } from './utils.js';
+import { toSafeImageUrl } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 
@@ -59,8 +59,8 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
 
             if (bookmark.icon_data) {
                 if (originalIconType === 'base64' || originalIconType === 'url') {
-                    const displayUrl = (originalIconType === 'url' && shouldUseProxyUrl(bookmark.icon_data))
-                        ? toProxyUrl(bookmark.icon_data)
+                    const displayUrl = originalIconType === 'url'
+                        ? toSafeImageUrl(bookmark.icon_data)
                         : bookmark.icon_data;
                     DOM.iconPreviewAuto.innerHTML = `<img src="${displayUrl}" class="selected">`;
                 } else if (originalIconType === 'emoji') {
@@ -197,12 +197,13 @@ export async function saveBookmark() {
         const selectedWrap = DOM.iconPreviewAuto.querySelector('.icon-option-wrap.selected');
         const selectedImg = selectedWrap ? selectedWrap.querySelector('img') : DOM.iconPreviewAuto.querySelector('img');
         if (selectedImg && selectedImg.src) {
-            if (selectedImg.src.startsWith('data:')) {
+            const originalUrl = selectedImg.dataset.url || selectedImg.src;
+            if (originalUrl.startsWith('data:')) {
                 icon_type = 'base64';
-                icon_data = selectedImg.src;
+                icon_data = originalUrl;
             } else {
                 icon_type = 'url';
-                icon_data = selectedImg.src;
+                icon_data = originalUrl;
             }
         } else if (state.editingBookmark && state.editingBookmark.icon_data) {
             icon_type = state.editingBookmark.icon_type;

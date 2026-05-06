@@ -6,6 +6,7 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderEngineDropdown, updateEngineDisplay } from './render.js';
 import { loadIconLibrary } from './icon-library.js';
+import { toSafeImageUrl } from './utils.js';
 
 export function openEngineModal() {
     renderEngineList();
@@ -22,7 +23,7 @@ export function closeEngineModal() {
 export function renderEngineList() {
     DOM.engineList.innerHTML = state.engines.map((e, index) => {
         const iconHtml = e.icon && (e.icon.startsWith('http') || e.icon.startsWith('data:'))
-            ? `<img src="${e.icon}" style="width:20px;height:20px;">`
+            ? `<img src="${toSafeImageUrl(e.icon)}" style="width:20px;height:20px;">`
             : e.icon || '🔍';
         return `
         <div class="engine-list-item" draggable="true" data-id="${e.id}" data-index="${index}">
@@ -64,7 +65,7 @@ export function editEngine(id) {
     DOM.engineInputUrl.value = engine.url;
 
     if (engine.icon && engine.icon.startsWith('http')) {
-        DOM.engineIconPreview.innerHTML = `<img src="${engine.icon}">`;
+        DOM.engineIconPreview.innerHTML = `<img src="${toSafeImageUrl(engine.icon)}">`;
         DOM.engineInputIconUrl.value = engine.icon;
     } else {
         DOM.engineIconPreview.innerHTML = `<span>${engine.icon || '🔍'}</span>`;

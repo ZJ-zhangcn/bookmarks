@@ -3,6 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
+import { toSafeImageUrl } from './utils.js';
 
 export async function loadCoreData() {
     let payload = null;
@@ -165,9 +166,9 @@ function updateBookmarkIcon(bookmarkId, iconInfo) {
     if (iconContainer) {
         const existingImg = iconContainer.querySelector('img');
         if (existingImg) {
-            existingImg.src = iconInfo.icon_data;
+            existingImg.src = toSafeImageUrl(iconInfo.icon_data);
         } else {
-            iconContainer.innerHTML = `<img src="${iconInfo.icon_data}" alt="图标" loading="lazy">`;
+            iconContainer.innerHTML = `<img src="${toSafeImageUrl(iconInfo.icon_data)}" alt="图标" loading="lazy">`;
         }
     }
 }

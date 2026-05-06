@@ -6,7 +6,7 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderAll } from './render.js';
 import { renderCategoryList } from './category.js';
-import { preloadImage } from './utils.js';
+import { preloadImage, toSafeImageUrl } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 
 const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
@@ -171,6 +171,7 @@ export async function applyPersonalization(config, options = {}) {
 
     if (config.wallpaperUrl) {
         const url = String(config.wallpaperUrl || '').trim();
+        const displayUrl = toSafeImageUrl(url);
         const seq = ++wallpaperLoadSeq;
 
         const blur = config.wallpaperBlur || 0;
@@ -186,7 +187,7 @@ export async function applyPersonalization(config, options = {}) {
         const applySuccess = () => {
             if (seq !== wallpaperLoadSeq) return;
             wallpaperLayer.classList.add('active');
-            wallpaperImage.style.backgroundImage = `url(${url})`;
+            wallpaperImage.style.backgroundImage = `url(${displayUrl})`;
             if (bgDecoration) bgDecoration.style.display = 'none';
             localStorage.setItem(WALLPAPER_HINT_KEY, url);
         };
@@ -201,7 +202,7 @@ export async function applyPersonalization(config, options = {}) {
         const avoidLateSwap = options && options.avoidLateWallpaperSwap === true;
 
         if (waitForWallpaper) {
-            const ok = await loadImageAndDecode(url, hinted ? 1500 : INITIAL_WALLPAPER_WAIT_MS);
+            const ok = await loadImageAndDecode(displayUrl, hinted ? 1500 : INITIAL_WALLPAPER_WAIT_MS);
             if (ok) {
                 applySuccess();
             } else {
@@ -210,7 +211,7 @@ export async function applyPersonalization(config, options = {}) {
                     const img = new Image();
                     img.onload = applySuccess;
                     img.onerror = applyFailure;
-                    img.src = url;
+                    img.src = displayUrl;
                 } else {
                     // 背景加载成功则仅写入 hint，避免本次加载出现“后到的壁纸”闪切
                     const img = new Image();
@@ -218,7 +219,7 @@ export async function applyPersonalization(config, options = {}) {
                         if (seq !== wallpaperLoadSeq) return;
                         localStorage.setItem(WALLPAPER_HINT_KEY, url);
                     };
-                    img.src = url;
+                    img.src = displayUrl;
                 }
             }
         } else if (hinted) {
@@ -226,9 +227,9 @@ export async function applyPersonalization(config, options = {}) {
             const img = new Image();
             img.onload = applySuccess;
             img.onerror = applyFailure;
-            img.src = url;
+            img.src = displayUrl;
         } else {
-            const ok = await preloadImage(url, 1500);
+            const ok = await preloadImage(displayUrl, 1500);
             if (ok) {
                 applySuccess();
             } else {
@@ -236,7 +237,7 @@ export async function applyPersonalization(config, options = {}) {
                 const img = new Image();
                 img.onload = applySuccess;
                 img.onerror = applyFailure;
-                img.src = url;
+                img.src = displayUrl;
             }
         }
 

@@ -7,7 +7,7 @@ import * as state from './state.js';
 function escapeHtml(str) {
     return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
-import { highlightText, shouldUseProxyUrl, toProxyUrl } from './utils.js';
+import { highlightText, toSafeImageUrl } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
 import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 
@@ -178,10 +178,10 @@ export function createBookmarkCard(item, searchTerm) {
     let iconHtml;
     const cachedIcon = state.iconCache.get(item.id);
     if (cachedIcon && cachedIcon.icon_data) {
-        iconHtml = `<img src="${cachedIcon.icon_data}" alt="${item.name}" loading="lazy">`;
+        iconHtml = `<img src="${toSafeImageUrl(cachedIcon.icon_data)}" alt="${item.name}" loading="lazy">`;
     } else if (item.icon_type === 'url' && item.icon_data) {
         const rawIconUrl = item.icon_data;
-        const displayUrl = shouldUseProxyUrl(rawIconUrl) ? toProxyUrl(rawIconUrl) : rawIconUrl;
+        const displayUrl = toSafeImageUrl(rawIconUrl);
         const escapedIcon = escapeHtml(item.icon || '🌐');
         iconHtml = `<img src="${displayUrl}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${escapedIcon}</span>'">`;
     } else if (item.icon_type === 'base64' && item.icon_data) {
@@ -305,7 +305,7 @@ export function renderEngineDropdown() {
         opt.dataset.url = engine.url;
 
         const iconHtml = engine.icon && engine.icon.startsWith('http')
-            ? `<img src="${engine.icon}" style="width:18px;height:18px;">`
+            ? `<img src="${toSafeImageUrl(engine.icon)}" style="width:18px;height:18px;">`
             : engine.icon;
         opt.innerHTML = `<span class="engine-option-icon">${iconHtml}</span><span>${engine.name}</span>`;
         divider.parentNode.insertBefore(opt, divider);
@@ -315,7 +315,7 @@ export function renderEngineDropdown() {
 export function updateEngineDisplay() {
     const icon = state.currentEngine.icon;
     if (icon && icon.startsWith('http')) {
-        DOM.engineIcon.innerHTML = `<img src="${icon}" style="width:18px;height:18px;vertical-align:middle;">`;
+        DOM.engineIcon.innerHTML = `<img src="${toSafeImageUrl(icon)}" style="width:18px;height:18px;vertical-align:middle;">`;
     } else if (icon && icon.startsWith('data:')) {
         DOM.engineIcon.innerHTML = `<img src="${icon}" style="width:18px;height:18px;vertical-align:middle;">`;
     } else {
@@ -340,17 +340,19 @@ export function renderIconSelection(availableIcons) {
     }
     if (availableIcons.length === 1) {
         const icon = availableIcons[0];
+        const displayIcon = toSafeImageUrl(icon);
         const source = getIconSource(icon);
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
-            <img src="${icon}" onerror="this.outerHTML='<span>🌐</span>'">
+            <img src="${displayIcon}" data-url="${icon}" onerror="this.outerHTML='<span>🌐</span>'">
             <span class="icon-source-label ${source.class}">${source.label}</span>
         </div>`;
     } else {
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
             ${availableIcons.slice(0, 6).map((icon, idx) => {
         const source = getIconSource(icon);
+        const displayIcon = toSafeImageUrl(icon);
         return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
-                    <img src="${icon}" class="icon-option" onerror="this.parentElement.remove()">
+                    <img src="${displayIcon}" data-url="${icon}" class="icon-option" onerror="this.parentElement.remove()">
                     <span class="icon-source-label ${source.class}">${source.label}</span>
                 </div>`;
     }).join('')}

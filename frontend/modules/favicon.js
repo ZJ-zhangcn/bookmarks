@@ -3,7 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { isPrivateOrLocalAddress, shouldUseProxyUrl, toProxyUrl } from './utils.js';
+import { isPrivateOrLocalAddress, toSafeImageUrl } from './utils.js';
 import { renderIconSelection } from './render.js';
 
 const FALLBACK_SOURCES = [
@@ -56,16 +56,8 @@ export async function fetchFavicon() {
         const rawSiteIcons = (proxyResult?.success && proxyResult?.icons) ? proxyResult.icons : [];
         const fallbackIcons = fallbackResults.filter(Boolean);
 
-        // 对于被墙的域名，仅使用代理 URL 避免浏览器直连失败
-        const siteIcons = rawSiteIcons.map(iconUrl => {
-            if (shouldUseProxyUrl(iconUrl)) {
-                return toProxyUrl(iconUrl);
-            }
-            return iconUrl;
-        });
-
         // 网站自带图标放前面，第三方服务图标放后面，去重
-        const allIcons = [...new Set([...siteIcons, ...fallbackIcons])];
+        const allIcons = [...new Set([...rawSiteIcons, ...fallbackIcons])];
 
         if (allIcons.length > 0) {
             state.setAvailableIcons(allIcons);
@@ -132,8 +124,9 @@ export async function fetchEngineIcon() {
 
         if (isPrivateOrLocalAddress(domain)) {
             const localIcon = `${parsedUrl.origin}/favicon.ico`;
-            if (await tryLoadImage(localIcon)) {
-                DOM.engineIconPreview.innerHTML = `<img src="${localIcon}">`;
+            const displayIcon = toSafeImageUrl(localIcon);
+            if (await tryLoadImage(displayIcon)) {
+                DOM.engineIconPreview.innerHTML = `<img src="${displayIcon}">`;
                 DOM.engineIconPreview.dataset.iconUrl = localIcon;
             } else {
                 DOM.engineIconPreview.innerHTML = '<span>🔍</span>';
@@ -144,8 +137,9 @@ export async function fetchEngineIcon() {
 
         for (const getUrl of FALLBACK_SOURCES) {
             const iconUrl = getUrl(domain);
-            if (await tryLoadImage(iconUrl)) {
-                DOM.engineIconPreview.innerHTML = `<img src="${iconUrl}">`;
+            const displayIcon = toSafeImageUrl(iconUrl);
+            if (await tryLoadImage(displayIcon)) {
+                DOM.engineIconPreview.innerHTML = `<img src="${displayIcon}">`;
                 DOM.engineIconPreview.dataset.iconUrl = iconUrl;
                 return;
             }
@@ -161,11 +155,12 @@ export async function fetchEngineIcon() {
 export function updateEngineIconPreviewUrl() {
     const url = DOM.engineInputIconUrl.value.trim();
     if (url) {
-        DOM.engineIconPreview.innerHTML = `<img src="${url}" alt="图标" onerror="this.parentElement.innerHTML='<span>❌</span>'">`;
+        DOM.engineIconPreview.innerHTML = `<img src="${toSafeImageUrl(url)}" alt="图标" onerror="this.parentElement.innerHTML='<span>❌</span>'">`;
         delete DOM.engineIconPreview.dataset.iconUrl;
     } else {
         if (DOM.engineIconPreview.dataset.iconUrl) {
-            DOM.engineIconPreview.innerHTML = `<img src="${DOM.engineIconPreview.dataset.iconUrl}">`;
+            const iconUrl = DOM.engineIconPreview.dataset.iconUrl;
+            DOM.engineIconPreview.innerHTML = `<img src="${toSafeImageUrl(iconUrl)}">`;
         } else {
             DOM.engineIconPreview.innerHTML = '<span>🔍</span>';
         }

@@ -3,6 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
+import { toSafeImageUrl } from './utils.js';
 
 export async function loadIconLibrary(target = 'bookmark') {
     const gridElement = target === 'bookmark' ? DOM.iconLibraryGrid : DOM.engineIconLibraryGrid;
@@ -23,11 +24,14 @@ export async function loadIconLibrary(target = 'bookmark') {
             return;
         }
 
-        gridElement.innerHTML = state.iconLibraryCache.map((icon, index) => `
+        gridElement.innerHTML = state.iconLibraryCache.map((icon, index) => {
+            const displayIcon = toSafeImageUrl(icon.data);
+            return `
             <div class="icon-library-item" data-index="${index}" data-icon="${encodeURIComponent(icon.data)}" title="${icon.source || '未知来源'}">
-                <img src="${icon.data}" alt="图标" onerror="this.parentElement.style.display='none'">
+                <img src="${displayIcon}" alt="图标" onerror="this.parentElement.style.display='none'">
             </div>
-        `).join('');
+        `;
+        }).join('');
 
         gridElement.querySelectorAll('.icon-library-item').forEach(item => {
             item.addEventListener('click', () => {
@@ -41,7 +45,7 @@ export async function loadIconLibrary(target = 'bookmark') {
                     state.setCurrentIconType('library');
                     state.setCurrentIconData(iconData);
                 } else {
-                    DOM.engineIconPreview.innerHTML = `<img src="${iconData}">`;
+                    DOM.engineIconPreview.innerHTML = `<img src="${toSafeImageUrl(iconData)}">`;
                     DOM.engineInputIconUrl.value = iconData.startsWith('data:') ? '' : iconData;
                     DOM.engineIconPreview.dataset.iconUrl = iconData;
                 }
@@ -83,7 +87,9 @@ export async function renderIconLibrary() {
             }
         });
 
-        DOM.settingsIconLibraryGrid.innerHTML = state.iconLibraryCache.map((icon, index) => `
+        DOM.settingsIconLibraryGrid.innerHTML = state.iconLibraryCache.map((icon, index) => {
+            const displayIcon = toSafeImageUrl(icon.data);
+            return `
             <div class="icon-library-item ${state.selectedIcons.has(icon.id) ? 'selected' : ''}"
                  data-index="${index}"
                  data-id="${icon.id}"
@@ -91,10 +97,11 @@ export async function renderIconLibrary() {
                  data-temp="${icon.isTemp || false}"
                  title="${icon.source || '未知来源'}${icon.uploaded ? ' (已上传)' : ' (来自书签)'}">
                 <input type="checkbox" class="icon-checkbox" data-id="${icon.id}" ${state.selectedIcons.has(icon.id) ? 'checked' : ''} onchange="handleIconCheckboxChange(event, '${icon.id}')">
-                <img src="${icon.data}" alt="图标" onclick="handleIconItemClick(event)" onerror="this.parentElement.style.display='none'">
+                <img src="${displayIcon}" alt="图标" onclick="handleIconItemClick(event)" onerror="this.parentElement.style.display='none'">
                 <button type="button" class="icon-delete-btn" title="删除" onclick="handleIconDelete('${icon.id}', ${icon.isTemp || false})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
             </div>
-        `).join('');
+        `;
+        }).join('');
     } catch (err) {
         console.error('加载图标库失败:', err);
         DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-empty">加载图标库失败</div>';
