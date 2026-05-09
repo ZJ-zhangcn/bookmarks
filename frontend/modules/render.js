@@ -4,7 +4,7 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 
-import { highlightText, toSafeImageUrl, escapeHtml, escapeHtmlAttribute, toSafeExternalUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
+import { highlightText, toSafeImageUrl, toPreferredIconImageUrl, escapeHtml, escapeHtmlAttribute, toSafeExternalUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
 import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 
@@ -116,6 +116,7 @@ export function renderBookmarks() {
 
         if (needsUpdate) {
             grid.innerHTML = filteredItems.map((item, i) => createBookmarkCard(item, searchTerm, i)).join('');
+            bindImageFallbacks(grid);
             grid.dataset.renderMode = targetRenderMode;
             grid.dataset.version = state.dataVersion;
             
@@ -162,6 +163,12 @@ function createCategorySection(category, isCollapsed, idx) {
     return section;
 }
 
+function renderBookmarkIconImage(src, name, fallbackIcon = '🌐') {
+    const displayUrl = toPreferredIconImageUrl(src);
+    if (!displayUrl) return `<span>${escapeHtml(fallbackIcon || '🌐')}</span>`;
+    return `<img src="${escapeHtmlAttribute(displayUrl)}" data-original-src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(name)}" loading="lazy" data-fallback-icon="${escapeHtmlAttribute(fallbackIcon || '🌐')}">`;
+}
+
 export function createBookmarkCard(item, searchTerm) {
     if (item.item_type === 'component') {
         return createComponentCard(item);
@@ -182,13 +189,15 @@ export function createBookmarkCard(item, searchTerm) {
     let iconHtml;
     const cachedIcon = state.iconCache.get(item.id);
     if (cachedIcon && cachedIcon.icon_data) {
-        iconHtml = `<img src="${toSafeImageUrl(cachedIcon.icon_data)}" alt="${escapeHtmlAttribute(item.name)}" loading="lazy">`;
+        if (cachedIcon.icon_type === 'base64') {
+            iconHtml = `<img src="${toSafeDataImageUrl(cachedIcon.icon_data)}" alt="${escapeHtmlAttribute(item.name)}" loading="lazy" data-fallback-icon="${escapeHtmlAttribute(item.icon || '🌐')}">`;
+        } else {
+            iconHtml = renderBookmarkIconImage(cachedIcon.icon_data, item.name, item.icon || '🌐');
+        }
     } else if (item.icon_type === 'url' && item.icon_data) {
-        const rawIconUrl = item.icon_data;
-        const displayUrl = toSafeImageUrl(rawIconUrl);
-        iconHtml = `<img src="${displayUrl}" alt="${escapeHtmlAttribute(item.name)}" loading="lazy" data-fallback-icon="${escapeHtmlAttribute(item.icon || '🌐')}">`;
+        iconHtml = renderBookmarkIconImage(item.icon_data, item.name, item.icon || '🌐');
     } else if (item.icon_type === 'base64' && item.icon_data) {
-        iconHtml = `<img src="${toSafeDataImageUrl(item.icon_data)}" alt="${escapeHtmlAttribute(item.name)}" loading="lazy">`;
+        iconHtml = `<img src="${toSafeDataImageUrl(item.icon_data)}" alt="${escapeHtmlAttribute(item.name)}" loading="lazy" data-fallback-icon="${escapeHtmlAttribute(item.icon || '🌐')}">`;
     } else if (item.icon_type === 'base64') {
         iconHtml = `<span class="icon-placeholder">${escapeHtml(item.icon || '🌐')}</span>`;
     } else {

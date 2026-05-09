@@ -3,7 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { isPrivateOrLocalAddress, toSafeImageUrl, toSafeDataImageUrl, bindImageFallbacks, escapeHtml, escapeHtmlAttribute } from './utils.js';
+import { isPrivateOrLocalAddress, toSafeImageUrl, toPreferredIconImageUrl, toSafeDataImageUrl, bindImageFallbacks, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { renderIconSelection } from './render.js';
 import {
     normalizeFaviconResponse,
@@ -247,7 +247,8 @@ export function updateEngineIconPreviewUrl() {
     } else {
         if (DOM.engineIconPreview.dataset.iconUrl) {
             const iconUrl = DOM.engineIconPreview.dataset.iconUrl;
-            DOM.engineIconPreview.innerHTML = `<img src="${iconUrl.startsWith('data:') ? toSafeDataImageUrl(iconUrl) : toSafeImageUrl(iconUrl)}">`;
+            const displayIcon = iconUrl.startsWith('data:') ? toSafeDataImageUrl(iconUrl) : toPreferredIconImageUrl(iconUrl);
+            DOM.engineIconPreview.innerHTML = `<img src="${escapeHtmlAttribute(displayIcon)}">`;
         } else {
             DOM.engineIconPreview.innerHTML = '<span>🔍</span>';
         }

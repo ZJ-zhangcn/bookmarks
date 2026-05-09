@@ -1,7 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { normalizeFaviconResponse, createFaviconRequestGuard, buildLocalFaviconCandidates, mergeIconsWithLocalFallback } = require('../frontend/modules/favicon-helpers.cjs');
+const {
+    normalizeFaviconResponse,
+    createFaviconRequestGuard,
+    buildLocalFaviconCandidates,
+    mergeIconsWithLocalFallback,
+    isPrivateOrLocalAddress,
+    shouldUseProxyUrlForIcon
+} = require('../frontend/modules/favicon-helpers.cjs');
 const { resolveIconHref, selectBestIcons } = require('../backend/utils/icon-discovery');
 
 test('normalizeFaviconResponse reads standard success(data) envelope', () => {
@@ -60,6 +67,22 @@ test('mergeIconsWithLocalFallback keeps server-discovered icons before current-d
         ),
         ['https://example.com/apple.png', 'https://example.com/favicon.ico', 'https://example.com/favicon.png']
     );
+});
+
+test('saved icon display prefers direct URL and only proxies public HTTP mixed-content URLs', () => {
+    assert.equal(isPrivateOrLocalAddress('nas.local'), true);
+    assert.equal(isPrivateOrLocalAddress('127.0.0.2'), true);
+    assert.equal(isPrivateOrLocalAddress('0.0.0.0'), true);
+    assert.equal(isPrivateOrLocalAddress('100.64.0.1'), true);
+    assert.equal(isPrivateOrLocalAddress('100.127.255.255'), true);
+    assert.equal(isPrivateOrLocalAddress('100.128.0.1'), false);
+    assert.equal(isPrivateOrLocalAddress('192.168.1.10'), true);
+    assert.equal(isPrivateOrLocalAddress('::'), true);
+    assert.equal(isPrivateOrLocalAddress('::ffff:192.168.1.1'), true);
+    assert.equal(shouldUseProxyUrlForIcon('https://github.com/favicon.ico', 'https:'), false);
+    assert.equal(shouldUseProxyUrlForIcon('http://192.168.1.10/favicon.ico', 'https:'), false);
+    assert.equal(shouldUseProxyUrlForIcon('http://127.0.0.2/favicon.ico', 'https:'), false);
+    assert.equal(shouldUseProxyUrlForIcon('http://example.com/favicon.ico', 'https:'), true);
 });
 
 test('selectBestIcons prefers larger apple/icon candidates and includes manifest icons', async () => {
