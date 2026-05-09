@@ -253,22 +253,13 @@ export function createComponentCard(item) {
 
 function createServerMonitorCard(item) {
     return `
-        <div class="component-card server-monitor-card" data-id="${escapeHtmlAttribute(item.id)}" data-component="servers">
+        <div class="server-monitor-grid" data-id="${escapeHtmlAttribute(item.id)}" data-component="servers">
             <div class="bookmark-actions">
                 <button class="bookmark-action-btn delete" data-id="${escapeHtmlAttribute(item.id)}" title="删除">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
             </div>
-            <div class="server-monitor-header">
-                <div class="component-icon">🛰️</div>
-                <div>
-                    <div class="component-label">${escapeHtml(item.name || '服务器监控')}</div>
-                    <div class="server-monitor-subtitle">多服务器探针</div>
-                </div>
-            </div>
-            <div class="server-list" data-type="servers">
-                <div class="server-empty">加载中...</div>
-            </div>
+            <div class="server-cards" data-type="servers"><div class="server-empty">加载中...</div></div>
         </div>
     `;
 }
@@ -292,7 +283,7 @@ function progressColor(percent) {
     return percent > 80 ? '#ef4444' : percent > 50 ? '#f59e0b' : '#22c55e';
 }
 
-function renderServerRows(servers) {
+function renderServerCards(servers) {
     if (!Array.isArray(servers) || servers.length === 0) {
         return '<div class="server-empty">暂无服务器上报</div>';
     }
@@ -301,35 +292,40 @@ function renderServerRows(servers) {
         const memory = server.memory?.usagePercent || 0;
         const disk = server.disk?.usagePercent || 0;
         const statusLabel = { online: '在线', stale: '延迟', offline: '离线' }[server.status] || server.status;
-        const meta = [server.region, server.role, `运行 ${formatUptime(server.uptime)}`].filter(Boolean).join(' · ');
+        const meta = [server.region, server.role].filter(Boolean).join(' · ');
         return `
-            <div class="server-row ${escapeHtmlAttribute(server.status || 'offline')}">
-                <div class="server-row-main">
+            <div class="component-card server-card ${escapeHtmlAttribute(server.status || 'offline')}">
+                <div class="server-card-top">
                     <span class="server-status-dot ${escapeHtmlAttribute(server.status || 'offline')}"></span>
+                    <span class="server-status-label">${escapeHtml(statusLabel)}</span>
+                </div>
+                <div class="server-card-title-row">
+                    <div class="component-icon">🖥️</div>
                     <div class="server-title">
                         <div class="server-name">${escapeHtml(server.name || server.id)}</div>
                         <div class="server-meta">${escapeHtml(meta || server.id)}</div>
                     </div>
-                    <span class="server-status-label">${escapeHtml(statusLabel)}</span>
                 </div>
+                <div class="server-uptime">运行 ${escapeHtml(formatUptime(server.uptime))}</div>
                 <div class="server-metrics">
-                    <span>CPU ${cpu.toFixed(0)}%</span>
-                    <span>RAM ${memory.toFixed(0)}%</span>
-                    <span>磁盘 ${disk.toFixed(0)}%</span>
+                    <span>CPU <b>${cpu.toFixed(0)}%</b></span>
+                    <span>RAM <b>${memory.toFixed(0)}%</b></span>
+                    <span>磁盘 <b>${disk.toFixed(0)}%</b></span>
                 </div>
                 <div class="server-bars">
                     <div class="server-mini-bar"><i style="width:${cpu}%;background:${progressColor(cpu)}"></i></div>
                     <div class="server-mini-bar"><i style="width:${memory}%;background:${progressColor(memory)}"></i></div>
                     <div class="server-mini-bar"><i style="width:${disk}%;background:${progressColor(disk)}"></i></div>
                 </div>
-                <div class="server-resource-line">${formatBytes(server.memory?.used || 0)} / ${formatBytes(server.memory?.total || 0)} RAM · ${formatBytes(server.disk?.used || 0)} / ${formatBytes(server.disk?.total || 0)} 磁盘</div>
+                <div class="server-resource-line">${formatBytes(server.memory?.used || 0)} / ${formatBytes(server.memory?.total || 0)} RAM</div>
+                <div class="server-resource-line">${formatBytes(server.disk?.used || 0)} / ${formatBytes(server.disk?.total || 0)} 磁盘</div>
             </div>
         `;
     }).join('');
 }
 
 export async function refreshSystemStats() {
-    const componentCards = document.querySelectorAll('.component-card');
+    const componentCards = document.querySelectorAll('.component-card, .server-monitor-grid');
     if (componentCards.length === 0) {
         if (state.systemStatsInterval) {
             clearInterval(state.systemStatsInterval);
@@ -344,8 +340,8 @@ export async function refreshSystemStats() {
         if (!result.success) return;
 
         const servers = result.data?.servers || [];
-        document.querySelectorAll('.server-list[data-type="servers"]').forEach(el => {
-            el.innerHTML = renderServerRows(servers);
+        document.querySelectorAll('.server-cards[data-type="servers"]').forEach(el => {
+            el.innerHTML = renderServerCards(servers);
         });
 
         const localServer = servers[0] || {};

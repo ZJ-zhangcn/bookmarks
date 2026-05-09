@@ -297,7 +297,7 @@ export function toggleBookmarkSorting(categoryId) {
 export function enableBookmarkDrag(grid, _categoryId) {
     let draggedItem = null;
 
-    const cards = grid.querySelectorAll('.bookmark-card, .component-card');
+    const cards = grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-grid');
     cards.forEach(card => {
         card.draggable = true;
 
@@ -331,7 +331,7 @@ export function enableBookmarkDrag(grid, _categoryId) {
 export async function saveBookmarkOrder(categoryId) {
     const section = document.querySelector(`.category-section[data-category-id="${categoryId}"]`);
     const grid = section.querySelector('.bookmarks-grid');
-    const cards = grid.querySelectorAll('.bookmark-card, .component-card');
+    const cards = grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-grid');
 
     const order = Array.from(cards).map((card, index) => ({
         id: card.dataset.id,

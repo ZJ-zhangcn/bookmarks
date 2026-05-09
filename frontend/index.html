@@ -473,6 +473,13 @@
                         </svg>
                         <span>图标库</span>
                     </button>
+                    <button class="settings-tab" data-tab="monitor">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 3v18h18" />
+                            <path d="M7 14l3-3 3 2 4-6" />
+                        </svg>
+                        <span>系统监控</span>
+                    </button>
                     <button class="settings-tab" data-tab="sync">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path
@@ -659,6 +666,27 @@
                         <!-- 图标网格 -->
                         <div class="icon-library-grid icon-library-manage" id="settingsIconLibraryGrid">
                             <!-- 由 JavaScript 动态渲染 -->
+                        </div>
+                    </div>
+
+                    <!-- 系统监控 -->
+                    <div class="settings-panel" data-panel="monitor">
+                        <h4 class="panel-title">系统监控</h4>
+                        <div class="info-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M12 16v-4M12 8h.01" />
+                            </svg>
+                            <span>在这里配置服务器展示项。Agent 仍需在对应服务器上安装并使用同一个上报 Token。</span>
+                        </div>
+                        <div class="setting-card">
+                            <h5 class="card-subtitle">服务器列表</h5>
+                            <div class="monitor-server-list" id="monitorServerList"></div>
+                            <div class="panel-actions monitor-actions">
+                                <button class="btn btn-secondary" id="monitorAddServerBtn">+ 添加服务器</button>
+                                <button class="btn btn-primary" id="monitorSaveServersBtn">保存配置</button>
+                            </div>
+                            <small class="setting-hint">ID 必须和远端 Agent 上报的 MONITOR_SERVER_ID 一致；未上报的服务器会显示为离线。</small>
                         </div>
                     </div>
 

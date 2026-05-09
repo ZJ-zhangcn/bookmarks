@@ -6,7 +6,7 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderAll } from './render.js';
 import { renderCategoryList } from './category.js';
-import { preloadImage, toSafeImageUrl } from './utils.js';
+import { preloadImage, toSafeImageUrl, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 
 const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
@@ -68,6 +68,7 @@ export function setTheme(theme) {
 export function openSettingsModal() {
     renderCategoryList();
     loadPersonalization();
+    loadMonitorServers();
     DOM.settingsModal.classList.add('open');
     document.body.style.overflow = 'hidden';
 }
@@ -80,6 +81,88 @@ export function closeSettingsModal() {
 export function closeAllModals() {
     [DOM.engineModal, DOM.bookmarkModal, DOM.categoryModal, DOM.settingsModal, DOM.bookmarkSearchOverlay, DOM.todoModal].forEach(m => m?.classList.remove('open'));
     document.body.style.overflow = '';
+}
+
+function defaultMonitorServers() {
+    return [
+        { id: 'hk-vps', name: 'HK VPS', region: 'Hong Kong', role: 'bookmarks', enabled: true },
+        { id: 'us-vps', name: 'US VPS', region: 'US', role: 'relay', enabled: true }
+    ];
+}
+
+function renderMonitorServers(servers = []) {
+    if (!DOM.monitorServerList) return;
+    const list = servers.length > 0 ? servers : defaultMonitorServers();
+    DOM.monitorServerList.innerHTML = list.map(server => `
+        <div class="monitor-server-config" data-monitor-server-row>
+            <label class="checkbox-label monitor-enabled">
+                <input type="checkbox" data-field="enabled" ${server.enabled === false ? '' : 'checked'}>
+                <span>显示</span>
+            </label>
+            <input type="text" data-field="id" class="setting-input" placeholder="ID: us-vps" value="${escapeHtmlAttribute(server.id || '')}" autocomplete="off" data-form-type="other">
+            <input type="text" data-field="name" class="setting-input" placeholder="名称" value="${escapeHtmlAttribute(server.name || '')}" autocomplete="off" data-form-type="other">
+            <input type="text" data-field="region" class="setting-input" placeholder="区域" value="${escapeHtmlAttribute(server.region || '')}" autocomplete="off" data-form-type="other">
+            <input type="text" data-field="role" class="setting-input" placeholder="用途" value="${escapeHtmlAttribute(server.role || '')}" autocomplete="off" data-form-type="other">
+            <button type="button" class="btn btn-danger btn-sm" data-action="remove-monitor-server">删除</button>
+        </div>
+    `).join('');
+    DOM.monitorServerList.querySelectorAll('[data-action="remove-monitor-server"]').forEach(btn => {
+        btn.addEventListener('click', () => btn.closest('[data-monitor-server-row]')?.remove());
+    });
+}
+
+function collectMonitorServers() {
+    return [...(DOM.monitorServerList?.querySelectorAll('[data-monitor-server-row]') || [])]
+        .map(row => ({
+            id: row.querySelector('[data-field="id"]')?.value.trim() || '',
+            name: row.querySelector('[data-field="name"]')?.value.trim() || '',
+            region: row.querySelector('[data-field="region"]')?.value.trim() || '',
+            role: row.querySelector('[data-field="role"]')?.value.trim() || '',
+            enabled: row.querySelector('[data-field="enabled"]')?.checked !== false
+        }))
+        .filter(server => server.id || server.name);
+}
+
+export async function loadMonitorServers() {
+    if (!DOM.monitorServerList) return;
+    DOM.monitorServerList.innerHTML = '<div class="server-empty">加载中...</div>';
+    try {
+        const res = await fetch(`${state.API_BASE}/api/system/config`);
+        const result = await res.json();
+        renderMonitorServers(result.success ? (result.data?.servers || []) : []);
+    } catch (e) {
+        console.error('加载监控配置失败:', e);
+        renderMonitorServers(defaultMonitorServers());
+    }
+}
+
+export async function saveMonitorServers() {
+    try {
+        const servers = collectMonitorServers();
+        const headers = { 'Content-Type': 'application/json' };
+        const token = window.prompt('请输入管理员 Token 以保存服务器配置（不会保存到浏览器）');
+        if (!token) return;
+        headers.Authorization = `Bearer ${token.trim()}`;
+        const res = await fetch(`${state.API_BASE}/api/system/config`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ servers })
+        });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.error || '保存失败');
+        renderMonitorServers(result.data?.servers || servers);
+        await loadData();
+        renderAll();
+        alert('监控配置已保存');
+    } catch (e) {
+        alert('保存监控配置失败: ' + e.message);
+    }
+}
+
+export function addMonitorServerRow() {
+    const servers = collectMonitorServers();
+    servers.push({ id: '', name: '', region: '', role: '', enabled: true });
+    renderMonitorServers(servers);
 }
 
 export async function loadPersonalization(options = {}) {

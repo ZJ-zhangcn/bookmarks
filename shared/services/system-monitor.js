@@ -40,7 +40,8 @@ function getServerStatus(lastSeen, now = Date.now()) {
 function normalizeAgentReport(report = {}, receivedAt = Date.now()) {
     const metrics = report.metrics && typeof report.metrics === 'object' ? report.metrics : report;
     const cpu = metrics.cpu || {};
-    const lastSeen = Number(report.lastSeen || report.last_seen || receivedAt);
+    const explicitLastSeen = report.lastSeen !== undefined ? report.lastSeen : report.last_seen;
+    const lastSeen = explicitLastSeen === undefined ? receivedAt : Number(explicitLastSeen);
     return {
         id: String(report.id || report.name || 'unknown').trim().slice(0, 80) || 'unknown',
         name: String(report.name || report.id || 'Unknown').trim().slice(0, 80) || 'Unknown',
@@ -59,24 +60,112 @@ function normalizeAgentReport(report = {}, receivedAt = Date.now()) {
     };
 }
 
-function buildServerList({ local, agents = [], now = Date.now() }) {
+function sanitizeServerConfig(input = {}) {
+    const id = String(input.id || '').trim();
+    if (!/^[a-zA-Z0-9._:-]{1,80}$/.test(id)) {
+        throw new Error('服务器 ID 格式不合法：仅支持字母、数字、点、下划线、冒号和短横线');
+    }
+    const name = String(input.name || id).trim().slice(0, 80) || id;
+    return {
+        id,
+        name,
+        region: String(input.region || '').trim().slice(0, 80),
+        role: String(input.role || '').trim().slice(0, 80),
+        enabled: input.enabled !== false
+    };
+}
+
+function mergeServerConfigs(existing = [], incoming = []) {
+    const existingById = new Map();
+    for (const item of existing) {
+        try {
+            const config = sanitizeServerConfig(item);
+            existingById.set(config.id, config);
+        } catch {
+            // Ignore invalid historical config entries.
+        }
+    }
+    const merged = [];
+    const seen = new Set();
+    for (const item of incoming) {
+        const next = sanitizeServerConfig(item);
+        if (seen.has(next.id)) continue;
+        const prev = existingById.get(next.id) || {};
+        merged.push({
+            id: next.id,
+            name: next.name || prev.name || next.id,
+            region: next.region || prev.region || '',
+            role: next.role || prev.role || '',
+            enabled: next.enabled
+        });
+        seen.add(next.id);
+    }
+    return merged;
+}
+
+function applyConfig(server, config) {
+    if (!server || !config) return server;
+    return {
+        ...server,
+        name: config.name || server.name,
+        region: config.region || server.region,
+        role: config.role || server.role,
+        configured: true
+    };
+}
+
+function emptyConfiguredServer(config, now) {
+    return applyConfig(normalizeAgentReport({
+        id: config.id,
+        name: config.name,
+        role: config.role,
+        region: config.region,
+        lastSeen: 0,
+        metrics: {}
+    }, now), config);
+}
+
+function buildServerList({ local, agents = [], configs = [], now = Date.now() }) {
     const byId = new Map();
     const ordered = [];
+    const configById = new Map();
+    const hasExplicitConfigs = Array.isArray(configs) && configs.length > 0;
+    for (const item of configs) {
+        try {
+            const config = sanitizeServerConfig(item);
+            if (config.enabled === false) continue;
+            configById.set(config.id, config);
+            ordered.push(config.id);
+        } catch {
+            // Ignore invalid config entries from old data.
+        }
+    }
+    const shouldShow = id => !hasExplicitConfigs || configById.has(id);
+
     if (local) {
         const normalizedLocal = normalizeAgentReport({ ...local, lastSeen: now }, now);
-        byId.set(normalizedLocal.id, normalizedLocal);
-        ordered.push(normalizedLocal.id);
+        if (shouldShow(normalizedLocal.id)) {
+            if (!ordered.includes(normalizedLocal.id)) ordered.unshift(normalizedLocal.id);
+            byId.set(normalizedLocal.id, applyConfig(normalizedLocal, configById.get(normalizedLocal.id)));
+        }
     }
     for (const agent of agents) {
         const normalized = normalizeAgentReport(agent, now);
-        if (byId.has(normalized.id)) continue;
+        if (!shouldShow(normalized.id) || byId.has(normalized.id)) continue;
         normalized.status = getServerStatus(normalized.lastSeen, now);
-        ordered.push(normalized.id);
-        byId.set(normalized.id, normalized);
+        if (!ordered.includes(normalized.id)) ordered.push(normalized.id);
+        byId.set(normalized.id, applyConfig(normalized, configById.get(normalized.id)));
+    }
+    for (const id of ordered) {
+        if (!byId.has(id) && configById.has(id)) {
+            byId.set(id, emptyConfiguredServer(configById.get(id), now));
+        }
     }
     return ordered.map(id => byId.get(id)).filter(Boolean).sort((a, b) => {
         const statusOrder = { online: 0, stale: 1, offline: 2 };
-        return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9);
+        const diff = (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9);
+        if (diff !== 0) return diff;
+        return ordered.indexOf(a.id) - ordered.indexOf(b.id);
     });
 }
 
@@ -85,6 +174,8 @@ module.exports = {
     OFFLINE_TTL_MS,
     clampPercent,
     normalizeResource,
+    sanitizeServerConfig,
+    mergeServerConfigs,
     normalizeAgentReport,
     buildServerList,
     getServerStatus

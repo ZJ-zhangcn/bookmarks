@@ -10,7 +10,7 @@ import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmar
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
 import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl } from './favicon.js';
-import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme } from './settings.js';
+import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme, addMonitorServerRow, saveMonitorServers } from './settings.js';
 import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
 import { saveAiClientSettingsFromUi, clearAiClientSettings } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
@@ -165,6 +165,8 @@ export function bindAllEvents() {
 
     if (DOM.aiSaveSettingsBtn) DOM.aiSaveSettingsBtn.addEventListener('click', saveAiClientSettingsFromUi);
     if (DOM.aiClearSettingsBtn) DOM.aiClearSettingsBtn.addEventListener('click', clearAiClientSettings);
+    if (DOM.monitorAddServerBtn) DOM.monitorAddServerBtn.addEventListener('click', addMonitorServerRow);
+    if (DOM.monitorSaveServersBtn) DOM.monitorSaveServersBtn.addEventListener('click', saveMonitorServers);
 
     DOM.settingsTabs.forEach(tab => {
         tab.addEventListener('click', () => {

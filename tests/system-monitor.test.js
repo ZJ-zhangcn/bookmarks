@@ -4,7 +4,9 @@ const assert = require('node:assert/strict');
 const {
     normalizeAgentReport,
     buildServerList,
-    getServerStatus
+    getServerStatus,
+    sanitizeServerConfig,
+    mergeServerConfigs
 } = require('../shared/services/system-monitor');
 
 test('normalizes agent server reports for dashboard display', () => {
@@ -61,6 +63,69 @@ test('buildServerList keeps local server first when remote id collides', () => {
     assert.equal(servers.length, 1);
     assert.equal(servers[0].name, 'HK VPS');
     assert.equal(servers[0].cpu.usage, 10);
+});
+
+test('buildServerList applies configured server labels and keeps configured offline servers visible', () => {
+    const now = 1700000000000;
+    const local = normalizeAgentReport({ id: 'hk-vps', name: 'Local Raw', metrics: {} }, now);
+    const configs = [
+        { id: 'hk-vps', name: 'HK VPS', region: 'Hong Kong', role: 'bookmarks' },
+        { id: 'us-vps', name: 'US VPS', region: 'US', role: 'relay' }
+    ];
+
+    const servers = buildServerList({ local, agents: [], configs, now });
+
+    assert.deepEqual(servers.map(server => [server.id, server.name, server.status]), [
+        ['hk-vps', 'HK VPS', 'online'],
+        ['us-vps', 'US VPS', 'offline']
+    ]);
+    assert.equal(servers[1].region, 'US');
+    assert.equal(servers[1].role, 'relay');
+});
+
+test('buildServerList hides disabled configured servers even when agents are reporting', () => {
+    const now = 1700000000000;
+    const local = normalizeAgentReport({ id: 'hk-vps', name: 'HK VPS', metrics: {} }, now);
+    const agents = [normalizeAgentReport({ id: 'us-vps', name: 'US VPS', metrics: {} }, now)];
+    const configs = [
+        { id: 'hk-vps', name: 'HK VPS', enabled: true },
+        { id: 'us-vps', name: 'US VPS', enabled: false }
+    ];
+
+    const servers = buildServerList({ local, agents, configs, now });
+
+    assert.deepEqual(servers.map(server => server.id), ['hk-vps']);
+});
+
+test('sanitizeServerConfig validates and trims UI server config', () => {
+    const config = sanitizeServerConfig({
+        id: ' us-vps ',
+        name: ' US VPS ',
+        region: ' United States ',
+        role: ' relay ',
+        enabled: false
+    });
+
+    assert.deepEqual(config, {
+        id: 'us-vps',
+        name: 'US VPS',
+        region: 'United States',
+        role: 'relay',
+        enabled: false
+    });
+    assert.throws(() => sanitizeServerConfig({ id: 'bad id!' }), /服务器 ID/);
+});
+
+test('mergeServerConfigs preserves existing metadata when saving partial UI edits', () => {
+    const merged = mergeServerConfigs(
+        [{ id: 'us-vps', name: 'Old', region: 'US', role: 'relay' }],
+        [{ id: 'us-vps', name: 'New' }, { id: 'hk-vps', name: 'HK' }]
+    );
+
+    assert.deepEqual(merged, [
+        { id: 'us-vps', name: 'New', region: 'US', role: 'relay', enabled: true },
+        { id: 'hk-vps', name: 'HK', region: '', role: '', enabled: true }
+    ]);
 });
 
 test('getServerStatus uses nezha-like freshness thresholds', () => {

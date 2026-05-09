@@ -6,8 +6,9 @@ const os = require('os');
 const fs = require('fs');
 const { exec } = require('child_process');
 const router = express.Router();
+const { requireAdmin } = require('../middleware/security');
 const { success, asyncHandler, AppError } = require('../utils');
-const { normalizeAgentReport, buildServerList } = require('../../shared/services/system-monitor');
+const { normalizeAgentReport, buildServerList, mergeServerConfigs } = require('../../shared/services/system-monitor');
 
 const HOST_PROC = process.env.HOST_PROC || '/proc';
 const LOCAL_SERVER_ID = process.env.MONITOR_SERVER_ID || 'hk-vps';
@@ -186,7 +187,48 @@ function normalizeRemoteReport(body) {
     return report;
 }
 
-module.exports = function(_db) {
+module.exports = function(db) {
+    async function getServerConfigs() {
+        const row = await db.queryOne('SELECT value FROM config WHERE `key` = ?', ['systemMonitorServers']);
+        if (!row) {
+            return [
+                { id: LOCAL_SERVER_ID, name: LOCAL_SERVER_NAME, region: LOCAL_SERVER_REGION, role: LOCAL_SERVER_ROLE, enabled: true },
+                { id: 'us-vps', name: 'US VPS', region: 'US', role: 'relay', enabled: true }
+            ];
+        }
+        try {
+            const parsed = JSON.parse(row.value);
+            return Array.isArray(parsed) ? mergeServerConfigs([], parsed) : [];
+        } catch {
+            return [];
+        }
+    }
+
+    async function saveServerConfigs(configs) {
+        const current = await getServerConfigs();
+        let next;
+        try {
+            next = mergeServerConfigs(current, configs).slice(0, 20);
+        } catch (err) {
+            throw new AppError(err.message || '服务器配置不合法', 400);
+        }
+        const value = JSON.stringify(next);
+        const isMysql = db.USE_MYSQL || db.getDatabaseType?.() === 'mysql';
+        if (isMysql) {
+            await db.execute(
+                'INSERT INTO config (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
+                ['systemMonitorServers', value]
+            );
+        } else {
+            await db.execute(
+                `INSERT INTO config (key, value) VALUES (?, ?)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+                ['systemMonitorServers', value]
+            );
+        }
+        return next;
+    }
+
     // GET /api/system/stats - 兼容旧组件：返回本机指标
     router.get('/stats', asyncHandler(async (req, res) => {
         const local = normalizeAgentReport(await collectLocalStats(), Date.now());
@@ -204,10 +246,23 @@ module.exports = function(_db) {
         const now = Date.now();
         const local = normalizeAgentReport(await collectLocalStats(), now);
         const agents = [...agentReports.values()];
+        const configs = await getServerConfigs();
         res.json(success({
-            servers: buildServerList({ local, agents, now }),
+            servers: buildServerList({ local, agents, configs, now }),
+            config: configs,
             updatedAt: new Date(now).toISOString()
         }));
+    }));
+
+    // GET /api/system/config - 页面配置服务器列表
+    router.get('/config', asyncHandler(async (req, res) => {
+        res.json(success({ servers: await getServerConfigs() }));
+    }));
+
+    // POST /api/system/config - 保存页面服务器配置
+    router.post('/config', requireAdmin, asyncHandler(async (req, res) => {
+        const servers = Array.isArray(req.body?.servers) ? req.body.servers : [];
+        res.json(success({ servers: await saveServerConfigs(servers) }));
     }));
 
     // POST /api/system/report - 远端 agent 上报心跳/指标
