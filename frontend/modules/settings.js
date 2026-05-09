@@ -221,7 +221,7 @@ export async function registerMonitorServer() {
         const saved = await persistMonitorServers(next);
         if (saved) {
             clearMonitorForm();
-            alert('服务器资料已保存。下一步：生成并在目标服务器执行 Agent 安装命令，然后在“添加组件”里添加这台服务器卡片。');
+            alert('服务器资料已保存。下一步：生成并在目标服务器执行 Agent 安装命令，然后在“添加书签 → 探针”里添加这台服务器卡片。');
         }
     } catch (e) {
         alert('保存服务器资料失败: ' + e.message);

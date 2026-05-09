@@ -233,35 +233,15 @@ export function createBookmarkCard(item, searchTerm) {
 }
 
 export function createComponentCard(item) {
-    const componentType = item.component_type || 'cpu';
+    const componentType = item.component_type || '';
     const serverComponent = parseServerComponentType(componentType);
     if (serverComponent.isServer) return createServerMonitorCard(item, serverComponent.serverId);
-
-    const icons = { cpu: '💻', memory: '📊', disk: '💾' };
-    const labels = { cpu: 'CPU', memory: 'RAM', disk: '磁盘' };
-
-    return `
-        <div class="component-card" data-id="${escapeHtmlAttribute(item.id)}" data-component="${escapeHtmlAttribute(componentType)}">
-            <div class="bookmark-actions">
-                <button class="bookmark-action-btn delete" data-id="${escapeHtmlAttribute(item.id)}" title="删除">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-            </div>
-            <div class="component-icon">${escapeHtml(icons[componentType] || '💻')}</div>
-            <div class="component-info">
-                <div class="component-label">${escapeHtml(labels[componentType] || componentType)}</div>
-                <div class="component-value" data-type="${escapeHtmlAttribute(componentType)}">加载中...</div>
-                <div class="component-progress">
-                    <div class="component-progress-bar" data-type="${escapeHtmlAttribute(componentType)}" style="width: 0%"></div>
-                </div>
-            </div>
-        </div>
-    `;
+    return createServerMonitorCard({ ...item, name: item.name || '服务器探针' }, '');
 }
 
 function createServerMonitorCard(item, serverId = '') {
     const config = findMonitorServerConfig(serverId);
-    const title = serverId ? (config?.name || item.name || serverId) : (item.name || '服务器监控');
+    const title = serverId ? (config?.name || item.name || serverId) : (item.name || '服务器探针');
     return `
         <div class="server-monitor-slot" data-id="${escapeHtmlAttribute(item.id)}" data-component="server" data-server-id="${escapeHtmlAttribute(serverId)}">
             <div class="bookmark-actions">
@@ -291,6 +271,23 @@ function formatBytes(bytes) {
     return `${bytes || 0} B`;
 }
 
+function formatRate(bytesPerSecond) {
+    return `${formatBytes(bytesPerSecond || 0)}/s`;
+}
+
+function formatLoad(load = []) {
+    const values = Array.isArray(load) ? load.slice(0, 3) : [];
+    if (!values.length) return '0.00 / 0.00 / 0.00';
+    return values.map(value => (Number(value) || 0).toFixed(2)).join(' / ');
+}
+
+function formatAge(lastSeen) {
+    const ageMs = Math.max(0, Date.now() - (Number(lastSeen) || 0));
+    if (ageMs < 60_000) return `${Math.max(1, Math.round(ageMs / 1000))}秒前`;
+    if (ageMs < 3_600_000) return `${Math.round(ageMs / 60_000)}分钟前`;
+    return `${Math.round(ageMs / 3_600_000)}小时前`;
+}
+
 function formatUptime(seconds) {
     const value = Math.max(0, Number(seconds) || 0);
     const days = Math.floor(value / 86400);
@@ -307,6 +304,10 @@ function renderServerCard(server) {
     const cpu = server.cpu?.usage || 0;
     const memory = server.memory?.usagePercent || 0;
     const disk = server.disk?.usagePercent || 0;
+    const swap = server.swap?.usagePercent || 0;
+    const network = server.network || {};
+    const docker = server.docker || {};
+    const processInfo = server.process || {};
     const statusLabel = { online: '在线', stale: '延迟', offline: '离线' }[server.status] || server.status;
     const meta = [server.region, server.role].filter(Boolean).join(' · ');
     return `
@@ -322,7 +323,7 @@ function renderServerCard(server) {
                     <div class="server-meta">${escapeHtml(meta || server.id)}</div>
                 </div>
             </div>
-            <div class="server-uptime">运行 ${escapeHtml(formatUptime(server.uptime))}</div>
+            <div class="server-uptime">运行 ${escapeHtml(formatUptime(server.uptime))} · 上报 ${escapeHtml(formatAge(server.lastSeen))}</div>
             <div class="server-metrics">
                 <span>CPU <b>${cpu.toFixed(0)}%</b></span>
                 <span>RAM <b>${memory.toFixed(0)}%</b></span>
@@ -332,6 +333,14 @@ function renderServerCard(server) {
                 <div class="server-mini-bar"><i style="width:${cpu}%;background:${progressColor(cpu)}"></i></div>
                 <div class="server-mini-bar"><i style="width:${memory}%;background:${progressColor(memory)}"></i></div>
                 <div class="server-mini-bar"><i style="width:${disk}%;background:${progressColor(disk)}"></i></div>
+            </div>
+            <div class="server-probe-grid">
+                <span><em>负载</em><b>${escapeHtml(formatLoad(server.load))}</b></span>
+                <span><em>Swap</em><b>${swap.toFixed(0)}%</b></span>
+                <span><em>Docker</em><b>${Number(docker.running || 0)}/${Number(docker.total || 0)}</b></span>
+                <span><em>网络</em><b>↓ ${escapeHtml(formatRate(network.rxRate))}</b></span>
+                <span><em>上传</em><b>↑ ${escapeHtml(formatRate(network.txRate))}</b></span>
+                <span><em>进程</em><b>${Number(processInfo.count || 0)}</b></span>
             </div>
             <div class="server-resource-line">${formatBytes(server.memory?.used || 0)} / ${formatBytes(server.memory?.total || 0)} RAM</div>
             <div class="server-resource-line">${formatBytes(server.disk?.used || 0)} / ${formatBytes(server.disk?.total || 0)} 磁盘</div>
@@ -360,7 +369,7 @@ function renderServerMissingCard(serverId) {
 }
 
 export async function refreshSystemStats() {
-    const componentCards = document.querySelectorAll('.component-card[data-component], .server-monitor-slot');
+    const componentCards = document.querySelectorAll('.server-monitor-slot');
     if (componentCards.length === 0) {
         if (state.systemStatsInterval) {
             clearInterval(state.systemStatsInterval);
@@ -380,33 +389,6 @@ export async function refreshSystemStats() {
             const serverId = el.dataset.serverId || '';
             const server = serverById.get(serverId);
             el.innerHTML = server ? renderServerCard(server) : renderServerMissingCard(serverId);
-        });
-
-        const localServer = servers[0] || {};
-        const { cpu = {}, memory = {}, disk = {} } = localServer;
-
-        document.querySelectorAll('.component-value[data-type="cpu"]').forEach(el => {
-            el.textContent = (cpu.usage || 0).toFixed(1) + '%';
-        });
-        document.querySelectorAll('.component-progress-bar[data-type="cpu"]').forEach(el => {
-            el.style.width = (cpu.usage || 0) + '%';
-            el.style.backgroundColor = progressColor(cpu.usage || 0);
-        });
-
-        document.querySelectorAll('.component-value[data-type="memory"]').forEach(el => {
-            el.textContent = `${formatBytes(memory.used || 0)} / ${formatBytes(memory.total || 0)}`;
-        });
-        document.querySelectorAll('.component-progress-bar[data-type="memory"]').forEach(el => {
-            el.style.width = (memory.usagePercent || 0) + '%';
-            el.style.backgroundColor = progressColor(memory.usagePercent || 0);
-        });
-
-        document.querySelectorAll('.component-value[data-type="disk"]').forEach(el => {
-            el.textContent = `${formatBytes(disk.used || 0)} / ${formatBytes(disk.total || 0)}`;
-        });
-        document.querySelectorAll('.component-progress-bar[data-type="disk"]').forEach(el => {
-            el.style.width = (disk.usagePercent || 0) + '%';
-            el.style.backgroundColor = progressColor(disk.usagePercent || 0);
         });
 
     } catch (e) {

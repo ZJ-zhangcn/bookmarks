@@ -116,15 +116,11 @@ export function bindAllEvents() {
             if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = isServer ? 'block' : 'none';
             DOM.bookmarkOnlyFields.forEach(el => el.style.display = isComponent ? 'none' : 'block');
             if (isComponent) {
-                const componentLabels = { cpu: 'CPU 使用率', memory: '内存使用', disk: '磁盘使用', server: '服务器监控' };
-                if (isServer) {
-                    refreshBookmarkServerOptions(DOM.bookmarkServerId?.value || '', { updateName: true, force: true }).catch(() => {
-                        const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId?.value);
-                        DOM.bookmarkInputName.value = selected ? `${selected.name || selected.id} 监控` : '服务器监控';
-                    });
-                } else {
-                    DOM.bookmarkInputName.value = componentLabels[DOM.bookmarkComponentType.value] || '';
-                }
+                DOM.bookmarkComponentType.value = 'server';
+                refreshBookmarkServerOptions(DOM.bookmarkServerId?.value || '', { updateName: true, force: true }).catch(() => {
+                    const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId?.value);
+                    DOM.bookmarkInputName.value = selected ? `${selected.name || selected.id} 探针` : '服务器探针';
+                });
             }
         };
         DOM.bookmarkItemType.addEventListener('change', syncComponentForm);
@@ -132,7 +128,7 @@ export function bindAllEvents() {
         if (DOM.bookmarkServerId) {
             DOM.bookmarkServerId.addEventListener('change', () => {
                 const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId.value);
-                if (selected) DOM.bookmarkInputName.value = `${selected.name || selected.id} 监控`;
+                if (selected) DOM.bookmarkInputName.value = `${selected.name || selected.id} 探针`;
             });
         }
     }

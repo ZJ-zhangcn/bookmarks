@@ -32,7 +32,7 @@ function renderBookmarkServerOptionsInline(selectedServerId = '') {
 function applySelectedServerName() {
     if (!DOM.bookmarkServerId || !DOM.bookmarkInputName) return;
     const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId.value);
-    if (selected) DOM.bookmarkInputName.value = `${selected.name || selected.id} 监控`;
+    if (selected) DOM.bookmarkInputName.value = `${selected.name || selected.id} 探针`;
 }
 
 export async function refreshBookmarkServerOptions(selectedServerId = '', { updateName = false, force = false } = {}) {
@@ -84,7 +84,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
             DOM.bookmarkInputCategory.value = bookmark.category_id;
             if (DOM.bookmarkItemType) DOM.bookmarkItemType.value = bookmark.item_type || 'bookmark';
             const parsedComponent = parseServerComponentType(bookmark.component_type || '');
-            if (DOM.bookmarkComponentType) DOM.bookmarkComponentType.value = parsedComponent.isServer ? 'server' : (bookmark.component_type || 'cpu');
+            if (DOM.bookmarkComponentType) DOM.bookmarkComponentType.value = 'server';
             if (DOM.bookmarkServerId) DOM.bookmarkServerId.value = parsedComponent.serverId || DOM.bookmarkServerId.value;
             if (DOM.componentTypeGroup) DOM.componentTypeGroup.style.display = bookmark.item_type === 'component' ? 'block' : 'none';
             if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = parsedComponent.isServer ? 'block' : 'none';
@@ -126,7 +126,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
         DOM.bookmarkInputDesc.value = '';
         if (DOM.bookmarkInputTags) DOM.bookmarkInputTags.value = '';
         if (DOM.bookmarkItemType) DOM.bookmarkItemType.value = 'bookmark';
-        if (DOM.bookmarkComponentType) DOM.bookmarkComponentType.value = 'cpu';
+        if (DOM.bookmarkComponentType) DOM.bookmarkComponentType.value = 'server';
         if (DOM.componentTypeGroup) DOM.componentTypeGroup.style.display = 'none';
         if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = 'none';
         DOM.bookmarkOnlyFields?.forEach(el => el.style.display = 'block');
@@ -205,7 +205,7 @@ export async function saveBookmark() {
     const description = DOM.bookmarkInputDesc.value.trim();
     const category_id = DOM.bookmarkInputCategory.value;
     const item_type = DOM.bookmarkItemType ? DOM.bookmarkItemType.value : 'bookmark';
-    const selectedComponentType = item_type === 'component' ? DOM.bookmarkComponentType.value : null;
+    const selectedComponentType = item_type === 'component' ? 'server' : null;
     const selectedServerId = selectedComponentType === 'server' ? (DOM.bookmarkServerId?.value || '') : '';
     const component_type = selectedComponentType === 'server' ? `server:${selectedServerId}` : selectedComponentType;
 
@@ -221,15 +221,10 @@ export async function saveBookmark() {
     let icon = '🌐';
 
     if (item_type === 'component') {
-        const componentIcons = { cpu: '💻', memory: '📊', disk: '💾', server: '🖥️' };
-        if (selectedComponentType === 'server') {
-            const serverConfig = findMonitorServerConfig(selectedServerId);
-            icon = '🖥️';
-            if (serverConfig && DOM.bookmarkInputName.value.trim() === '服务器监控') {
-                DOM.bookmarkInputName.value = `${serverConfig.name || serverConfig.id} 监控`;
-            }
-        } else {
-            icon = componentIcons[selectedComponentType] || '📊';
+        const serverConfig = findMonitorServerConfig(selectedServerId);
+        icon = '🖥️';
+        if (serverConfig && ['服务器监控', '服务器探针'].includes(DOM.bookmarkInputName.value.trim())) {
+            DOM.bookmarkInputName.value = `${serverConfig.name || serverConfig.id} 探针`;
         }
         icon_type = 'emoji';
         icon_data = icon;

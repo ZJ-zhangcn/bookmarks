@@ -84,6 +84,87 @@ function getMemoryFromProc() {
     }
 }
 
+function getSwapFromProc() {
+    try {
+        const memPath = `${HOST_PROC}/meminfo`;
+        const content = fs.readFileSync(memPath, 'utf8');
+        const memInfo = {};
+        content.split('\n').forEach(line => {
+            const match = line.match(/^(\w+):\s+(\d+)/);
+            if (match) memInfo[match[1]] = parseInt(match[2]) * 1024;
+        });
+        const total = memInfo.SwapTotal || 0;
+        const free = memInfo.SwapFree || 0;
+        const used = Math.max(total - free, 0);
+        return { total, used, free, usagePercent: total > 0 ? Math.round((used / total) * 100 * 100) / 100 : 0 };
+    } catch {
+        return { total: 0, used: 0, free: 0, usagePercent: 0 };
+    }
+}
+
+function getProcessCount() {
+    try {
+        return fs.readdirSync(HOST_PROC).filter(name => /^\d+$/.test(name)).length;
+    } catch {
+        return 0;
+    }
+}
+
+function runCommand(command, timeout = 3000) {
+    return new Promise(resolve => {
+        exec(command, { timeout }, (err, stdout) => resolve(err ? '' : stdout));
+    });
+}
+
+async function getDockerInfo() {
+    const stdout = await runCommand('docker ps -a --format "{{.State}} {{.Status}}" 2>/dev/null', 3000);
+    if (!stdout.trim()) return { running: 0, total: 0, unhealthy: 0 };
+    const lines = stdout.trim().split('\n').filter(Boolean);
+    return {
+        total: lines.length,
+        running: lines.filter(line => line.startsWith('running')).length,
+        unhealthy: lines.filter(line => /unhealthy/i.test(line)).length
+    };
+}
+
+let networkCache = null;
+
+function readNetworkTotals() {
+    try {
+        const content = fs.readFileSync(`${HOST_PROC}/net/dev`, 'utf8');
+        let rxBytes = 0;
+        let txBytes = 0;
+        for (const line of content.split('\n').slice(2)) {
+            const [ifacePart, statsPart] = line.split(':');
+            const iface = String(ifacePart || '').trim();
+            if (!iface || iface === 'lo') continue;
+            const parts = String(statsPart || '').trim().split(/\s+/).map(Number);
+            if (parts.length < 16) continue;
+            rxBytes += parts[0] || 0;
+            txBytes += parts[8] || 0;
+        }
+        return { rxBytes, txBytes };
+    } catch {
+        return { rxBytes: 0, txBytes: 0 };
+    }
+}
+
+function getNetworkInfo() {
+    const now = Date.now();
+    const totals = readNetworkTotals();
+    const prev = networkCache;
+    networkCache = { ...totals, timestamp: now };
+    if (!prev || now <= prev.timestamp) {
+        return { ...totals, rxRate: 0, txRate: 0 };
+    }
+    const seconds = (now - prev.timestamp) / 1000;
+    return {
+        ...totals,
+        rxRate: Math.max(0, Math.round(((totals.rxBytes - prev.rxBytes) / seconds) * 100) / 100),
+        txRate: Math.max(0, Math.round(((totals.txBytes - prev.txBytes) / seconds) * 100) / 100)
+    };
+}
+
 function getDiskInfoWindows() {
     return new Promise((resolve) => {
         // 使用 PowerShell 替代 wmic（更快）
@@ -150,6 +231,10 @@ async function collectLocalStats() {
     const cpuUsage = getCpuUsageFromProc();
     const cpuCores = os.cpus().length;
     const memory = getMemoryFromProc();
+    const swap = getSwapFromProc();
+    const network = getNetworkInfo();
+    const docker = await getDockerInfo();
+    const processInfo = { count: getProcessCount() };
     const diskInfo = await getDiskInfo();
     return {
         id: LOCAL_SERVER_ID,
@@ -159,6 +244,7 @@ async function collectLocalStats() {
         metrics: {
             cpu: { usage: cpuUsage, cores: cpuCores },
             memory,
+            swap,
             disk: {
                 total: diskInfo.total,
                 used: diskInfo.used,
@@ -166,7 +252,10 @@ async function collectLocalStats() {
                 usagePercent: diskInfo.total > 0 ? Math.round((diskInfo.used / diskInfo.total) * 100 * 100) / 100 : 0
             },
             uptime: os.uptime(),
-            load: os.loadavg()
+            load: os.loadavg(),
+            network,
+            docker,
+            process: processInfo
         }
     };
 }
@@ -234,6 +323,10 @@ module.exports = function(db) {
             cpu: local.cpu,
             memory: local.memory,
             disk: local.disk,
+            swap: local.swap,
+            network: local.network,
+            docker: local.docker,
+            process: local.process,
             uptime: local.uptime,
             load: local.load
         }));

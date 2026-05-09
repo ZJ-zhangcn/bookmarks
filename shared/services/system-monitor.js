@@ -28,6 +28,29 @@ function normalizeResource(raw = {}) {
     return { total, used, free, usagePercent };
 }
 
+function normalizeNetwork(raw = {}) {
+    return {
+        rxBytes: toNonNegativeNumber(raw.rxBytes ?? raw.rx_bytes),
+        txBytes: toNonNegativeNumber(raw.txBytes ?? raw.tx_bytes),
+        rxRate: toNonNegativeNumber(raw.rxRate ?? raw.rx_rate),
+        txRate: toNonNegativeNumber(raw.txRate ?? raw.tx_rate)
+    };
+}
+
+function normalizeDocker(raw = {}) {
+    return {
+        running: Math.max(0, Math.round(toNonNegativeNumber(raw.running))),
+        total: Math.max(0, Math.round(toNonNegativeNumber(raw.total))),
+        unhealthy: Math.max(0, Math.round(toNonNegativeNumber(raw.unhealthy)))
+    };
+}
+
+function normalizeProcess(raw = {}) {
+    return {
+        count: Math.max(0, Math.round(toNonNegativeNumber(raw.count)))
+    };
+}
+
 function getServerStatus(lastSeen, now = Date.now()) {
     const ts = Number(lastSeen);
     if (!Number.isFinite(ts) || ts <= 0) return 'offline';
@@ -56,7 +79,11 @@ function normalizeAgentReport(report = {}, receivedAt = Date.now()) {
             cores: Math.max(0, Math.round(toNonNegativeNumber(cpu.cores)))
         },
         memory: normalizeResource(metrics.memory || {}),
-        disk: normalizeResource(metrics.disk || {})
+        swap: normalizeResource(metrics.swap || {}),
+        disk: normalizeResource(metrics.disk || {}),
+        network: normalizeNetwork(metrics.network || {}),
+        docker: normalizeDocker(metrics.docker || {}),
+        process: normalizeProcess(metrics.process || {})
     };
 }
 
@@ -204,6 +231,9 @@ module.exports = {
     OFFLINE_TTL_MS,
     clampPercent,
     normalizeResource,
+    normalizeNetwork,
+    normalizeDocker,
+    normalizeProcess,
     sanitizeServerConfig,
     mergeServerConfigs,
     normalizeAgentReport,

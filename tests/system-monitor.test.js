@@ -35,6 +35,26 @@ test('normalizes agent server reports for dashboard display', () => {
     assert.deepEqual(report.load, [0.1, 0.2, 0.3]);
 });
 
+test('normalizes extended probe metrics from agent reports', () => {
+    const report = normalizeAgentReport({
+        id: 'probe-vps',
+        metrics: {
+            swap: { total: 1000, used: 120 },
+            network: { rxRate: 2048.9, txRate: 1024.4, rxBytes: 10_000, txBytes: 20_000 },
+            docker: { running: 3, total: 4, unhealthy: 1 },
+            process: { count: 128 }
+        }
+    }, 1700000000000);
+
+    assert.equal(report.swap.usagePercent, 12);
+    assert.equal(report.network.rxRate, 2048.9);
+    assert.equal(report.network.txRate, 1024.4);
+    assert.equal(report.docker.running, 3);
+    assert.equal(report.docker.total, 4);
+    assert.equal(report.docker.unhealthy, 1);
+    assert.equal(report.process.count, 128);
+});
+
 test('buildServerList marks stale and offline agents by last seen time', () => {
     const now = 1700000000000;
     const local = normalizeAgentReport({ id: 'hk-vps', name: 'HK VPS', metrics: { cpu: { usage: 10 } } }, now);
