@@ -3,9 +3,14 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { isPrivateOrLocalAddress, toSafeImageUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
+import { isPrivateOrLocalAddress, toSafeImageUrl, toSafeDataImageUrl, bindImageFallbacks, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { renderIconSelection } from './render.js';
-import { normalizeFaviconResponse, createFaviconRequestGuard } from './favicon-helpers.cjs';
+import {
+    normalizeFaviconResponse,
+    createFaviconRequestGuard,
+    buildLocalFaviconCandidates,
+    mergeIconsWithLocalFallback
+} from './favicon-helpers.cjs';
 
 const faviconRequestGuard = createFaviconRequestGuard();
 
@@ -25,6 +30,77 @@ async function tryLoadImage(url, timeout = 3000) {
     });
 }
 
+function directHttpImageUrl(raw) {
+    try {
+        const u = new URL(String(raw || '').trim());
+        return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : '';
+    } catch {
+        return '';
+    }
+}
+
+async function findLoadableIcons(candidates, timeout = 3000) {
+    const results = await Promise.all(candidates.map(async iconUrl => {
+        const directUrl = directHttpImageUrl(iconUrl);
+        return directUrl && (await tryLoadImage(directUrl, timeout)) ? directUrl : null;
+    }));
+    return results.filter(Boolean);
+}
+
+function localIconSourceLabel(url) {
+    const s = String(url || '');
+    if (s.includes('google.com/s2/favicons')) return { label: 'Google', class: 'source-google' };
+    if (s.includes('favicon.im')) return { label: 'Favicon.im', class: 'source-faviconim' };
+    if (s.includes('icon.horse')) return { label: 'IconHorse', class: 'source-iconhorse' };
+    if (s.includes('apple-touch-icon')) return { label: '本地 Apple', class: 'source-apple' };
+    return { label: '本地直连', class: 'source-site' };
+}
+
+function renderLocalIconSelection(localIcons) {
+    if (!Array.isArray(localIcons) || localIcons.length === 0) {
+        DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+        return;
+    }
+
+    if (localIcons.length === 1) {
+        const icon = localIcons[0];
+        const source = localIconSourceLabel(icon);
+        DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
+            <img src="${escapeHtmlAttribute(icon)}" data-url="${escapeHtmlAttribute(icon)}" data-fallback-icon="🌐">
+            <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
+        </div>`;
+    } else {
+        DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
+            ${localIcons.slice(0, 6).map((icon, idx) => {
+        const source = localIconSourceLabel(icon);
+        return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlAttribute(icon)}" title="${escapeHtmlAttribute(source.label)}">
+                    <img src="${escapeHtmlAttribute(icon)}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true">
+                    <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
+                </div>`;
+    }).join('')}
+        </div>`;
+        DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(wrap => {
+            wrap.onclick = (e) => {
+                e.stopPropagation();
+                DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(w => w.classList.remove('selected'));
+                wrap.classList.add('selected');
+            };
+        });
+    }
+    bindImageFallbacks(DOM.iconPreviewAuto);
+}
+
+function buildBrowserFallbackCandidates(url, domain) {
+    const fallbackSources = isPrivateOrLocalAddress(domain) ? [] : FALLBACK_SOURCES;
+    return buildLocalFaviconCandidates(url, fallbackSources);
+}
+
+async function getLocalFallbackIcons(url, { timeout = 3000 } = {}) {
+    let domain = '';
+    try { domain = new URL(url).hostname; } catch { return []; }
+    return findLoadableIcons(buildBrowserFallbackCandidates(url, domain), timeout);
+}
+
 export async function fetchFavicon() {
     const url = DOM.bookmarkInputUrl.value.trim();
     if (!url || state.currentIconType !== 'auto') return;
@@ -38,7 +114,9 @@ export async function fetchFavicon() {
         DOM.iconPreviewAuto.innerHTML = '<span style="opacity:0.5">⏳</span>';
 
         if (isPrivateOrLocalAddress(domain)) {
-            fetchProxyFavicon(url, request);
+            const localIcons = await getLocalFallbackIcons(url);
+            if (!faviconRequestGuard.isCurrent(request, DOM.bookmarkInputUrl.value.trim())) return;
+            renderLocalIconSelection(localIcons);
             return;
         }
 
@@ -49,21 +127,15 @@ export async function fetchFavicon() {
             body: JSON.stringify({ url })
         }).then(res => res.json()).catch(() => null);
 
-        const fallbackPromises = FALLBACK_SOURCES.map(async getUrl => {
-            const iconUrl = getUrl(domain);
-            return (await tryLoadImage(iconUrl)) ? iconUrl : null;
-        });
+        const localFallbackPromise = getLocalFallbackIcons(url);
 
         // 等待所有请求完成
-        const [proxyResult, ...fallbackResults] = await Promise.all([proxyPromise, ...fallbackPromises]);
+        const [proxyResult, localFallbackIcons] = await Promise.all([proxyPromise, localFallbackPromise]);
         if (!faviconRequestGuard.isCurrent(request, DOM.bookmarkInputUrl.value.trim())) return;
 
-        // 合并图标：网站自带图标优先
+        // 合并图标：网站自带图标优先，本地浏览器可加载候选作为当前设备网络 fallback
         const rawSiteIcons = normalizeFaviconResponse(proxyResult);
-        const fallbackIcons = fallbackResults.filter(Boolean);
-
-        // 网站自带图标放前面，第三方服务图标放后面，去重
-        const allIcons = [...new Set([...rawSiteIcons, ...fallbackIcons])];
+        const allIcons = mergeIconsWithLocalFallback(rawSiteIcons, localFallbackIcons);
 
         if (allIcons.length > 0) {
             state.setAvailableIcons(allIcons);
@@ -85,13 +157,15 @@ export async function fetchMoreIcons(url, domain) {
         });
         const data = await res.json();
         const icons = normalizeFaviconResponse(data);
-        if (icons.length > 0) {
+        const localIcons = await getLocalFallbackIcons(url);
+        const allIcons = mergeIconsWithLocalFallback(icons, localIcons);
+        if (allIcons.length > 0) {
             if (isPrivateOrLocalAddress(domain)) {
-                state.setAvailableIcons(icons);
-            } else {
-                const googleFavicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-                state.setAvailableIcons([...new Set([googleFavicon, ...icons.filter(i => i !== googleFavicon)])]);
+                renderLocalIconSelection(allIcons);
+                return;
             }
+            const googleFavicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+            state.setAvailableIcons([...new Set([googleFavicon, ...allIcons.filter(i => i !== googleFavicon)])]);
             renderIconSelection(state.availableIcons);
         }
     } catch (e) { }
@@ -107,9 +181,16 @@ export async function fetchProxyFavicon(url, request = null) {
         const data = await res.json();
         if (request && !faviconRequestGuard.isCurrent(request, DOM.bookmarkInputUrl.value.trim())) return;
         const icons = normalizeFaviconResponse(data);
-        if (icons.length > 0) {
-            state.setAvailableIcons(icons);
-            renderIconSelection(state.availableIcons);
+        const localIcons = await getLocalFallbackIcons(url);
+        if (request && !faviconRequestGuard.isCurrent(request, DOM.bookmarkInputUrl.value.trim())) return;
+        const allIcons = mergeIconsWithLocalFallback(icons, localIcons);
+        if (allIcons.length > 0) {
+            if (isPrivateOrLocalAddress(new URL(url).hostname)) {
+                renderLocalIconSelection(allIcons);
+            } else {
+                state.setAvailableIcons(allIcons);
+                renderIconSelection(state.availableIcons);
+            }
         } else {
             DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
         }
@@ -132,11 +213,11 @@ export async function fetchEngineIcon() {
         DOM.engineIconPreview.innerHTML = '<span style="opacity:0.5">⏳</span>';
 
         if (isPrivateOrLocalAddress(domain)) {
-            const localIcon = `${parsedUrl.origin}/favicon.ico`;
-            const displayIcon = toSafeImageUrl(localIcon);
-            if (await tryLoadImage(displayIcon)) {
-                DOM.engineIconPreview.innerHTML = `<img src="${displayIcon}">`;
-                DOM.engineIconPreview.dataset.iconUrl = localIcon;
+            const localIcons = await getLocalFallbackIcons(url);
+            if (localIcons.length > 0) {
+                const iconUrl = localIcons[0];
+                DOM.engineIconPreview.innerHTML = `<img src="${escapeHtmlAttribute(iconUrl)}">`;
+                DOM.engineIconPreview.dataset.iconUrl = iconUrl;
             } else {
                 DOM.engineIconPreview.innerHTML = '<span>🔍</span>';
                 delete DOM.engineIconPreview.dataset.iconUrl;

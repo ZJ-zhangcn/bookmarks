@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { normalizeFaviconResponse, createFaviconRequestGuard } = require('../frontend/modules/favicon-helpers.cjs');
+const { normalizeFaviconResponse, createFaviconRequestGuard, buildLocalFaviconCandidates, mergeIconsWithLocalFallback } = require('../frontend/modules/favicon-helpers.cjs');
 const { resolveIconHref, selectBestIcons } = require('../backend/utils/icon-discovery');
 
 test('normalizeFaviconResponse reads standard success(data) envelope', () => {
@@ -24,6 +24,41 @@ test('resolveIconHref resolves relative icon URLs against page URL', () => {
     assert.equal(
         resolveIconHref('../favicon.ico', 'https://example.com/docs/page.html'),
         'https://example.com/favicon.ico'
+    );
+});
+
+test('local favicon candidates use browser-loadable origin URLs before third-party fallbacks', () => {
+    const candidates = buildLocalFaviconCandidates('https://example.com/docs/page.html', [
+        domain => `https://third-party.example/icon/${domain}`,
+        () => 'javascript:alert(1)'
+    ]);
+    assert.deepEqual(candidates, [
+        'https://example.com/favicon.ico',
+        'https://example.com/favicon.png',
+        'https://example.com/apple-touch-icon.png',
+        'https://example.com/apple-touch-icon-precomposed.png',
+        'https://third-party.example/icon/example.com'
+    ]);
+});
+
+test('browser fallback candidates do not include third-party services for private hosts', () => {
+    const candidates = buildLocalFaviconCandidates('http://192.168.1.1/admin', []);
+    assert.deepEqual(candidates, [
+        'http://192.168.1.1/favicon.ico',
+        'http://192.168.1.1/favicon.png',
+        'http://192.168.1.1/apple-touch-icon.png',
+        'http://192.168.1.1/apple-touch-icon-precomposed.png'
+    ]);
+    assert.equal(candidates.some(url => url.includes('google.com') || url.includes('favicon.im') || url.includes('icon.horse')), false);
+});
+
+test('mergeIconsWithLocalFallback keeps server-discovered icons before current-device fallbacks', () => {
+    assert.deepEqual(
+        mergeIconsWithLocalFallback(
+            ['https://example.com/apple.png', 'https://example.com/favicon.ico'],
+            ['https://example.com/favicon.ico', 'https://example.com/favicon.png']
+        ),
+        ['https://example.com/apple.png', 'https://example.com/favicon.ico', 'https://example.com/favicon.png']
     );
 });
 
