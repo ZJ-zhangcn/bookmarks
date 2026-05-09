@@ -39,6 +39,28 @@ function createMemoryDb() {
     };
 }
 
+async function setupBrowserGlobals() {
+    global.window = { location: { origin: 'https://bookmarks.example', protocol: 'https:' } };
+    global.document = {
+        body: { style: {} },
+        querySelector: () => null,
+        querySelectorAll: () => [],
+        getElementById: () => null
+    };
+    global.CSS = { escape: value => String(value) };
+    global.localStorage = {
+        getItem: () => '',
+        setItem: () => {},
+        removeItem: () => {}
+    };
+}
+
+async function importBookmarkModule(testName) {
+    setupBrowserGlobals();
+    const moduleUrl = pathToFileURL(path.resolve(__dirname, '../frontend/modules/bookmark.js')).href;
+    return import(`${moduleUrl}?${testName}-${Date.now()}`);
+}
+
 test('saving empty manual tags removes stale tags from bookmark list data', async () => {
     const db = createMemoryDb();
     const bookmarkId = 'bm-tags-clear';
@@ -53,26 +75,72 @@ test('saving empty manual tags removes stale tags from bookmark list data', asyn
     assert.equal(bookmarks[0].ai_summary, '');
 });
 
-test('bookmark cards show saved tags even when not filtering', async () => {
-    global.window = { location: { protocol: 'https:' } };
-    global.document = { querySelectorAll: () => [] };
-    global.CSS = { escape: value => String(value) };
+test('editing bookmark modal pre-fills tags from loaded bookmark data', async () => {
+    setupBrowserGlobals();
+    const state = await import(pathToFileURL(path.resolve(__dirname, '../frontend/modules/state.js')).href);
+    const domModule = await import(pathToFileURL(path.resolve(__dirname, '../frontend/modules/dom.js')).href);
+    const { openBookmarkModal } = await importBookmarkModule('prefill-tags');
 
-    const moduleUrl = pathToFileURL(path.resolve(__dirname, '../frontend/modules/render.js')).href;
-    const { createBookmarkCard } = await import(`${moduleUrl}?tags-card-${Date.now()}`);
-
-    const html = createBookmarkCard({
-        id: 'bm-visible-tags',
+    state.setCategories([{ id: 'cat-1', name: '默认' }]);
+    state.setBookmarks([{
+        id: 'bm-prefill-tags',
+        category_id: 'cat-1',
         name: '工具站',
         url: 'https://example.com',
         description: 'Example',
-        icon: '🌐',
         icon_type: 'emoji',
-        icon_data: '',
+        icon_data: '🌐',
         tags: ['开发', '效率']
-    }, '');
+    }]);
 
-    assert.match(html, /class="bookmark-tags"/);
-    assert.match(html, /开发/);
-    assert.match(html, /效率/);
+    const tagInput = { value: '' };
+    const modal = {
+        querySelector: () => ({ classList: { add: () => {}, remove: () => {} } }),
+        classList: { add: () => {}, remove: () => {} }
+    };
+    Object.assign(domModule.DOM, {
+        bookmarkInputCategory: { innerHTML: '', value: '', onchange: null },
+        bookmarkModalTitle: { textContent: '' },
+        bookmarkInputName: { value: '' },
+        bookmarkInputUrl: { value: '' },
+        bookmarkInputDesc: { value: '' },
+        bookmarkInputTags: tagInput,
+        bookmarkInputEmoji: { value: '' },
+        bookmarkInputIconUrl: { value: '' },
+        iconPreviewAuto: { innerHTML: '' },
+        iconPreviewUpload: { innerHTML: '' },
+        bookmarkModal: modal,
+        bookmarkAiActions: { style: {} },
+        aiStatusHint: { textContent: '' }
+    });
+
+    const originalFetch = global.fetch;
+    global.fetch = async () => ({ json: async () => ({ success: true, data: null }) });
+    try {
+        openBookmarkModal('bm-prefill-tags');
+        assert.equal(tagInput.value, '开发,效率');
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('empty async AI lookup does not clear tags pre-filled from bootstrap data', async () => {
+    setupBrowserGlobals();
+    const domModule = await import(pathToFileURL(path.resolve(__dirname, '../frontend/modules/dom.js')).href);
+    const { loadBookmarkAi } = await importBookmarkModule('load-ai-empty');
+
+    const tagInput = { value: '开发,效率' };
+    Object.assign(domModule.DOM, {
+        bookmarkInputTags: tagInput,
+        bookmarkInputDesc: { value: '' }
+    });
+
+    const originalFetch = global.fetch;
+    global.fetch = async () => ({ json: async () => ({ success: true, data: { tags: [], summary: '' } }) });
+    try {
+        await loadBookmarkAi('bm-prefill-tags');
+        assert.equal(tagInput.value, '开发,效率');
+    } finally {
+        global.fetch = originalFetch;
+    }
 });

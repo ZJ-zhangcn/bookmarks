@@ -182,10 +182,8 @@ export function createBookmarkCard(item, searchTerm) {
     const matchedTags = searchTerm
         ? tagsArray.filter(t => t.toLowerCase().includes(searchTerm))
         : [];
-    const visibleTags = searchTerm && matchedTags.length > 0 ? matchedTags : tagsArray.slice(0, 6);
-    const tagsTitle = searchTerm && matchedTags.length > 0 ? '标签（匹配）' : '标签';
-    const tagsHtml = visibleTags.length > 0
-        ? `<div class="bookmark-tags" title="${tagsTitle}">${visibleTags.map(t => `<span class="tag-chip">${highlightText(t, searchTerm)}</span>`).join('')}</div>`
+    const tagsHtml = matchedTags.length > 0
+        ? `<div class="bookmark-tags" title="标签（匹配）">${matchedTags.map(t => `<span class="tag-chip">${highlightText(t, searchTerm)}</span>`).join('')}</div>`
         : '';
 
     let iconHtml;

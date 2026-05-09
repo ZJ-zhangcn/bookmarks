@@ -39,7 +39,12 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
             DOM.bookmarkInputName.value = bookmark.name;
             DOM.bookmarkInputUrl.value = bookmark.url;
             DOM.bookmarkInputDesc.value = bookmark.description || '';
-            if (DOM.bookmarkInputTags) DOM.bookmarkInputTags.value = '';
+            if (DOM.bookmarkInputTags) {
+                const tags = Array.isArray(bookmark.tags)
+                    ? bookmark.tags.map(t => String(t || '').trim()).filter(Boolean)
+                    : String(bookmark.tags || '').split(/[,\n，;；|/]+/g).map(t => t.trim()).filter(Boolean);
+                DOM.bookmarkInputTags.value = tags.join(',');
+            }
             DOM.bookmarkInputCategory.value = bookmark.category_id;
 
             const originalIconType = bookmark.icon_type || 'auto';
@@ -119,7 +124,9 @@ export async function loadBookmarkAi(bookmarkId) {
         const result = await res.json();
         if (result && result.success && result.data) {
             const tags = Array.isArray(result.data.tags) ? result.data.tags : [];
-            DOM.bookmarkInputTags.value = tags.join(',');
+            if (tags.length > 0 || !DOM.bookmarkInputTags.value.trim()) {
+                DOM.bookmarkInputTags.value = tags.join(',');
+            }
             if (result.data.summary && !DOM.bookmarkInputDesc.value) {
                 DOM.bookmarkInputDesc.value = result.data.summary;
             }
