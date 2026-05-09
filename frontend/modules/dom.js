@@ -50,6 +50,7 @@ export function cacheDOMElements() {
         bookmarkItemType: document.getElementById('bookmarkItemType'),
         bookmarkComponentType: document.getElementById('bookmarkComponentType'),
         componentTypeGroup: document.getElementById('componentTypeGroup'),
+        serverComponentGroup: document.getElementById('serverComponentGroup'),
         bookmarkOnlyFields: document.querySelectorAll('.bookmark-only-field'),
         bookmarkInputEmoji: document.getElementById('bookmarkInputEmoji'),
         bookmarkInputIconUrl: document.getElementById('bookmarkInputIconUrl'),
