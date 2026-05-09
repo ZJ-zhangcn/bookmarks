@@ -10,6 +10,12 @@ async function exportData(db, includeIcons) {
     const categories = await db.queryAll('SELECT * FROM categories');
     let bookmarks = await db.queryAll('SELECT * FROM bookmarks');
     let engines = await db.queryAll('SELECT * FROM search_engines');
+    let bookmarkAi = [];
+    try {
+        bookmarkAi = await db.queryAll('SELECT bookmark_id, tags, summary, provider, model, updated_at FROM bookmark_ai');
+    } catch {
+        bookmarkAi = [];
+    }
 
     const todos = await db.queryAll('SELECT id, title, is_done, sort_order, created_at, updated_at, completed_at FROM todos');
 
@@ -36,6 +42,7 @@ async function exportData(db, includeIcons) {
         includeIcons,
         categories,
         bookmarks,
+        bookmark_ai: bookmarkAi,
         todos,
         engines,
         personalization
@@ -43,7 +50,7 @@ async function exportData(db, includeIcons) {
 }
 
 async function importData(db, data) {
-    const { categories, bookmarks, todos, engines, personalization } = data;
+    const { categories, bookmarks, bookmark_ai: bookmarkAi, todos, engines, personalization } = data;
 
     await db.transaction(async (conn) => {
         if (categories) {
@@ -96,6 +103,37 @@ async function importData(db, data) {
                            component_type = excluded.component_type,
                            sort_order = excluded.sort_order`,
                         [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order ?? i]
+                    );
+                }
+            }
+        }
+
+        if (bookmarkAi) {
+            for (const ai of bookmarkAi) {
+                if (!ai || !ai.bookmark_id) continue;
+                const tags = Array.isArray(ai.tags) ? JSON.stringify(ai.tags) : (ai.tags || '[]');
+                const summary = ai.summary || '';
+                const provider = ai.provider || '';
+                const model = ai.model || '';
+                if (isMysql(db)) {
+                    await conn.execute(
+                        `INSERT INTO bookmark_ai (bookmark_id, tags, summary, provider, model)
+                         VALUES (?, ?, ?, ?, ?)
+                         ON DUPLICATE KEY UPDATE tags = VALUES(tags), summary = VALUES(summary),
+                         provider = VALUES(provider), model = VALUES(model), updated_at = CURRENT_TIMESTAMP`,
+                        [ai.bookmark_id, tags, summary, provider, model]
+                    );
+                } else {
+                    await conn.execute(
+                        `INSERT INTO bookmark_ai (bookmark_id, tags, summary, provider, model)
+                         VALUES (?, ?, ?, ?, ?)
+                         ON CONFLICT(bookmark_id) DO UPDATE SET
+                           tags = excluded.tags,
+                           summary = excluded.summary,
+                           provider = excluded.provider,
+                           model = excluded.model,
+                           updated_at = CURRENT_TIMESTAMP`,
+                        [ai.bookmark_id, tags, summary, provider, model]
                     );
                 }
             }
