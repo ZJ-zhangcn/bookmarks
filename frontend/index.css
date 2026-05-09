@@ -1766,15 +1766,21 @@ body {
 
 .server-monitor-slot {
     position: relative;
-    min-width: 0;
-    grid-column: span 2;
+    min-width: min(100%, 280px);
+    grid-column: auto;
     height: 100%;
     display: flex;
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
     .server-monitor-slot {
         grid-column: span 2;
+    }
+}
+
+@media (min-width: 1400px) {
+    .server-monitor-slot {
+        grid-column: span 3;
     }
 }
 
@@ -1801,7 +1807,7 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
-    padding: 1.35rem 1.4rem;
+    padding: clamp(1rem, 1.2vw, 1.45rem);
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
@@ -1810,9 +1816,9 @@ body {
     transition: all var(--transition-normal);
     align-items: stretch;
     min-width: 0;
-    gap: 0.9rem;
+    gap: clamp(0.7rem, 0.9vw, 0.95rem);
     width: 100%;
-    min-height: 260px;
+    min-height: clamp(230px, 18vw, 285px);
     height: 100%;
 }
 
@@ -1837,10 +1843,10 @@ body {
 
 .server-card-title-row .component-icon {
     margin-bottom: 0;
-    font-size: 1.85rem;
-    width: 3rem;
-    height: 3rem;
-    flex: 0 0 3rem;
+    font-size: clamp(1.45rem, 1.8vw, 1.9rem);
+    width: clamp(2.5rem, 3vw, 3rem);
+    height: clamp(2.5rem, 3vw, 3rem);
+    flex: 0 0 clamp(2.5rem, 3vw, 3rem);
 }
 
 .server-meta,
@@ -1870,7 +1876,7 @@ body {
 .server-name {
     font-weight: 750;
     color: var(--text-primary);
-    font-size: 1.08rem;
+    font-size: clamp(1rem, 1.1vw, 1.12rem);
     line-height: 1.25;
     white-space: nowrap;
     overflow: hidden;
@@ -1885,10 +1891,10 @@ body {
 .server-metrics {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: clamp(0.5rem, 0.8vw, 0.85rem);
     margin: 0.15rem 0 0;
     color: var(--text-secondary);
-    font-size: 0.78rem;
+    font-size: clamp(0.72rem, 0.8vw, 0.8rem);
 }
 
 .server-metrics span {
@@ -1900,14 +1906,14 @@ body {
 
 .server-metrics b {
     color: var(--text-primary);
-    font-size: 1.12rem;
+    font-size: clamp(1rem, 1.15vw, 1.18rem);
     line-height: 1.1;
 }
 
 .server-bars {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: clamp(0.5rem, 0.8vw, 0.85rem);
     margin-bottom: 0.1rem;
 }
 
@@ -1991,6 +1997,16 @@ body {
     margin-top: var(--spacing-md);
 }
 
+@media (max-width: 900px) {
+    .server-monitor-slot {
+        grid-column: 1 / -1;
+    }
+
+    .server-card {
+        min-height: 230px;
+    }
+}
+
 @media (max-width: 720px) {
     .server-monitor-slot {
         grid-column: 1 / -1;
@@ -1998,20 +2014,20 @@ body {
 
     .server-card {
         padding: var(--spacing-md);
-        gap: 0.75rem;
-        min-height: 240px;
+        gap: 0.72rem;
+        min-height: 220px;
     }
 
     .server-card-title-row .component-icon {
-        width: 2.6rem;
-        height: 2.6rem;
-        flex-basis: 2.6rem;
-        font-size: 1.6rem;
+        width: 2.45rem;
+        height: 2.45rem;
+        flex-basis: 2.45rem;
+        font-size: 1.5rem;
     }
 
     .server-metrics {
         font-size: 0.74rem;
-        gap: 0.55rem;
+        gap: 0.5rem;
     }
 
     .server-metrics b {
@@ -2019,7 +2035,7 @@ body {
     }
 
     .server-bars {
-        gap: 0.55rem;
+        gap: 0.5rem;
     }
 
     .monitor-form-grid {
