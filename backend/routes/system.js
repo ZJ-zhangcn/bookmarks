@@ -6,7 +6,7 @@ const os = require('os');
 const fs = require('fs');
 const { exec } = require('child_process');
 const router = express.Router();
-const { requireAdmin } = require('../middleware/security');
+const { requireStrictAdmin } = require('../middleware/security');
 const { success, asyncHandler, AppError } = require('../utils');
 const { normalizeAgentReport, buildServerList, mergeServerConfigs } = require('../../shared/services/system-monitor');
 
@@ -258,7 +258,7 @@ module.exports = function(db) {
     }));
 
     // POST /api/system/config - 保存页面服务器配置
-    router.post('/config', requireAdmin, asyncHandler(async (req, res) => {
+    router.post('/config', requireStrictAdmin, asyncHandler(async (req, res) => {
         const servers = Array.isArray(req.body?.servers) ? req.body.servers : [];
         res.json(success({ servers: await saveServerConfigs(servers) }));
     }));

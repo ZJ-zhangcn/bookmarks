@@ -44,8 +44,8 @@ export async function loadCoreData() {
     return payload;
 }
 
-export async function ensureMonitorServersLoaded() {
-    if (Array.isArray(state.monitorServerConfigs) && state.monitorServerConfigs.length > 0) {
+export async function ensureMonitorServersLoaded({ force = false } = {}) {
+    if (!force && Array.isArray(state.monitorServerConfigs) && state.monitorServerConfigs.length > 0) {
         return state.monitorServerConfigs;
     }
     try {

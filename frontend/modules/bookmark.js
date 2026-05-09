@@ -18,12 +18,29 @@ function renderBookmarkServerOptionsInline(selectedServerId = '') {
         DOM.bookmarkServerId.innerHTML = '<option value="">请先在设置里添加服务器</option>';
         return;
     }
+    const previousValue = selectedServerId || DOM.bookmarkServerId.value || '';
     DOM.bookmarkServerId.innerHTML = servers.map(server => `
         <option value="${escapeHtmlAttribute(server.id)}">${escapeHtml(server.name || server.id)}${server.region ? ` · ${escapeHtml(server.region)}` : ''}</option>
     `).join('');
-    if (selectedServerId && servers.some(server => server.id === selectedServerId)) {
-        DOM.bookmarkServerId.value = selectedServerId;
+    if (previousValue && servers.some(server => server.id === previousValue)) {
+        DOM.bookmarkServerId.value = previousValue;
+    } else {
+        DOM.bookmarkServerId.value = servers[0]?.id || '';
     }
+}
+
+function applySelectedServerName() {
+    if (!DOM.bookmarkServerId || !DOM.bookmarkInputName) return;
+    const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId.value);
+    if (selected) DOM.bookmarkInputName.value = `${selected.name || selected.id} 监控`;
+}
+
+export async function refreshBookmarkServerOptions(selectedServerId = '', { updateName = false, force = false } = {}) {
+    if (!DOM.bookmarkServerId) return [];
+    const servers = await ensureMonitorServersLoaded({ force });
+    renderBookmarkServerOptionsInline(selectedServerId || DOM.bookmarkServerId.value);
+    if (updateName) applySelectedServerName();
+    return servers;
 }
 
 export function handleBookmarkClick(e) {
@@ -44,9 +61,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
     state.setEditingBookmarkId(bookmarkId);
     const existingBookmark = bookmarkId ? state.bookmarks.find(b => b.id === bookmarkId) : null;
     const initialServerId = existingBookmark ? parseServerComponentType(existingBookmark.component_type || '').serverId : '';
-    ensureMonitorServersLoaded().then(() => {
-        if (DOM.bookmarkServerId) renderBookmarkServerOptionsInline(initialServerId || DOM.bookmarkServerId.value);
-    }).catch(() => {});
+    refreshBookmarkServerOptions(initialServerId).catch(() => {});
 
     DOM.bookmarkInputCategory.innerHTML = state.categories.map(c =>
         `<option value="${escapeHtmlAttribute(c.id)}" ${c.id === categoryId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`

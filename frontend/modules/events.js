@@ -6,11 +6,11 @@ import * as state from './state.js';
 import { debounce } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
 import { renderBookmarks } from './render.js';
-import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload } from './bookmark.js';
+import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload, refreshBookmarkServerOptions } from './bookmark.js';
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
 import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl } from './favicon.js';
-import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme, registerMonitorServer, generateMonitorInstallCommand, renderBookmarkServerOptions } from './settings.js';
+import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme, registerMonitorServer, generateMonitorInstallCommand } from './settings.js';
 import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
 import { saveAiClientSettingsFromUi, clearAiClientSettings } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
@@ -118,9 +118,10 @@ export function bindAllEvents() {
             if (isComponent) {
                 const componentLabels = { cpu: 'CPU 使用率', memory: '内存使用', disk: '磁盘使用', server: '服务器监控' };
                 if (isServer) {
-                    renderBookmarkServerOptions();
-                    const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId?.value);
-                    DOM.bookmarkInputName.value = selected ? `${selected.name || selected.id} 监控` : '服务器监控';
+                    refreshBookmarkServerOptions(DOM.bookmarkServerId?.value || '', { updateName: true, force: true }).catch(() => {
+                        const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId?.value);
+                        DOM.bookmarkInputName.value = selected ? `${selected.name || selected.id} 监控` : '服务器监控';
+                    });
                 } else {
                     DOM.bookmarkInputName.value = componentLabels[DOM.bookmarkComponentType.value] || '';
                 }
