@@ -6,9 +6,18 @@ const os = require('os');
 const fs = require('fs');
 const { exec } = require('child_process');
 const router = express.Router();
-const { success, asyncHandler } = require('../utils');
+const { success, asyncHandler, AppError } = require('../utils');
+const { normalizeAgentReport, buildServerList } = require('../../shared/services/system-monitor');
 
 const HOST_PROC = process.env.HOST_PROC || '/proc';
+const LOCAL_SERVER_ID = process.env.MONITOR_SERVER_ID || 'hk-vps';
+const LOCAL_SERVER_NAME = process.env.MONITOR_SERVER_NAME || 'HK VPS';
+const LOCAL_SERVER_REGION = process.env.MONITOR_SERVER_REGION || 'Hong Kong';
+const LOCAL_SERVER_ROLE = process.env.MONITOR_SERVER_ROLE || 'bookmarks';
+const AGENT_TOKENS = [process.env.MONITOR_AGENT_TOKEN, process.env.ADMIN_TOKEN]
+    .map(value => String(value || '').trim())
+    .filter(Boolean);
+const agentReports = new Map();
 let lastCpuTimes = null;
 let diskCache = { data: null, timestamp: 0 };
 const DISK_CACHE_TTL = 30000; // 磁盘信息缓存 30 秒
@@ -136,24 +145,77 @@ async function getDiskInfo() {
     return diskInfo;
 }
 
-module.exports = function(_db) {
-    // GET /api/system/stats
-    router.get('/stats', asyncHandler(async (req, res) => {
-        const cpuUsage = getCpuUsageFromProc();
-        const cpuCores = os.cpus().length;
-        const memory = getMemoryFromProc();
-        const diskInfo = await getDiskInfo();
-
-        res.json(success({
+async function collectLocalStats() {
+    const cpuUsage = getCpuUsageFromProc();
+    const cpuCores = os.cpus().length;
+    const memory = getMemoryFromProc();
+    const diskInfo = await getDiskInfo();
+    return {
+        id: LOCAL_SERVER_ID,
+        name: LOCAL_SERVER_NAME,
+        region: LOCAL_SERVER_REGION,
+        role: LOCAL_SERVER_ROLE,
+        metrics: {
             cpu: { usage: cpuUsage, cores: cpuCores },
-            memory: memory,
+            memory,
             disk: {
                 total: diskInfo.total,
                 used: diskInfo.used,
                 free: diskInfo.free,
                 usagePercent: diskInfo.total > 0 ? Math.round((diskInfo.used / diskInfo.total) * 100 * 100) / 100 : 0
-            }
+            },
+            uptime: os.uptime(),
+            load: os.loadavg()
+        }
+    };
+}
+
+function requireAgentToken(req) {
+    const auth = String(req.headers.authorization || '').trim();
+    const token = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length).trim() : '';
+    if (AGENT_TOKENS.length === 0 || !AGENT_TOKENS.includes(token)) {
+        throw new AppError('未授权：请提供有效的监控 Agent Token', 401);
+    }
+}
+
+function normalizeRemoteReport(body) {
+    const report = normalizeAgentReport({ ...(body || {}), lastSeen: Date.now() }, Date.now());
+    if (!report.id || report.id === 'unknown') throw new AppError('缺少服务器 ID', 400);
+    if (!/^[a-zA-Z0-9._:-]{1,80}$/.test(report.id)) throw new AppError('服务器 ID 格式不合法', 400);
+    if (report.id === LOCAL_SERVER_ID) throw new AppError('远端 Agent 不能覆盖本机服务器 ID', 400);
+    return report;
+}
+
+module.exports = function(_db) {
+    // GET /api/system/stats - 兼容旧组件：返回本机指标
+    router.get('/stats', asyncHandler(async (req, res) => {
+        const local = normalizeAgentReport(await collectLocalStats(), Date.now());
+        res.json(success({
+            cpu: local.cpu,
+            memory: local.memory,
+            disk: local.disk,
+            uptime: local.uptime,
+            load: local.load
         }));
+    }));
+
+    // GET /api/system/servers - 哪吒式多服务器列表
+    router.get('/servers', asyncHandler(async (req, res) => {
+        const now = Date.now();
+        const local = normalizeAgentReport(await collectLocalStats(), now);
+        const agents = [...agentReports.values()];
+        res.json(success({
+            servers: buildServerList({ local, agents, now }),
+            updatedAt: new Date(now).toISOString()
+        }));
+    }));
+
+    // POST /api/system/report - 远端 agent 上报心跳/指标
+    router.post('/report', asyncHandler(async (req, res) => {
+        requireAgentToken(req);
+        const report = normalizeRemoteReport(req.body || {});
+        agentReports.set(report.id, report);
+        res.json(success({ id: report.id, status: report.status }));
     }));
 
     return router;

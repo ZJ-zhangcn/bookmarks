@@ -1,0 +1,71 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const {
+    normalizeAgentReport,
+    buildServerList,
+    getServerStatus
+} = require('../shared/services/system-monitor');
+
+test('normalizes agent server reports for dashboard display', () => {
+    const report = normalizeAgentReport({
+        id: 'us-vps',
+        name: 'US VPS',
+        role: 'edge',
+        region: 'US',
+        metrics: {
+            cpu: { usage: 123.45, cores: 2 },
+            memory: { total: 1000, used: 250 },
+            disk: { total: 2000, used: 1500 },
+            uptime: 3600,
+            load: [0.1, 0.2, 0.3]
+        }
+    }, 1700000000000);
+
+    assert.equal(report.id, 'us-vps');
+    assert.equal(report.name, 'US VPS');
+    assert.equal(report.status, 'online');
+    assert.equal(report.cpu.usage, 100);
+    assert.equal(report.memory.usagePercent, 25);
+    assert.equal(report.disk.usagePercent, 75);
+    assert.equal(report.uptime, 3600);
+    assert.deepEqual(report.load, [0.1, 0.2, 0.3]);
+});
+
+test('buildServerList marks stale and offline agents by last seen time', () => {
+    const now = 1700000000000;
+    const local = normalizeAgentReport({ id: 'hk-vps', name: 'HK VPS', metrics: { cpu: { usage: 10 } } }, now);
+    const agents = [
+        normalizeAgentReport({ id: 'fresh', name: 'Fresh', metrics: {} }, now - 10_000),
+        normalizeAgentReport({ id: 'stale', name: 'Stale', metrics: {} }, now - 120_000),
+        normalizeAgentReport({ id: 'offline', name: 'Offline', metrics: {} }, now - 600_000)
+    ];
+
+    const servers = buildServerList({ local, agents, now });
+
+    assert.deepEqual(servers.map(server => [server.id, server.status]), [
+        ['hk-vps', 'online'],
+        ['fresh', 'online'],
+        ['stale', 'stale'],
+        ['offline', 'offline']
+    ]);
+});
+
+test('buildServerList keeps local server first when remote id collides', () => {
+    const now = 1700000000000;
+    const local = normalizeAgentReport({ id: 'hk-vps', name: 'HK VPS', metrics: { cpu: { usage: 10 } } }, now);
+    const agents = [normalizeAgentReport({ id: 'hk-vps', name: 'Spoofed', metrics: { cpu: { usage: 99 } } }, now)];
+
+    const servers = buildServerList({ local, agents, now });
+
+    assert.equal(servers.length, 1);
+    assert.equal(servers[0].name, 'HK VPS');
+    assert.equal(servers[0].cpu.usage, 10);
+});
+
+test('getServerStatus uses nezha-like freshness thresholds', () => {
+    const now = 1700000000000;
+    assert.equal(getServerStatus(now - 59_000, now), 'online');
+    assert.equal(getServerStatus(now - 60_001, now), 'stale');
+    assert.equal(getServerStatus(now - 300_001, now), 'offline');
+});

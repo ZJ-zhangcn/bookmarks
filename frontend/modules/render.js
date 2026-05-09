@@ -227,6 +227,8 @@ export function createBookmarkCard(item, searchTerm) {
 
 export function createComponentCard(item) {
     const componentType = item.component_type || 'cpu';
+    if (componentType === 'servers') return createServerMonitorCard(item);
+
     const icons = { cpu: '💻', memory: '📊', disk: '💾' };
     const labels = { cpu: 'CPU', memory: 'RAM', disk: '磁盘' };
 
@@ -249,6 +251,83 @@ export function createComponentCard(item) {
     `;
 }
 
+function createServerMonitorCard(item) {
+    return `
+        <div class="component-card server-monitor-card" data-id="${escapeHtmlAttribute(item.id)}" data-component="servers">
+            <div class="bookmark-actions">
+                <button class="bookmark-action-btn delete" data-id="${escapeHtmlAttribute(item.id)}" title="删除">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+            </div>
+            <div class="server-monitor-header">
+                <div class="component-icon">🛰️</div>
+                <div>
+                    <div class="component-label">${escapeHtml(item.name || '服务器监控')}</div>
+                    <div class="server-monitor-subtitle">多服务器探针</div>
+                </div>
+            </div>
+            <div class="server-list" data-type="servers">
+                <div class="server-empty">加载中...</div>
+            </div>
+        </div>
+    `;
+}
+
+function formatBytes(bytes) {
+    if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+    if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return `${bytes || 0} B`;
+}
+
+function formatUptime(seconds) {
+    const value = Math.max(0, Number(seconds) || 0);
+    const days = Math.floor(value / 86400);
+    const hours = Math.floor((value % 86400) / 3600);
+    if (days > 0) return `${days}天${hours}小时`;
+    return `${hours}小时${Math.floor((value % 3600) / 60)}分`;
+}
+
+function progressColor(percent) {
+    return percent > 80 ? '#ef4444' : percent > 50 ? '#f59e0b' : '#22c55e';
+}
+
+function renderServerRows(servers) {
+    if (!Array.isArray(servers) || servers.length === 0) {
+        return '<div class="server-empty">暂无服务器上报</div>';
+    }
+    return servers.map(server => {
+        const cpu = server.cpu?.usage || 0;
+        const memory = server.memory?.usagePercent || 0;
+        const disk = server.disk?.usagePercent || 0;
+        const statusLabel = { online: '在线', stale: '延迟', offline: '离线' }[server.status] || server.status;
+        const meta = [server.region, server.role, `运行 ${formatUptime(server.uptime)}`].filter(Boolean).join(' · ');
+        return `
+            <div class="server-row ${escapeHtmlAttribute(server.status || 'offline')}">
+                <div class="server-row-main">
+                    <span class="server-status-dot ${escapeHtmlAttribute(server.status || 'offline')}"></span>
+                    <div class="server-title">
+                        <div class="server-name">${escapeHtml(server.name || server.id)}</div>
+                        <div class="server-meta">${escapeHtml(meta || server.id)}</div>
+                    </div>
+                    <span class="server-status-label">${escapeHtml(statusLabel)}</span>
+                </div>
+                <div class="server-metrics">
+                    <span>CPU ${cpu.toFixed(0)}%</span>
+                    <span>RAM ${memory.toFixed(0)}%</span>
+                    <span>磁盘 ${disk.toFixed(0)}%</span>
+                </div>
+                <div class="server-bars">
+                    <div class="server-mini-bar"><i style="width:${cpu}%;background:${progressColor(cpu)}"></i></div>
+                    <div class="server-mini-bar"><i style="width:${memory}%;background:${progressColor(memory)}"></i></div>
+                    <div class="server-mini-bar"><i style="width:${disk}%;background:${progressColor(disk)}"></i></div>
+                </div>
+                <div class="server-resource-line">${formatBytes(server.memory?.used || 0)} / ${formatBytes(server.memory?.total || 0)} RAM · ${formatBytes(server.disk?.used || 0)} / ${formatBytes(server.disk?.total || 0)} 磁盘</div>
+            </div>
+        `;
+    }).join('');
+}
+
 export async function refreshSystemStats() {
     const componentCards = document.querySelectorAll('.component-card');
     if (componentCards.length === 0) {
@@ -260,40 +339,40 @@ export async function refreshSystemStats() {
     }
 
     try {
-        const res = await fetch(`${state.API_BASE}/api/system/stats`);
+        const res = await fetch(`${state.API_BASE}/api/system/servers`);
         const result = await res.json();
         if (!result.success) return;
 
-        const { cpu, memory, disk } = result.data;
+        const servers = result.data?.servers || [];
+        document.querySelectorAll('.server-list[data-type="servers"]').forEach(el => {
+            el.innerHTML = renderServerRows(servers);
+        });
 
-        const formatBytes = (bytes) => {
-            if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
-            if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
-            return (bytes / 1024).toFixed(1) + ' KB';
-        };
+        const localServer = servers[0] || {};
+        const { cpu = {}, memory = {}, disk = {} } = localServer;
 
         document.querySelectorAll('.component-value[data-type="cpu"]').forEach(el => {
-            el.textContent = cpu.usage.toFixed(1) + '%';
+            el.textContent = (cpu.usage || 0).toFixed(1) + '%';
         });
         document.querySelectorAll('.component-progress-bar[data-type="cpu"]').forEach(el => {
-            el.style.width = cpu.usage + '%';
-            el.style.backgroundColor = cpu.usage > 80 ? '#ef4444' : cpu.usage > 50 ? '#f59e0b' : '#22c55e';
+            el.style.width = (cpu.usage || 0) + '%';
+            el.style.backgroundColor = progressColor(cpu.usage || 0);
         });
 
         document.querySelectorAll('.component-value[data-type="memory"]').forEach(el => {
-            el.textContent = `${formatBytes(memory.used)} / ${formatBytes(memory.total)}`;
+            el.textContent = `${formatBytes(memory.used || 0)} / ${formatBytes(memory.total || 0)}`;
         });
         document.querySelectorAll('.component-progress-bar[data-type="memory"]').forEach(el => {
-            el.style.width = memory.usagePercent + '%';
-            el.style.backgroundColor = memory.usagePercent > 80 ? '#ef4444' : memory.usagePercent > 50 ? '#f59e0b' : '#22c55e';
+            el.style.width = (memory.usagePercent || 0) + '%';
+            el.style.backgroundColor = progressColor(memory.usagePercent || 0);
         });
 
         document.querySelectorAll('.component-value[data-type="disk"]').forEach(el => {
-            el.textContent = `${formatBytes(disk.used)} / ${formatBytes(disk.total)}`;
+            el.textContent = `${formatBytes(disk.used || 0)} / ${formatBytes(disk.total || 0)}`;
         });
         document.querySelectorAll('.component-progress-bar[data-type="disk"]').forEach(el => {
-            el.style.width = disk.usagePercent + '%';
-            el.style.backgroundColor = disk.usagePercent > 80 ? '#ef4444' : disk.usagePercent > 50 ? '#f59e0b' : '#22c55e';
+            el.style.width = (disk.usagePercent || 0) + '%';
+            el.style.backgroundColor = progressColor(disk.usagePercent || 0);
         });
 
     } catch (e) {

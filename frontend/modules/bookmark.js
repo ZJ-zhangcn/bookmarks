@@ -168,7 +168,7 @@ export async function saveBookmark() {
     let icon = '🌐';
 
     if (item_type === 'component') {
-        const componentIcons = { cpu: '💻', memory: '📊', disk: '💾' };
+        const componentIcons = { cpu: '💻', memory: '📊', disk: '💾', servers: '🛰️' };
         icon = componentIcons[component_type] || '📊';
         icon_type = 'emoji';
         icon_data = icon;

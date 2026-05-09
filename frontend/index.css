@@ -1762,6 +1762,121 @@ body {
     transition: width 0.5s ease, background-color 0.3s ease;
 }
 
+.server-monitor-card {
+    align-items: stretch;
+    min-width: 320px;
+    grid-column: span 2;
+}
+
+.server-monitor-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.server-monitor-subtitle,
+.server-meta,
+.server-resource-line {
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+}
+
+.server-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.server-row {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.server-row.offline {
+    opacity: 0.58;
+}
+
+.server-row-main {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.server-status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #6b7280;
+    flex: 0 0 auto;
+}
+
+.server-status-dot.online { background: #22c55e; box-shadow: 0 0 10px rgba(34, 197, 94, 0.6); }
+.server-status-dot.stale { background: #f59e0b; }
+.server-status-dot.offline { background: #ef4444; }
+
+.server-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.server-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.server-status-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.server-metrics {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-xs);
+    margin: var(--spacing-xs) 0;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+.server-bars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.server-mini-bar {
+    height: 4px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.server-mini-bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+}
+
+.server-empty {
+    color: var(--text-tertiary);
+    text-align: center;
+    padding: var(--spacing-md);
+}
+
+@media (max-width: 720px) {
+    .server-monitor-card {
+        grid-column: span 1;
+        min-width: 0;
+    }
+}
+
 /* ========================================
    页脚
    ======================================== */

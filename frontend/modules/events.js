@@ -114,12 +114,12 @@ export function bindAllEvents() {
             DOM.componentTypeGroup.style.display = isComponent ? 'block' : 'none';
             DOM.bookmarkOnlyFields.forEach(el => el.style.display = isComponent ? 'none' : 'block');
             if (isComponent) {
-                const componentLabels = { cpu: 'CPU 使用率', memory: '内存使用', disk: '磁盘使用' };
+                const componentLabels = { cpu: 'CPU 使用率', memory: '内存使用', disk: '磁盘使用', servers: '服务器监控' };
                 DOM.bookmarkInputName.value = componentLabels[DOM.bookmarkComponentType.value] || '';
             }
         });
         DOM.bookmarkComponentType.addEventListener('change', () => {
-            const componentLabels = { cpu: 'CPU 使用率', memory: '内存使用', disk: '磁盘使用' };
+            const componentLabels = { cpu: 'CPU 使用率', memory: '内存使用', disk: '磁盘使用', servers: '服务器监控' };
             DOM.bookmarkInputName.value = componentLabels[DOM.bookmarkComponentType.value] || '';
         });
     }
