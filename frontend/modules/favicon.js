@@ -57,36 +57,32 @@ function localIconSourceLabel(url) {
 }
 
 function renderLocalIconSelection(localIcons) {
-    if (!Array.isArray(localIcons) || localIcons.length === 0) {
+    const icons = Array.isArray(localIcons) ? localIcons : [];
+    state.setAvailableIcons(icons);
+
+    if (icons.length === 0) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
         return;
     }
 
-    if (localIcons.length === 1) {
-        const icon = localIcons[0];
-        const source = localIconSourceLabel(icon);
-        DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
-            <img src="${escapeHtmlAttribute(icon)}" data-url="${escapeHtmlAttribute(icon)}" data-fallback-icon="🌐">
-            <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
-        </div>`;
-    } else {
-        DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
-            ${localIcons.slice(0, 6).map((icon, idx) => {
+    DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
+        ${icons.slice(0, 6).map((icon, idx) => {
         const source = localIconSourceLabel(icon);
         return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlAttribute(icon)}" title="${escapeHtmlAttribute(source.label)}">
-                    <img src="${escapeHtmlAttribute(icon)}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true">
-                    <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
-                </div>`;
+                <img src="${escapeHtmlAttribute(icon)}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true">
+                <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
+            </div>`;
     }).join('')}
-        </div>`;
-        DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(wrap => {
-            wrap.onclick = (e) => {
-                e.stopPropagation();
-                DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(w => w.classList.remove('selected'));
-                wrap.classList.add('selected');
-            };
+    </div>`;
+
+    DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(wrap => {
+        wrap.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(w => w.classList.remove('selected'));
+            wrap.classList.add('selected');
         });
-    }
+    });
     bindImageFallbacks(DOM.iconPreviewAuto);
 }
 
