@@ -55,8 +55,11 @@ async function getAllIcons(db) {
         WHERE icon IS NOT NULL AND icon != '' AND (icon LIKE 'http%' OR icon LIKE 'data:%')
     `);
 
+    const seenData = new Set(uploadedIcons.map(icon => icon.data).filter(Boolean));
+
     bookmarkIcons.forEach(b => {
-        if (b.icon_data && !icons.find(i => i.data === b.icon_data)) {
+        if (b.icon_data && !seenData.has(b.icon_data)) {
+            seenData.add(b.icon_data);
             icons.push({
                 data: b.icon_data,
                 type: b.icon_type,
@@ -67,7 +70,8 @@ async function getAllIcons(db) {
     });
 
     engineIcons.forEach(e => {
-        if (e.icon && !icons.find(i => i.data === e.icon)) {
+        if (e.icon && !seenData.has(e.icon)) {
+            seenData.add(e.icon);
             icons.push({
                 data: e.icon,
                 type: e.icon.startsWith('data:') ? 'base64' : 'url',

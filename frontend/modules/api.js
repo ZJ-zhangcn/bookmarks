@@ -76,7 +76,7 @@ export async function loadIconsBatch(ids) {
     }
 
     try {
-        const res = await fetch(`${state.API_BASE}/api/bookmarks?action=icons`, {
+        const res = await fetch(`${state.API_BASE}/api/bookmarks/icons`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: idsToLoad })

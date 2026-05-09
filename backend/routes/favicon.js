@@ -2,11 +2,11 @@
  * Favicon 代理路由模块
  */
 const express = require('express');
-const cheerio = require('cheerio');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
 const { assertPublicFetchUrl, isPrivateOrLocalAddress } = require('../middleware/security');
 const { safeFetchPublicUrl, readLimitedArrayBuffer } = require('../utils/safe-fetch');
+const { selectBestIcons } = require('../utils/icon-discovery');
 
 const FETCH_TIMEOUT = 5000;
 const CACHE_TTL = 300000; // 5分钟缓存
@@ -73,41 +73,36 @@ module.exports = function(_db) {
             });
 
             const html = (await readLimitedArrayBuffer(response, 512 * 1024)).toString('utf8');
-            const $ = cheerio.load(html);
-
             const icons = [];
-            const selectors = [
-                'link[rel="icon"]',
-                'link[rel="shortcut icon"]',
-                'link[rel="apple-touch-icon"]',
-                'link[rel="apple-touch-icon-precomposed"]',
-                'meta[property="og:image"]'
-            ];
-
-            for (const selector of selectors) {
-                for (const el of $(selector).toArray()) {
-                    let href = $(el).attr('href') || $(el).attr('content');
-                    if (!href || href.startsWith('data:') || href.startsWith('blob:')) continue;
-                    if (href.startsWith('//')) {
-                        href = parsedUrl.protocol + href;
-                    } else if (href.startsWith('/')) {
-                        href = baseUrl + href;
-                    } else if (!href.startsWith('http')) {
-                        href = baseUrl + '/' + href;
+            const addIcon = async iconUrl => {
+                try {
+                    const finalIconUrl = isPrivate
+                        ? new URL(iconUrl)
+                        : await assertPublicFetchUrl(iconUrl);
+                    if (!icons.includes(finalIconUrl.href)) {
+                        icons.push(finalIconUrl.href);
                     }
-                    try {
-                        const finalIconUrl = await assertPublicFetchUrl(href);
-                        if (!icons.includes(finalIconUrl.href)) {
-                            icons.push(finalIconUrl.href);
-                        }
-                    } catch { }
-                }
+                } catch { /* skip invalid or blocked icon URL */ }
+            };
+
+            const discoveredIcons = await selectBestIcons(html, parsedUrl.href, async manifestUrl => {
+                const { response: manifestResponse } = await safeFetchPublicUrl(manifestUrl, {
+                    allowPrivate: isPrivate,
+                    timeoutMs: FETCH_TIMEOUT,
+                    fetchOptions: {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                    }
+                });
+                if (!manifestResponse.ok) return null;
+                const manifestText = (await readLimitedArrayBuffer(manifestResponse, 128 * 1024)).toString('utf8');
+                return JSON.parse(manifestText);
+            });
+
+            for (const icon of discoveredIcons) {
+                await addIcon(icon);
             }
 
-            const defaultFavicon = await assertPublicFetchUrl(`${baseUrl}/favicon.ico`);
-            if (!icons.includes(defaultFavicon.href)) {
-                icons.push(defaultFavicon.href);
-            }
+            await addIcon(`${baseUrl}/favicon.ico`);
 
             const fallbacks = getFallbackIcons(domain, isPrivate, parsedUrl.protocol);
             fallbacks.forEach(fb => {

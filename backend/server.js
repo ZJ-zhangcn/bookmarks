@@ -14,7 +14,9 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./db');
 const { registerAiRoutes } = require('./ai');
-const { errorHandler } = require('./utils');
+const { errorHandler, asyncHandler } = require('./utils');
+const { proxyIconRequest } = require('./utils/icon-proxy');
+const { safeFetchPublicUrl, readLimitedArrayBuffer } = require('./utils/safe-fetch');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -177,74 +179,15 @@ app.use('/api/todos', routes.todos);
 app.use('/api/suggest', routes.suggest);
 
 // 图标代理（解决被墙图标无法显示问题）
-// 1x1 透明 PNG 作为 fallback
-const TRANSPARENT_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
-const { safeFetchPublicUrl, readLimitedArrayBuffer } = require('./utils/safe-fetch');
-
-app.get('/api/proxy-icon', async (req, res) => {
-    const { url } = req.query;
-    if (!url) {
-        res.setHeader('Content-Type', 'image/png');
-        res.setHeader('Cache-Control', 'public, max-age=86400');
-        return res.send(TRANSPARENT_PNG);
-    }
-
-    try {
-        const parsedUrl = new URL(url);
-        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-            res.setHeader('Content-Type', 'image/png');
-            res.setHeader('Cache-Control', 'public, max-age=86400');
-            return res.send(TRANSPARENT_PNG);
-        }
-
-        // 更真实的请求头
-        const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': parsedUrl.origin + '/',
-            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-            'Sec-Ch-Ua-Mobile': '?0',
-            'Sec-Ch-Ua-Platform': '"Windows"',
-            'Sec-Fetch-Dest': 'image',
-            'Sec-Fetch-Mode': 'no-cors',
-            'Sec-Fetch-Site': 'cross-site'
-        };
-
-        const { response } = await safeFetchPublicUrl(parsedUrl.href, {
-            timeoutMs: 15000,
-            fetchOptions: { headers }
-        });
-
-        if (!response.ok) {
-            // 上游失败，返回透明图而非错误
-            res.setHeader('Content-Type', 'image/png');
-            res.setHeader('Cache-Control', 'public, max-age=3600'); // 失败缓存1小时
-            return res.send(TRANSPARENT_PNG);
-        }
-
-        const contentType = response.headers.get('content-type') || 'image/png';
-        
-        // 验证是否为图片类型
-        if (!contentType.startsWith('image/')) {
-            res.setHeader('Content-Type', 'image/png');
-            res.setHeader('Cache-Control', 'public, max-age=3600');
-            return res.send(TRANSPARENT_PNG);
-        }
-
-        const buffer = await readLimitedArrayBuffer(response, 10 * 1024 * 1024);
-
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Cache-Control', 'public, max-age=604800'); // 成功缓存7天
-        res.send(buffer);
-    } catch (e) {
-        // 任何异常都返回透明图，避免前端 onerror 循环
-        res.setHeader('Content-Type', 'image/png');
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-        res.send(TRANSPARENT_PNG);
-    }
-});
+app.get('/api/proxy-icon', asyncHandler(async (req, res) => {
+    await proxyIconRequest(req, res, {
+        safeFetchPublicUrl,
+        readLimitedArrayBuffer,
+        maxBytes: 1024 * 1024,
+        timeoutMs: 15000,
+        transparentOnFailure: true
+    });
+}));
 
 // ========================================
 // 初始化默认数据

@@ -30,20 +30,27 @@ module.exports = function(db) {
         res.json(success(grouped));
     }));
 
-    // POST /api/bookmarks (支持 action=icons 和普通创建)
-    router.post('/', requireAdmin, asyncHandler(async (req, res) => {
-        const action = req.query.action;
-
-        // 批量获取图标
-        if (action === 'icons') {
-            const { ids } = req.body;
-            if (!Array.isArray(ids) || ids.length === 0) {
-                return res.json(success({}));
-            }
-            const iconMap = await bookmarksService.getBatchIcons(db, ids);
-            return res.json(success(iconMap));
+    // POST /api/bookmarks/icons - 批量读取图标（读接口，不要求写权限）
+    router.post('/icons', asyncHandler(async (req, res) => {
+        const { ids } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.json(success({}));
         }
+        if (ids.length > 100) {
+            throw new AppError('一次最多读取 100 个图标', 400);
+        }
+        const safeIds = ids
+            .map(id => String(id || '').trim())
+            .filter(id => id && id.length <= 128);
+        if (safeIds.length === 0) {
+            return res.json(success({}));
+        }
+        const iconMap = await bookmarksService.getBatchIcons(db, [...new Set(safeIds)]);
+        return res.json(success(iconMap));
+    }));
 
+    // POST /api/bookmarks (普通创建/更新)
+    router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         // 创建/更新书签
         const { id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type } = req.body;
 

@@ -1,7 +1,7 @@
 # Node.js 后端 + 静态前端（多阶段构建）
 
 # ============ 阶段一：构建前端 ============
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ COPY frontend/ ./frontend/
 RUN npm run build:frontend
 
 # ============ 阶段二：运行时镜像 ============
-FROM node:20-alpine
+FROM node:22-alpine
 
 # 安装 better-sqlite3 编译依赖
 RUN apk add --no-cache python3 make g++ ca-certificates && \

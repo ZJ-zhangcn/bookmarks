@@ -5,6 +5,9 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 import { isPrivateOrLocalAddress, toSafeImageUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
 import { renderIconSelection } from './render.js';
+import { normalizeFaviconResponse, createFaviconRequestGuard } from './favicon-helpers.cjs';
+
+const faviconRequestGuard = createFaviconRequestGuard();
 
 const FALLBACK_SOURCES = [
     domain => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
@@ -26,6 +29,8 @@ export async function fetchFavicon() {
     const url = DOM.bookmarkInputUrl.value.trim();
     if (!url || state.currentIconType !== 'auto') return;
 
+    const request = faviconRequestGuard.start(url);
+
     try {
         const parsedUrl = new URL(url);
         const domain = parsedUrl.hostname;
@@ -33,7 +38,7 @@ export async function fetchFavicon() {
         DOM.iconPreviewAuto.innerHTML = '<span style="opacity:0.5">⏳</span>';
 
         if (isPrivateOrLocalAddress(domain)) {
-            fetchProxyFavicon(url);
+            fetchProxyFavicon(url, request);
             return;
         }
 
@@ -51,9 +56,10 @@ export async function fetchFavicon() {
 
         // 等待所有请求完成
         const [proxyResult, ...fallbackResults] = await Promise.all([proxyPromise, ...fallbackPromises]);
+        if (!faviconRequestGuard.isCurrent(request, DOM.bookmarkInputUrl.value.trim())) return;
 
         // 合并图标：网站自带图标优先
-        const rawSiteIcons = (proxyResult?.success && proxyResult?.icons) ? proxyResult.icons : [];
+        const rawSiteIcons = normalizeFaviconResponse(proxyResult);
         const fallbackIcons = fallbackResults.filter(Boolean);
 
         // 网站自带图标放前面，第三方服务图标放后面，去重
@@ -78,19 +84,20 @@ export async function fetchMoreIcons(url, domain) {
             body: JSON.stringify({ url })
         });
         const data = await res.json();
-        if (data.success && data.icons && data.icons.length > 0) {
+        const icons = normalizeFaviconResponse(data);
+        if (icons.length > 0) {
             if (isPrivateOrLocalAddress(domain)) {
-                state.setAvailableIcons(data.icons);
+                state.setAvailableIcons(icons);
             } else {
                 const googleFavicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-                state.setAvailableIcons([...new Set([googleFavicon, ...data.icons.filter(i => i !== googleFavicon)])]);
+                state.setAvailableIcons([...new Set([googleFavicon, ...icons.filter(i => i !== googleFavicon)])]);
             }
             renderIconSelection(state.availableIcons);
         }
     } catch (e) { }
 }
 
-export async function fetchProxyFavicon(url) {
+export async function fetchProxyFavicon(url, request = null) {
     try {
         const res = await fetch(`${state.API_BASE}/api/favicon`, {
             method: 'POST',
@@ -98,8 +105,10 @@ export async function fetchProxyFavicon(url) {
             body: JSON.stringify({ url })
         });
         const data = await res.json();
-        if (data.success && data.icons && data.icons.length > 0) {
-            state.setAvailableIcons(data.icons);
+        if (request && !faviconRequestGuard.isCurrent(request, DOM.bookmarkInputUrl.value.trim())) return;
+        const icons = normalizeFaviconResponse(data);
+        if (icons.length > 0) {
+            state.setAvailableIcons(icons);
             renderIconSelection(state.availableIcons);
         } else {
             DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';

@@ -10,6 +10,7 @@
     "preview": "cd frontend && npx vite preview",
     "lint": "eslint frontend/modules backend shared",
     "lint:fix": "eslint frontend/modules backend shared --fix",
+    "test": "node --test tests/*.test.js",
     "audit:high": "npm audit --audit-level=high",
     "db:init": "node scripts/init-mysql.js",
     "db:migrate": "node scripts/migrate-to-mysql.js"
