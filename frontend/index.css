@@ -1764,9 +1764,14 @@ body {
     transition: width 0.5s ease, background-color 0.3s ease;
 }
 
+.bookmarks-grid.server-monitor-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+    align-items: stretch;
+}
+
 .server-monitor-slot {
     position: relative;
-    min-width: min(100%, 280px);
+    min-width: 0;
     grid-column: auto;
     height: 100%;
     display: flex;
@@ -1776,11 +1781,23 @@ body {
     .server-monitor-slot {
         grid-column: span 2;
     }
+
+    .bookmarks-grid.server-monitor-grid .server-monitor-slot {
+        grid-column: auto;
+    }
 }
 
 @media (min-width: 1400px) {
     .server-monitor-slot {
         grid-column: span 3;
+    }
+
+    .bookmarks-grid.server-monitor-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+    }
+
+    .bookmarks-grid.server-monitor-grid .server-monitor-slot {
+        grid-column: auto;
     }
 }
 

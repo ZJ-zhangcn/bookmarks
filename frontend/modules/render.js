@@ -97,7 +97,13 @@ export function renderBookmarks() {
         // 3. 更新内容 (增量更新核心)
         const grid = section.querySelector('.bookmarks-grid');
         const countSpan = section.querySelector('.category-count');
-        
+
+        const isServerMonitorGrid = filteredItems.length > 0 && filteredItems.every(item => {
+            const serverComponent = item.item_type === 'component' && parseServerComponentType(item.component_type || '');
+            return !!serverComponent?.isServer;
+        });
+        grid.classList.toggle('server-monitor-grid', isServerMonitorGrid);
+
         // 判定是否需要重绘 Grid 内容
         // 重新渲染条件：
         // a. 处于搜索模式 (内容随关键词变动)
