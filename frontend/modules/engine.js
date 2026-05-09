@@ -6,7 +6,7 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderEngineDropdown, updateEngineDisplay } from './render.js';
 import { loadIconLibrary } from './icon-library.js';
-import { toSafeImageUrl } from './utils.js';
+import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
 
 export function openEngineModal() {
     renderEngineList();
@@ -24,9 +24,9 @@ export function renderEngineList() {
     DOM.engineList.innerHTML = state.engines.map((e, index) => {
         const iconHtml = e.icon && (e.icon.startsWith('http') || e.icon.startsWith('data:'))
             ? `<img src="${toSafeImageUrl(e.icon)}" style="width:20px;height:20px;">`
-            : e.icon || '🔍';
+            : escapeHtml(e.icon || '🔍');
         return `
-        <div class="engine-list-item" draggable="true" data-id="${e.id}" data-index="${index}">
+        <div class="engine-list-item" draggable="true" data-id="${escapeHtmlAttribute(e.id)}" data-index="${index}">
             <div class="engine-drag-handle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/>
@@ -36,12 +36,12 @@ export function renderEngineList() {
             </div>
             <div class="engine-list-icon">${iconHtml}</div>
             <div class="engine-list-info">
-                <div class="engine-list-name">${e.name}${index === 0 ? ' <span class="engine-default-badge">默认</span>' : ''}</div>
-                <div class="engine-list-url">${e.url}</div>
+                <div class="engine-list-name">${escapeHtml(e.name)}${index === 0 ? ' <span class="engine-default-badge">默认</span>' : ''}</div>
+                <div class="engine-list-url">${escapeHtml(e.url)}</div>
             </div>
             <div class="engine-list-actions">
-                <button class="engine-action-btn edit" data-id="${e.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                <button class="engine-action-btn delete" data-id="${e.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                <button class="engine-action-btn edit" data-id="${escapeHtmlAttribute(e.id)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                <button class="engine-action-btn delete" data-id="${escapeHtmlAttribute(e.id)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
             </div>
         </div>
     `;
@@ -67,8 +67,11 @@ export function editEngine(id) {
     if (engine.icon && engine.icon.startsWith('http')) {
         DOM.engineIconPreview.innerHTML = `<img src="${toSafeImageUrl(engine.icon)}">`;
         DOM.engineInputIconUrl.value = engine.icon;
+    } else if (engine.icon && engine.icon.startsWith('data:')) {
+        DOM.engineIconPreview.innerHTML = `<img src="${toSafeDataImageUrl(engine.icon)}">`;
+        DOM.engineInputIconUrl.value = '';
     } else {
-        DOM.engineIconPreview.innerHTML = `<span>${engine.icon || '🔍'}</span>`;
+        DOM.engineIconPreview.innerHTML = `<span>${escapeHtml(engine.icon || '🔍')}</span>`;
         DOM.engineInputIconUrl.value = '';
     }
 

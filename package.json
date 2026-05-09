@@ -8,8 +8,9 @@
     "build": "echo 'No build step required'",
     "build:frontend": "cd frontend && npx vite build",
     "preview": "cd frontend && npx vite preview",
-    "lint": "npx eslint frontend/modules/ backend/ shared/ --ext .js",
-    "lint:fix": "npx eslint frontend/modules/ backend/ shared/ --ext .js --fix",
+    "lint": "eslint frontend/modules backend shared",
+    "lint:fix": "eslint frontend/modules backend shared --fix",
+    "audit:high": "npm audit --audit-level=high",
     "db:init": "node scripts/init-mysql.js",
     "db:migrate": "node scripts/migrate-to-mysql.js"
   },
@@ -19,13 +20,16 @@
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "mysql2": "^3.11.0"
+    "mysql2": "^3.11.0",
+    "undici": "^6.25.0"
   },
   "devDependencies": {
+    "@eslint/js": "^8.57.1",
     "eslint": "^8.57.1",
-    "vite": "^5.0.0"
+    "globals": "^15.15.0",
+    "vite": "^7.3.3"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19.0"
   }
 }

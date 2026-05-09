@@ -2,6 +2,10 @@
  * 数据导入导出服务
  */
 
+function isMysql(db) {
+    return db.USE_MYSQL || db.getDatabaseType?.() === 'mysql';
+}
+
 async function exportData(db, includeIcons) {
     const categories = await db.queryAll('SELECT * FROM categories');
     let bookmarks = await db.queryAll('SELECT * FROM bookmarks');
@@ -45,14 +49,19 @@ async function importData(db, data) {
         if (categories) {
             for (let i = 0; i < categories.length; i++) {
                 const c = categories[i];
-                if (db.USE_MYSQL) {
+                if (isMysql(db)) {
                     await conn.execute(
                         'INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), sort_order = VALUES(sort_order)',
                         [c.id, c.name, c.icon, c.sort_order ?? i]
                     );
                 } else {
                     await conn.execute(
-                        'INSERT OR REPLACE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)',
+                        `INSERT INTO categories (id, name, icon, sort_order)
+                         VALUES (?, ?, ?, ?)
+                         ON CONFLICT(id) DO UPDATE SET
+                           name = excluded.name,
+                           icon = excluded.icon,
+                           sort_order = excluded.sort_order`,
                         [c.id, c.name, c.icon, c.sort_order ?? i]
                     );
                 }
@@ -62,7 +71,7 @@ async function importData(db, data) {
         if (bookmarks) {
             for (let i = 0; i < bookmarks.length; i++) {
                 const b = bookmarks[i];
-                if (db.USE_MYSQL) {
+                if (isMysql(db)) {
                     await conn.execute(
                         `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -73,7 +82,19 @@ async function importData(db, data) {
                     );
                 } else {
                     await conn.execute(
-                        'INSERT OR REPLACE INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         ON CONFLICT(id) DO UPDATE SET
+                           category_id = excluded.category_id,
+                           name = excluded.name,
+                           url = excluded.url,
+                           description = excluded.description,
+                           icon = excluded.icon,
+                           icon_type = excluded.icon_type,
+                           icon_data = excluded.icon_data,
+                           item_type = excluded.item_type,
+                           component_type = excluded.component_type,
+                           sort_order = excluded.sort_order`,
                         [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order ?? i]
                     );
                 }
@@ -92,7 +113,7 @@ async function importData(db, data) {
                     (t.completed_at === '' || t.completed_at == null) ? null : t.completed_at
                 ];
 
-                if (db.USE_MYSQL) {
+                if (isMysql(db)) {
                     await conn.execute(
                         `INSERT INTO todos (id, title, is_done, sort_order, completed_at)
                          VALUES (?, ?, ?, ?, ?)
@@ -120,14 +141,20 @@ async function importData(db, data) {
         if (engines) {
             for (let i = 0; i < engines.length; i++) {
                 const e = engines[i];
-                if (db.USE_MYSQL) {
+                if (isMysql(db)) {
                     await conn.execute(
                         'INSERT INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), url = VALUES(url), sort_order = VALUES(sort_order)',
                         [e.id, e.name, e.icon, e.url, e.sort_order ?? i]
                     );
                 } else {
                     await conn.execute(
-                        'INSERT OR REPLACE INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?)',
+                        `INSERT INTO search_engines (id, name, icon, url, sort_order)
+                         VALUES (?, ?, ?, ?, ?)
+                         ON CONFLICT(id) DO UPDATE SET
+                           name = excluded.name,
+                           icon = excluded.icon,
+                           url = excluded.url,
+                           sort_order = excluded.sort_order`,
                         [e.id, e.name, e.icon, e.url, e.sort_order ?? i]
                     );
                 }
@@ -135,14 +162,15 @@ async function importData(db, data) {
         }
 
         if (personalization) {
-            if (db.USE_MYSQL) {
+            if (isMysql(db)) {
                 await conn.execute(
                     'INSERT INTO config (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
                     ['personalization', JSON.stringify(personalization)]
                 );
             } else {
                 await conn.execute(
-                    'INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)',
+                    `INSERT INTO config (key, value) VALUES (?, ?)
+                     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
                     ['personalization', JSON.stringify(personalization)]
                 );
             }

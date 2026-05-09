@@ -14,6 +14,42 @@ const USE_MYSQL = DATABASE_URL && DATABASE_URL.startsWith('mysql://');
 let db = null;
 let mysqlPool = null;
 
+function parseBooleanEnv(value, defaultValue = false) {
+    if (value === undefined || value === null || value === '') return defaultValue;
+    return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+}
+
+function buildMysqlSslOptions(url) {
+    const sslMode = String(url.searchParams.get('ssl-mode') || process.env.MYSQL_SSL_MODE || '').toLowerCase();
+    const sslEnabled = parseBooleanEnv(process.env.MYSQL_SSL, false) || Boolean(sslMode);
+    if (!sslEnabled || sslMode === 'disabled' || sslMode === 'disable') return undefined;
+
+    const rejectUnauthorized = !['required', 'require', 'preferred', 'prefer'].includes(sslMode)
+        && parseBooleanEnv(process.env.MYSQL_SSL_REJECT_UNAUTHORIZED, true);
+    const ssl = { rejectUnauthorized };
+
+    if (process.env.MYSQL_SSL_CA) ssl.ca = process.env.MYSQL_SSL_CA.replace(/\\n/g, '\n');
+    if (process.env.MYSQL_SSL_CERT) ssl.cert = process.env.MYSQL_SSL_CERT.replace(/\\n/g, '\n');
+    if (process.env.MYSQL_SSL_KEY) ssl.key = process.env.MYSQL_SSL_KEY.replace(/\\n/g, '\n');
+    return ssl;
+}
+
+function buildMysqlConnectionConfig(databaseUrl) {
+    const url = new URL(databaseUrl);
+    const ssl = buildMysqlSslOptions(url);
+    url.searchParams.delete('ssl-mode');
+    return {
+        uri: url.toString(),
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0,
+        ...(ssl ? { ssl } : {})
+    };
+}
+
+
 /**
  * 初始化数据库连接
  */
@@ -22,18 +58,7 @@ async function initDatabase() {
         console.log('📦 使用 MySQL 数据库模式');
         const mysql = require('mysql2/promise');
 
-        // 移除 ssl-mode 参数，改用 mysql2 原生 ssl 配置
-        const connectionString = DATABASE_URL.replace(/[?&]ssl-mode=[^&]*/gi, '');
-
-        mysqlPool = mysql.createPool({
-            uri: connectionString,
-            waitForConnections: true,
-            connectionLimit: 10,
-            queueLimit: 0,
-            enableKeepAlive: true,
-            keepAliveInitialDelay: 0,
-            ssl: { rejectUnauthorized: false }
-        });
+        mysqlPool = mysql.createPool(buildMysqlConnectionConfig(DATABASE_URL));
 
         // 测试连接
         try {
@@ -55,6 +80,7 @@ async function initDatabase() {
         }
 
         db = new Database(path.join(dataDir, 'bookmarks.db'));
+        db.pragma('foreign_keys = ON');
         console.log('✅ SQLite 连接成功');
     }
 }
@@ -92,7 +118,8 @@ async function createTables() {
                     component_type VARCHAR(50),
                     sort_order INT DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_category (category_id)
+                    INDEX idx_category (category_id),
+                    CONSTRAINT fk_bookmarks_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
@@ -158,6 +185,11 @@ async function createTables() {
                 'CREATE INDEX idx_categories_sort ON categories(sort_order)',
                 'CREATE INDEX idx_engines_sort ON search_engines(sort_order)'
             ];
+            const foreignKeyStatements = [
+                `ALTER TABLE bookmarks
+                 ADD CONSTRAINT fk_bookmarks_category
+                 FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE`
+            ];
             for (const sql of indexStatements) {
                 try {
                     await conn.execute(sql);
@@ -165,6 +197,15 @@ async function createTables() {
                     // 索引已存在，忽略错误
                     if (!e.message.includes('Duplicate')) {
                         console.warn('索引创建警告:', e.message);
+                    }
+                }
+            }
+            for (const sql of foreignKeyStatements) {
+                try {
+                    await conn.execute(sql);
+                } catch (e) {
+                    if (!e.message.includes('Duplicate') && !e.message.includes('errno: 121')) {
+                        console.warn('外键创建警告:', e.message);
                     }
                 }
             }
@@ -213,7 +254,7 @@ async function createTables() {
                 component_type TEXT,
                 sort_order INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (category_id) REFERENCES categories(id)
+                FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
             );
 
             CREATE TABLE IF NOT EXISTS search_engines (

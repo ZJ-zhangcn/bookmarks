@@ -1,6 +1,12 @@
 /**
  * 分类服务
  */
+const { newId } = require('./ids');
+
+function isMysql(db) {
+    return db.USE_MYSQL || db.getDatabaseType?.() === 'mysql';
+}
+
 
 async function getAllCategories(db, type) {
     let sql = 'SELECT * FROM categories';
@@ -16,13 +22,12 @@ async function getAllCategories(db, type) {
 }
 
 async function saveCategory(db, { id, name, icon, type }) {
-    const categoryId = id || `cat_${Date.now()}`;
-    const isNewCategory = !id;
+    const categoryId = id || newId('cat');
     const categoryIcon = icon || '📁';
     const categoryType = (type === 'todo') ? 'todo' : 'bookmark';
 
     let sortOrder = 0;
-    if (isNewCategory) {
+    if (!id) {
         const maxOrder = await db.queryOne('SELECT MAX(sort_order) as max_order FROM categories WHERE type = ?', [categoryType]);
         sortOrder = (maxOrder?.max_order ?? -1) + 1;
     } else {
@@ -30,14 +35,20 @@ async function saveCategory(db, { id, name, icon, type }) {
         sortOrder = existing?.sort_order ?? 0;
     }
 
-    if (db.USE_MYSQL) {
+    if (isMysql(db)) {
         await db.execute(
             'INSERT INTO categories (id, name, icon, type, sort_order) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), type = VALUES(type), sort_order = VALUES(sort_order)',
             [categoryId, name.trim(), categoryIcon, categoryType, sortOrder]
         );
     } else {
         await db.execute(
-            'INSERT OR REPLACE INTO categories (id, name, icon, type, sort_order) VALUES (?, ?, ?, ?, ?)',
+            `INSERT INTO categories (id, name, icon, type, sort_order)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+               name = excluded.name,
+               icon = excluded.icon,
+               type = excluded.type,
+               sort_order = excluded.sort_order`,
             [categoryId, name.trim(), categoryIcon, categoryType, sortOrder]
         );
     }

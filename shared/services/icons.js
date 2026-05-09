@@ -1,6 +1,28 @@
 /**
  * 图标库服务
  */
+const { newId } = require('./ids');
+
+async function fetchLimitedImage(url) {
+    const safeFetch = require('../../backend/utils/safe-fetch');
+    const { response } = await safeFetch.safeFetchPublicUrl(url, {
+        timeoutMs: 5000,
+        fetchOptions: { headers: { 'User-Agent': 'Mozilla/5.0' } }
+    });
+    if (!response.ok) {
+        const err = new Error(`HTTP ${response.status}`);
+        err.statusCode = 500;
+        throw err;
+    }
+    const contentType = response.headers.get('content-type') || 'image/png';
+    if (!contentType.startsWith('image/')) {
+        const err = new Error('无效的图片类型');
+        err.statusCode = 400;
+        throw err;
+    }
+    const buffer = await safeFetch.readLimitedArrayBuffer(response, safeFetch.DEFAULT_MAX_BYTES);
+    return { buffer, contentType };
+}
 
 async function getAllIcons(db) {
     const icons = [];
@@ -59,7 +81,7 @@ async function getAllIcons(db) {
 }
 
 async function uploadIcon(db, { name, data, type }) {
-    const iconId = `icon_${Date.now()}`;
+    const iconId = newId('icon');
     await db.execute(
         'INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)',
         [iconId, name || '', data, type || 'base64']
@@ -67,23 +89,12 @@ async function uploadIcon(db, { name, data, type }) {
     return { id: iconId };
 }
 
-async function uploadIconFromUrl(db, { url, name }, assertSafeFetchUrl) {
-    assertSafeFetchUrl(url);
-    const response = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(5000)
-    });
-    if (!response.ok) {
-        const err = new Error(`HTTP ${response.status}`);
-        err.statusCode = 500;
-        throw err;
-    }
-    const buffer = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || 'image/png';
+async function uploadIconFromUrl(db, { url, name }, _assertSafeFetchUrl) {
+    const { buffer, contentType } = await fetchLimitedImage(url);
     const base64 = Buffer.from(buffer).toString('base64');
     const data = `data:${contentType.split(';')[0]};base64,${base64}`;
 
-    const iconId = `icon_${Date.now()}`;
+    const iconId = newId('icon');
     await db.execute(
         'INSERT INTO icon_library (id, name, data, type) VALUES (?, ?, ?, ?)',
         [iconId, name || url, data, 'base64']

@@ -4,7 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
-const { requireAdmin, assertSafeFetchUrl } = require('../middleware/security');
+const { requireAdmin, assertPublicFetchUrl } = require('../middleware/security');
 const iconsService = require('../../shared/services/icons');
 
 module.exports = function(db) {
@@ -32,7 +32,7 @@ module.exports = function(db) {
             if (!url) {
                 throw new AppError('缺少 URL', 400);
             }
-            const result = await iconsService.uploadIconFromUrl(db, { url, name }, assertSafeFetchUrl);
+            const result = await iconsService.uploadIconFromUrl(db, { url, name }, assertPublicFetchUrl);
             return res.json(success(result));
         }
 

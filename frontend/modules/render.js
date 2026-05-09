@@ -4,10 +4,7 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 
-function escapeHtml(str) {
-    return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-import { highlightText, toSafeImageUrl } from './utils.js';
+import { highlightText, toSafeImageUrl, escapeHtml, escapeHtmlAttribute, toSafeExternalUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
 import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 
@@ -29,7 +26,7 @@ export function renderCategoryNav() {
         const btn = document.createElement('button');
         btn.className = 'category-btn' + (state.currentCategory === cat.id ? ' active' : '');
         btn.dataset.category = cat.id;
-        btn.innerHTML = `<span>${cat.name}</span>`;
+        btn.innerHTML = `<span>${escapeHtml(cat.name)}</span>`;
         DOM.categoryNav.appendChild(btn);
     });
 }
@@ -42,12 +39,19 @@ export function renderBookmarks() {
     // 不再清空整个容器：DOM.bookmarksContainer.innerHTML = '';
     // 而是复用已有的 DOM 结构，通过 CSS 控制显示隐藏
 
+    const bookmarksByCategory = new Map();
+    state.bookmarks.forEach(bookmark => {
+        const categoryId = bookmark.category_id;
+        if (!bookmarksByCategory.has(categoryId)) bookmarksByCategory.set(categoryId, []);
+        bookmarksByCategory.get(categoryId).push(bookmark);
+    });
+
     state.categories.forEach((category, idx) => {
         // 1. 判断该分类是否应该显示
         // 如果当前选中了特定分类，且不是当前分类，则不显示（隐藏）
         const isCurrentCategoryActive = state.currentCategory === 'all' || state.currentCategory === category.id;
         
-        const catBookmarks = state.bookmarks.filter(b => b.category_id === category.id);
+        const catBookmarks = bookmarksByCategory.get(category.id) || [];
         const filteredItems = catBookmarks.filter(item => {
             if (!searchTerm) return true;
             const tagsText = Array.isArray(item.tags) ? item.tags.join(',') : String(item.tags || '');
@@ -61,7 +65,7 @@ export function renderBookmarks() {
         const shouldShow = isCurrentCategoryActive && (filteredItems.length > 0 || state.currentCategory !== 'all');
 
         // 2. 获取或创建 DOM 节点
-        let section = DOM.bookmarksContainer.querySelector(`.category-section[data-category-id="${category.id}"]`);
+        let section = DOM.bookmarksContainer.querySelector(`.category-section[data-category-id="${CSS.escape(String(category.id))}"]`);
         
         if (!shouldShow) {
             if (section) section.style.display = 'none';
@@ -136,23 +140,23 @@ function createCategorySection(category, isCollapsed, idx) {
 
     section.innerHTML = `
         <header class="category-header">
-            <button class="collapse-btn" data-category="${category.id}" title="${isCollapsed ? '展开' : '折叠'}">
+            <button class="collapse-btn" data-category="${escapeHtmlAttribute(category.id)}" title="${isCollapsed ? '展开' : '折叠'}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="m6 9 6 6 6-6"/>
                 </svg>
             </button>
-            <h2 class="category-title">${category.name}</h2>
+            <h2 class="category-title">${escapeHtml(category.name)}</h2>
             <div class="category-header-actions">
-                <button class="header-action-btn add-btn" data-category="${category.id}" title="添加书签">
+                <button class="header-action-btn add-btn" data-category="${escapeHtmlAttribute(category.id)}" title="添加书签">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                 </button>
-                <button class="header-action-btn sort-btn" data-category="${category.id}" title="排序书签">
+                <button class="header-action-btn sort-btn" data-category="${escapeHtmlAttribute(category.id)}" title="排序书签">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h12M3 18h6"/></svg>
                 </button>
             </div>
             <span class="category-count">0 个</span>
         </header>
-        <div class="bookmarks-grid" data-category="${category.id}" ${isCollapsed ? 'style="display:none;"' : ''}>
+        <div class="bookmarks-grid" data-category="${escapeHtmlAttribute(category.id)}" ${isCollapsed ? 'style="display:none;"' : ''}>
         </div>
     `;
     return section;
@@ -178,35 +182,34 @@ export function createBookmarkCard(item, searchTerm) {
     let iconHtml;
     const cachedIcon = state.iconCache.get(item.id);
     if (cachedIcon && cachedIcon.icon_data) {
-        iconHtml = `<img src="${toSafeImageUrl(cachedIcon.icon_data)}" alt="${item.name}" loading="lazy">`;
+        iconHtml = `<img src="${toSafeImageUrl(cachedIcon.icon_data)}" alt="${escapeHtmlAttribute(item.name)}" loading="lazy">`;
     } else if (item.icon_type === 'url' && item.icon_data) {
         const rawIconUrl = item.icon_data;
         const displayUrl = toSafeImageUrl(rawIconUrl);
-        const escapedIcon = escapeHtml(item.icon || '🌐');
-        iconHtml = `<img src="${displayUrl}" alt="${item.name}" loading="lazy" onerror="this.outerHTML='<span>${escapedIcon}</span>'">`;
+        iconHtml = `<img src="${displayUrl}" alt="${escapeHtmlAttribute(item.name)}" loading="lazy" data-fallback-icon="${escapeHtmlAttribute(item.icon || '🌐')}">`;
     } else if (item.icon_type === 'base64' && item.icon_data) {
-        iconHtml = `<img src="${item.icon_data}" alt="${item.name}" loading="lazy">`;
+        iconHtml = `<img src="${toSafeDataImageUrl(item.icon_data)}" alt="${escapeHtmlAttribute(item.name)}" loading="lazy">`;
     } else if (item.icon_type === 'base64') {
-        iconHtml = `<span class="icon-placeholder">${item.icon || '🌐'}</span>`;
+        iconHtml = `<span class="icon-placeholder">${escapeHtml(item.icon || '🌐')}</span>`;
     } else {
-        iconHtml = `<span>${item.icon || '🌐'}</span>`;
+        iconHtml = `<span>${escapeHtml(item.icon || '🌐')}</span>`;
     }
 
     const rawDesc = item.description || '';
     return `
-        <a href="${item.url}" class="bookmark-card" target="_blank" rel="noopener" data-id="${item.id}">
+        <a href="${toSafeExternalUrl(item.url)}" class="bookmark-card" target="_blank" rel="noopener" data-id="${escapeHtmlAttribute(item.id)}">
             <div class="bookmark-actions">
-                <button class="bookmark-action-btn edit" data-id="${item.id}" title="编辑">
+                <button class="bookmark-action-btn edit" data-id="${escapeHtmlAttribute(item.id)}" title="编辑">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
-                <button class="bookmark-action-btn delete" data-id="${item.id}" title="删除">
+                <button class="bookmark-action-btn delete" data-id="${escapeHtmlAttribute(item.id)}" title="删除">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
             </div>
             <div class="bookmark-icon">${iconHtml}</div>
             <div class="bookmark-info">
                 <div class="bookmark-name">${name}</div>
-                <div class="bookmark-desc" title="${rawDesc.replace(/"/g, '&quot;')}">${desc}</div>
+                <div class="bookmark-desc" title="${escapeHtmlAttribute(rawDesc)}">${desc}</div>
                 ${tagsHtml}
             </div>
         </a>
@@ -219,18 +222,18 @@ export function createComponentCard(item) {
     const labels = { cpu: 'CPU', memory: 'RAM', disk: '磁盘' };
 
     return `
-        <div class="component-card" data-id="${item.id}" data-component="${componentType}">
+        <div class="component-card" data-id="${escapeHtmlAttribute(item.id)}" data-component="${escapeHtmlAttribute(componentType)}">
             <div class="bookmark-actions">
-                <button class="bookmark-action-btn delete" data-id="${item.id}" title="删除">
+                <button class="bookmark-action-btn delete" data-id="${escapeHtmlAttribute(item.id)}" title="删除">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
             </div>
-            <div class="component-icon">${icons[componentType]}</div>
+            <div class="component-icon">${escapeHtml(icons[componentType] || '💻')}</div>
             <div class="component-info">
-                <div class="component-label">${labels[componentType]}</div>
-                <div class="component-value" data-type="${componentType}">加载中...</div>
+                <div class="component-label">${escapeHtml(labels[componentType] || componentType)}</div>
+                <div class="component-value" data-type="${escapeHtmlAttribute(componentType)}">加载中...</div>
                 <div class="component-progress">
-                    <div class="component-progress-bar" data-type="${componentType}" style="width: 0%"></div>
+                    <div class="component-progress-bar" data-type="${escapeHtmlAttribute(componentType)}" style="width: 0%"></div>
                 </div>
             </div>
         </div>
@@ -300,14 +303,14 @@ export function renderEngineDropdown() {
     state.engines.forEach(engine => {
         const opt = document.createElement('div');
         opt.className = 'engine-option' + (state.currentEngine.name === engine.name ? ' active' : '');
-        opt.dataset.engine = engine.id;
-        opt.dataset.icon = engine.icon;
-        opt.dataset.url = engine.url;
+        opt.dataset.engine = engine.id || '';
+        opt.dataset.icon = engine.icon || '';
+        opt.dataset.url = toSafeExternalUrl(engine.url);
 
         const iconHtml = engine.icon && engine.icon.startsWith('http')
             ? `<img src="${toSafeImageUrl(engine.icon)}" style="width:18px;height:18px;">`
-            : engine.icon;
-        opt.innerHTML = `<span class="engine-option-icon">${iconHtml}</span><span>${engine.name}</span>`;
+            : escapeHtml(engine.icon || '');
+        opt.innerHTML = `<span class="engine-option-icon">${iconHtml}</span><span>${escapeHtml(engine.name)}</span>`;
         divider.parentNode.insertBefore(opt, divider);
     });
 }
@@ -317,7 +320,7 @@ export function updateEngineDisplay() {
     if (icon && icon.startsWith('http')) {
         DOM.engineIcon.innerHTML = `<img src="${toSafeImageUrl(icon)}" style="width:18px;height:18px;vertical-align:middle;">`;
     } else if (icon && icon.startsWith('data:')) {
-        DOM.engineIcon.innerHTML = `<img src="${icon}" style="width:18px;height:18px;vertical-align:middle;">`;
+        DOM.engineIcon.innerHTML = `<img src="${toSafeDataImageUrl(icon)}" style="width:18px;height:18px;vertical-align:middle;">`;
     } else {
         DOM.engineIcon.textContent = icon || '🌐';
     }
@@ -325,6 +328,7 @@ export function updateEngineDisplay() {
 }
 
 function getIconSource(url) {
+    url = String(url || '');
     if (url.includes('google.com/s2/favicons')) return { label: 'Google', class: 'source-google' };
     if (url.includes('favicon.im')) return { label: 'Favicon.im', class: 'source-faviconim' };
     if (url.includes('icon.horse')) return { label: 'IconHorse', class: 'source-iconhorse' };
@@ -343,20 +347,21 @@ export function renderIconSelection(availableIcons) {
         const displayIcon = toSafeImageUrl(icon);
         const source = getIconSource(icon);
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
-            <img src="${displayIcon}" data-url="${icon}" onerror="this.outerHTML='<span>🌐</span>'">
-            <span class="icon-source-label ${source.class}">${source.label}</span>
+            <img src="${displayIcon}" data-url="${escapeHtmlAttribute(icon)}" data-fallback-icon="🌐">
+            <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
         </div>`;
     } else {
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
             ${availableIcons.slice(0, 6).map((icon, idx) => {
         const source = getIconSource(icon);
         const displayIcon = toSafeImageUrl(icon);
-        return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${icon}" title="${source.label}">
-                    <img src="${displayIcon}" data-url="${icon}" class="icon-option" onerror="this.parentElement.remove()">
-                    <span class="icon-source-label ${source.class}">${source.label}</span>
+        return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlAttribute(icon)}" title="${escapeHtmlAttribute(source.label)}">
+                    <img src="${displayIcon}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true">
+                    <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
                 </div>`;
     }).join('')}
         </div>`;
+        bindImageFallbacks(DOM.iconPreviewAuto);
         DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(wrap => {
             wrap.onclick = (e) => {
                 e.stopPropagation();
@@ -365,6 +370,7 @@ export function renderIconSelection(availableIcons) {
             };
         });
     }
+    bindImageFallbacks(DOM.iconPreviewAuto);
 }
 
 export function renderTodos() {

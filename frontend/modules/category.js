@@ -5,6 +5,7 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 import { loadData, saveCollapsedState } from './api.js';
 import { renderAll, renderCategoryNav, renderBookmarks } from './render.js';
+import { escapeHtml, escapeHtmlAttribute } from './utils.js';
 
 export function openCategoryModal(categoryId = null) {
     state.setEditingCategoryId(categoryId);
@@ -66,11 +67,11 @@ export async function deleteCategory(id) {
 
 export function renderCategoryList() {
     DOM.categoryList.innerHTML = state.categories.map((c, index) => `
-        <div class="category-list-item" data-id="${c.id}" data-index="${index}" draggable="true">
+        <div class="category-list-item" data-id="${escapeHtmlAttribute(c.id)}" data-index="${index}" draggable="true">
             <span class="drag-handle" title="拖拽排序">⋮⋮</span>
-            <span class="category-list-name">${c.name}</span>
-            <button class="engine-action-btn edit" data-id="${c.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-            <button class="engine-action-btn delete" data-id="${c.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            <span class="category-list-name">${escapeHtml(c.name)}</span>
+            <button class="engine-action-btn edit" data-id="${escapeHtmlAttribute(c.id)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            <button class="engine-action-btn delete" data-id="${escapeHtmlAttribute(c.id)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
         </div>
     `).join('');
 
@@ -168,7 +169,7 @@ export async function createCategoryForBookmark(name) {
             state.categories.push(data.data);
             renderCategoryNav();
             DOM.bookmarkInputCategory.innerHTML = state.categories.map(c =>
-                `<option value="${c.id}">${c.icon} ${c.name}</option>`
+                `<option value="${escapeHtmlAttribute(c.id)}">${escapeHtml(c.icon)} ${escapeHtml(c.name)}</option>`
             ).join('') + '<option value="__new__">+ 新建分类...</option>';
             DOM.bookmarkInputCategory.value = data.data.id;
             return data.data;

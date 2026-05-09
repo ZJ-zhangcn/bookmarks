@@ -5,22 +5,12 @@ const express = require('express');
 const cheerio = require('cheerio');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
-const { assertSafeFetchUrl, isPrivateOrLocalAddress } = require('../middleware/security');
+const { assertPublicFetchUrl, isPrivateOrLocalAddress } = require('../middleware/security');
+const { safeFetchPublicUrl, readLimitedArrayBuffer } = require('../utils/safe-fetch');
 
 const FETCH_TIMEOUT = 5000;
 const CACHE_TTL = 300000; // 5分钟缓存
 const faviconCache = new Map();
-
-async function fetchWithTimeout(url, options = {}) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-    try {
-        const response = await fetch(url, { ...options, signal: controller.signal });
-        return response;
-    } finally {
-        clearTimeout(timeout);
-    }
-}
 
 function getFallbackIcons(host, isPrivate, protocol = 'https:') {
     if (isPrivate) {
@@ -59,7 +49,7 @@ module.exports = function(_db) {
 
         let parsedUrl;
         try {
-            parsedUrl = assertSafeFetchUrl(url);
+            parsedUrl = await assertPublicFetchUrl(url);
         } catch (e) {
             throw new AppError(e.message, 400);
         }
@@ -74,11 +64,15 @@ module.exports = function(_db) {
         }
 
         try {
-            const response = await fetchWithTimeout(url, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+            const { response } = await safeFetchPublicUrl(parsedUrl.href, {
+                allowPrivate: isPrivate,
+                timeoutMs: FETCH_TIMEOUT,
+                fetchOptions: {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                }
             });
 
-            const html = await response.text();
+            const html = (await readLimitedArrayBuffer(response, 512 * 1024)).toString('utf8');
             const $ = cheerio.load(html);
 
             const icons = [];
@@ -90,30 +84,29 @@ module.exports = function(_db) {
                 'meta[property="og:image"]'
             ];
 
-            selectors.forEach(selector => {
-                $(selector).each((_, el) => {
+            for (const selector of selectors) {
+                for (const el of $(selector).toArray()) {
                     let href = $(el).attr('href') || $(el).attr('content');
-                    if (href) {
-                        // 保留 data URI 和 blob URL 原样
-                        if (href.startsWith('data:') || href.startsWith('blob:')) {
-                            // data URI 或 blob URL，保持原样
-                        } else if (href.startsWith('//')) {
-                            href = parsedUrl.protocol + href;
-                        } else if (href.startsWith('/')) {
-                            href = baseUrl + href;
-                        } else if (!href.startsWith('http')) {
-                            href = baseUrl + '/' + href;
-                        }
-                        if (!icons.includes(href)) {
-                            icons.push(href);
-                        }
+                    if (!href || href.startsWith('data:') || href.startsWith('blob:')) continue;
+                    if (href.startsWith('//')) {
+                        href = parsedUrl.protocol + href;
+                    } else if (href.startsWith('/')) {
+                        href = baseUrl + href;
+                    } else if (!href.startsWith('http')) {
+                        href = baseUrl + '/' + href;
                     }
-                });
-            });
+                    try {
+                        const finalIconUrl = await assertPublicFetchUrl(href);
+                        if (!icons.includes(finalIconUrl.href)) {
+                            icons.push(finalIconUrl.href);
+                        }
+                    } catch { }
+                }
+            }
 
-            const defaultFavicon = `${baseUrl}/favicon.ico`;
-            if (!icons.includes(defaultFavicon)) {
-                icons.push(defaultFavicon);
+            const defaultFavicon = await assertPublicFetchUrl(`${baseUrl}/favicon.ico`);
+            if (!icons.includes(defaultFavicon.href)) {
+                icons.push(defaultFavicon.href);
             }
 
             const fallbacks = getFallbackIcons(domain, isPrivate, parsedUrl.protocol);

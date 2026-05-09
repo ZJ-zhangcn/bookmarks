@@ -4,6 +4,35 @@
 const express = require('express');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
+const { assertPublicFetchUrl } = require('../middleware/security');
+const { safeFetchPublicUrl, readLimitedArrayBuffer, DEFAULT_MAX_BYTES } = require('../utils/safe-fetch');
+
+const IMAGE_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Accept': 'image/*,*/*;q=0.8'
+};
+const PAGE_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+};
+
+async function fetchPublicImage(url, { acceptAny = false } = {}) {
+    const { response, url: finalUrl } = await safeFetchPublicUrl(url, {
+        timeoutMs: 10000,
+        fetchOptions: { headers: acceptAny ? PAGE_HEADERS : IMAGE_HEADERS }
+    });
+
+    if (!response.ok) {
+        throw new AppError(`上游返回 ${response.status}`, 502);
+    }
+
+    const contentType = response.headers.get('content-type') || 'image/png';
+    if (!contentType.startsWith('image/')) {
+        throw new AppError('上游不是图片内容', 502);
+    }
+
+    const buffer = await readLimitedArrayBuffer(response, DEFAULT_MAX_BYTES);
+    return { buffer, contentType, finalUrl };
+}
 
 module.exports = function(db) {
     // GET /api/icon/proxy - 代理外部图标（解决被墙问题）
@@ -13,41 +42,15 @@ module.exports = function(db) {
             throw new AppError('缺少 url 参数', 400);
         }
 
-        // 安全检查：只允许代理 http/https 图片
-        let parsedUrl;
         try {
-            parsedUrl = new URL(url);
-            if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-                throw new AppError('仅支持 http/https 协议', 400);
-            }
-        } catch (e) {
-            throw new AppError('无效的 URL', 400);
-        }
-
-        try {
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'Accept': 'image/*,*/*;q=0.8'
-                },
-                signal: AbortSignal.timeout(10000) // 10秒超时
-            });
-
-            if (!response.ok) {
-                throw new AppError(`上游返回 ${response.status}`, 502);
-            }
-
-            const contentType = response.headers.get('content-type') || 'image/png';
-            const buffer = Buffer.from(await response.arrayBuffer());
-
-            // 设置缓存头
+            const { buffer, contentType, finalUrl } = await fetchPublicImage(url);
             res.setHeader('Content-Type', contentType);
             res.setHeader('Cache-Control', 'public, max-age=604800'); // 7天缓存
-            res.setHeader('X-Proxy-Source', parsedUrl.hostname);
+            res.setHeader('X-Proxy-Source', finalUrl.hostname);
             res.send(buffer);
         } catch (e) {
             if (e instanceof AppError) throw e;
-            throw new AppError(`代理请求失败: ${e.message}`, 502);
+            throw new AppError(`代理请求失败: ${e.message}`, e.statusCode || 502);
         }
     }));
 
@@ -58,17 +61,8 @@ module.exports = function(db) {
             throw new AppError('缺少 URL', 400);
         }
 
-        const response = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-
-        if (!response.ok) {
-            throw new AppError(`HTTP ${response.status}`, 500);
-        }
-
-        const buffer = await response.arrayBuffer();
-        const contentType = response.headers.get('content-type') || 'image/png';
-        const base64 = Buffer.from(buffer).toString('base64');
+        const { buffer, contentType } = await fetchPublicImage(url, { acceptAny: true });
+        const base64 = buffer.toString('base64');
         res.json(success(`data:${contentType.split(';')[0]};base64,${base64}`));
     }));
 
@@ -84,21 +78,11 @@ module.exports = function(db) {
 
         for (const bm of bookmarks) {
             try {
-                const response = await fetch(bm.icon_data, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-                });
-
-                if (response.ok) {
-                    const buffer = await response.arrayBuffer();
-                    const contentType = response.headers.get('content-type') || 'image/png';
-                    const base64 = Buffer.from(buffer).toString('base64');
-                    const dataUrl = `data:${contentType.split(';')[0]};base64,${base64}`;
-                    await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['base64', dataUrl, bm.id]);
-                    fixed++;
-                } else {
-                    await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['emoji', '', bm.id]);
-                    failed++;
-                }
+                const { buffer, contentType } = await fetchPublicImage(bm.icon_data, { acceptAny: true });
+                const base64 = buffer.toString('base64');
+                const dataUrl = `data:${contentType.split(';')[0]};base64,${base64}`;
+                await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['base64', dataUrl, bm.id]);
+                fixed++;
             } catch {
                 await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['emoji', '', bm.id]);
                 failed++;
@@ -121,45 +105,37 @@ module.exports = function(db) {
 
         for (const bm of bookmarks) {
             try {
-                const parsedUrl = new URL(bm.url);
+                const parsedUrl = await assertPublicFetchUrl(bm.url);
                 const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
 
                 let iconUrl = null;
                 try {
-                    const pageRes = await fetch(bm.url, {
-                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                    const { response: pageRes } = await safeFetchPublicUrl(parsedUrl.href, {
+                        timeoutMs: 10000,
+                        fetchOptions: { headers: PAGE_HEADERS }
                     });
                     if (pageRes.ok) {
-                        const html = await pageRes.text();
+                        const pageBuffer = await readLimitedArrayBuffer(pageRes, 512 * 1024);
+                        const html = pageBuffer.toString('utf8');
                         const iconMatch = html.match(/<link[^>]*rel=["'](?:shortcut )?icon["'][^>]*href=["']([^"']+)["']/i)
                             || html.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["'](?:shortcut )?icon["']/i);
                         if (iconMatch) {
-                            iconUrl = iconMatch[1].startsWith('http') ? iconMatch[1]
-                                : iconMatch[1].startsWith('//') ? 'https:' + iconMatch[1]
-                                    : iconMatch[1].startsWith('/') ? baseUrl + iconMatch[1]
-                                        : baseUrl + '/' + iconMatch[1];
+                            iconUrl = new URL(iconMatch[1], baseUrl).href;
                         }
                     }
                 } catch { }
 
                 if (!iconUrl) {
-                    iconUrl = baseUrl + '/favicon.ico';
+                    iconUrl = `${baseUrl}/favicon.ico`;
                 }
 
-                const iconRes = await fetch(iconUrl, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-                });
-
-                if (iconRes.ok) {
-                    const buffer = await iconRes.arrayBuffer();
-                    if (buffer.byteLength > 0) {
-                        const contentType = iconRes.headers.get('content-type') || 'image/x-icon';
-                        const base64 = Buffer.from(buffer).toString('base64');
-                        const dataUrl = `data:${contentType.split(';')[0]};base64,${base64}`;
-                        await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['base64', dataUrl, bm.id]);
-                        successCount++;
-                        continue;
-                    }
+                const { buffer, contentType } = await fetchPublicImage(iconUrl, { acceptAny: true });
+                if (buffer.byteLength > 0) {
+                    const base64 = buffer.toString('base64');
+                    const dataUrl = `data:${contentType.split(';')[0]};base64,${base64}`;
+                    await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['base64', dataUrl, bm.id]);
+                    successCount++;
+                    continue;
                 }
                 failed++;
             } catch {

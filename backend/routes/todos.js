@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { success, asyncHandler, AppError, clampInt, toInt01, normalizeDatetime, nowDatetime } = require('../utils');
+const { newId } = require('../../shared/services/ids');
 const { requireAdmin } = require('../middleware/security');
 
 module.exports = function(db) {
@@ -59,7 +60,7 @@ module.exports = function(db) {
     // POST /api/todos (创建/更新，简化版 - 仅标题)
     router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         const body = req.body || {};
-        const todoId = body.id ? String(body.id) : `td_${Date.now()}`;
+        const todoId = body.id ? String(body.id) : newId('td');
 
         const existing = body.id
             ? await db.queryOne('SELECT * FROM todos WHERE id = ?', [todoId])

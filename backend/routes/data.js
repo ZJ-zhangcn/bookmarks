@@ -2,6 +2,7 @@
  * 数据导入导出路由模块
  */
 const express = require('express');
+const { newId } = require('../../shared/services/ids');
 const cheerio = require('cheerio');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
@@ -20,7 +21,7 @@ function parseNetscapeBookmarks(html) {
         const folderName = $el.children('h3').first().text().trim() || parentName || '未分类';
 
         if (folderName && !categoryMap.has(folderName)) {
-            const catId = `cat_import_${Date.now()}_${catOrder}`;
+            const catId = newId('cat_import');
             categoryMap.set(folderName, catId);
             result.categories.push({
                 id: catId,
@@ -41,7 +42,7 @@ function parseNetscapeBookmarks(html) {
                 const name = $a.text().trim();
                 if (name && url && url.startsWith('http')) {
                     result.bookmarks.push({
-                        id: `bm_import_${Date.now()}_${bmOrder}`,
+                        id: newId('bm_import'),
                         category_id: catId,
                         name: name,
                         url: url,
@@ -71,7 +72,7 @@ function parseNetscapeBookmarks(html) {
             const name = $a.text().trim();
             if (name && url && url.startsWith('http')) {
                 if (!categoryMap.has('导入的书签')) {
-                    const catId = `cat_import_${Date.now()}_0`;
+                    const catId = newId('cat_import');
                     categoryMap.set('导入的书签', catId);
                     result.categories.push({
                         id: catId,
@@ -81,7 +82,7 @@ function parseNetscapeBookmarks(html) {
                     });
                 }
                 result.bookmarks.push({
-                    id: `bm_import_${Date.now()}_${bmOrder}`,
+                    id: newId('bm_import'),
                     category_id: categoryMap.get('导入的书签'),
                     name: name,
                     url: url,

@@ -3,7 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { isPrivateOrLocalAddress, toSafeImageUrl } from './utils.js';
+import { isPrivateOrLocalAddress, toSafeImageUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
 import { renderIconSelection } from './render.js';
 
 const FALLBACK_SOURCES = [
@@ -155,12 +155,13 @@ export async function fetchEngineIcon() {
 export function updateEngineIconPreviewUrl() {
     const url = DOM.engineInputIconUrl.value.trim();
     if (url) {
-        DOM.engineIconPreview.innerHTML = `<img src="${toSafeImageUrl(url)}" alt="图标" onerror="this.parentElement.innerHTML='<span>❌</span>'">`;
+        DOM.engineIconPreview.innerHTML = `<img src="${toSafeImageUrl(url)}" alt="图标" data-fallback-icon="❌">`;
+        bindImageFallbacks(DOM.engineIconPreview);
         delete DOM.engineIconPreview.dataset.iconUrl;
     } else {
         if (DOM.engineIconPreview.dataset.iconUrl) {
             const iconUrl = DOM.engineIconPreview.dataset.iconUrl;
-            DOM.engineIconPreview.innerHTML = `<img src="${toSafeImageUrl(iconUrl)}">`;
+            DOM.engineIconPreview.innerHTML = `<img src="${iconUrl.startsWith('data:') ? toSafeDataImageUrl(iconUrl) : toSafeImageUrl(iconUrl)}">`;
         } else {
             DOM.engineIconPreview.innerHTML = '<span>🔍</span>';
         }

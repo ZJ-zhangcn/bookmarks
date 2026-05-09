@@ -6,7 +6,7 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderAll } from './render.js';
 import { updateAiUiVisibility, getAiClientSettings, setAiButtonsDisabled, buildLocalFallbackSummary } from './ai.js';
-import { toSafeImageUrl } from './utils.js';
+import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 
@@ -28,7 +28,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
     state.setEditingBookmarkId(bookmarkId);
 
     DOM.bookmarkInputCategory.innerHTML = state.categories.map(c =>
-        `<option value="${c.id}" ${c.id === categoryId ? 'selected' : ''}>${c.name}</option>`
+        `<option value="${escapeHtmlAttribute(c.id)}" ${c.id === categoryId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
     ).join('') + '<option value="__new__">+ 新建分类...</option>';
 
     if (bookmarkId) {
@@ -61,10 +61,10 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
                 if (originalIconType === 'base64' || originalIconType === 'url') {
                     const displayUrl = originalIconType === 'url'
                         ? toSafeImageUrl(bookmark.icon_data)
-                        : bookmark.icon_data;
+                        : toSafeDataImageUrl(bookmark.icon_data);
                     DOM.iconPreviewAuto.innerHTML = `<img src="${displayUrl}" class="selected">`;
                 } else if (originalIconType === 'emoji') {
-                    DOM.iconPreviewAuto.innerHTML = `<span>${bookmark.icon_data}</span>`;
+                    DOM.iconPreviewAuto.innerHTML = `<span>${escapeHtml(bookmark.icon_data)}</span>`;
                 }
             } else {
                 DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
@@ -278,7 +278,7 @@ export function toggleBookmarkSorting(categoryId) {
         if (!section.querySelector('.save-sort-btn')) {
             const saveBtn = document.createElement('button');
             saveBtn.className = 'btn btn-primary save-sort-btn';
-            saveBtn.innerHTML = '💾 保存排序';
+            saveBtn.textContent = '💾 保存排序';
             saveBtn.onclick = () => saveBookmarkOrder(categoryId);
             header.insertAdjacentElement('afterend', saveBtn);
         }
@@ -353,7 +353,7 @@ export function handleIconUpload(e) {
     const reader = new FileReader();
     reader.onload = () => {
         state.setCurrentIconData(reader.result);
-        DOM.iconPreviewUpload.innerHTML = `<img src="${reader.result}">`;
+        DOM.iconPreviewUpload.innerHTML = `<img src="${toSafeDataImageUrl(reader.result)}">`;
     };
     reader.readAsDataURL(file);
 }

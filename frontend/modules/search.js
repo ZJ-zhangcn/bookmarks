@@ -3,7 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { highlightText, escapeHtmlAttribute, toSafeImageUrl } from './utils.js';
+import { highlightText, escapeHtml, escapeHtmlAttribute, toSafeDataImageUrl, toSafeExternalUrl, toSafeImageUrl, bindImageFallbacks } from './utils.js';
 
 export function openBookmarkSearch() {
     DOM.bookmarkSearchOverlay.classList.add('open');
@@ -63,13 +63,13 @@ export function handleBookmarkSearch() {
         let iconHtml;
         const cachedIcon = state.iconCache.get(item.id);
         if (cachedIcon && cachedIcon.icon_data) {
-            iconHtml = `<img src="${toSafeImageUrl(cachedIcon.icon_data)}" alt="${item.name}">`;
+            iconHtml = `<img src="${toSafeImageUrl(cachedIcon.icon_data)}" alt="${escapeHtmlAttribute(item.name)}">`;
         } else if (item.icon_type === 'url' && item.icon_data) {
-            iconHtml = `<img src="${toSafeImageUrl(item.icon_data)}" alt="${item.name}" onerror="this.outerHTML='<span>${item.icon || '🌐'}</span>'">`;
+            iconHtml = `<img src="${toSafeImageUrl(item.icon_data)}" alt="${escapeHtmlAttribute(item.name)}" data-fallback-icon="${escapeHtmlAttribute(item.icon || '🌐')}">`;
         } else if (item.icon_type === 'base64' && item.icon_data) {
-            iconHtml = `<img src="${item.icon_data}" alt="${item.name}">`;
+            iconHtml = `<img src="${toSafeDataImageUrl(item.icon_data)}" alt="${escapeHtmlAttribute(item.name)}">`;
         } else {
-            iconHtml = item.icon || '🌐';
+            iconHtml = escapeHtml(item.icon || '🌐');
         }
 
         const descHtml = item.description
@@ -84,7 +84,7 @@ export function handleBookmarkSearch() {
         const reasonHtml = reasonText ? `<div class="search-result-reason">${reasonText}</div>` : '';
 
         return `
-            <a href="${item.url}" class="search-result-item" target="_blank" rel="noopener" onclick="closeBookmarkSearch()">
+            <a href="${toSafeExternalUrl(item.url)}" class="search-result-item" target="_blank" rel="noopener">
                 <div class="search-result-icon">${iconHtml}</div>
                 <div class="search-result-info">
                     <div class="search-result-name" title="${nameTitle}">${highlightText(item.name, searchTerm)}</div>
@@ -92,10 +92,14 @@ export function handleBookmarkSearch() {
                     ${tagsHtml}
                     ${reasonHtml}
                 </div>
-                <span class="search-result-category">${categoryName}</span>
+                <span class="search-result-category">${escapeHtml(categoryName)}</span>
             </a>
         `;
     }).join('');
+    bindImageFallbacks(DOM.bookmarkSearchResults);
+    DOM.bookmarkSearchResults.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', closeBookmarkSearch);
+    });
 }
 
 window.closeBookmarkSearch = closeBookmarkSearch;

@@ -74,27 +74,43 @@ export function throttle(fn, limit = 100) {
     };
 }
 
-export function highlightText(text, searchTerm) {
-    if (!searchTerm || !text) return text;
-    const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
-    return text.replace(regex, '<span class="highlight">$1</span>');
-}
-
-export function escapeRegExp(s) {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 export function escapeHtml(s) {
-    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 export function escapeHtmlAttribute(s) {
-    return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\r?\n/g, ' ');
+    return escapeHtml(s).replace(/\r?\n/g, ' ');
+}
+
+export function highlightText(text, searchTerm) {
+    const source = escapeHtml(text);
+    if (!searchTerm || !source) return source;
+    const regex = new RegExp(`(${escapeRegExp(escapeHtml(searchTerm))})`, 'gi');
+    return source.replace(regex, '<span class="highlight">$1</span>');
+}
+
+export function escapeRegExp(s) {
+    return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function toSafeDataImageUrl(url) {
+    const src = String(url || '').trim();
+    return /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=\s]+$/i.test(src) ? src : '';
+}
+
+export function toSafeExternalUrl(url) {
+    const src = String(url || '').trim();
+    try {
+        const parsed = new URL(src);
+        return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '#';
+    } catch {
+        return '#';
+    }
 }
 
 export function hideLoadingOverlay() {
@@ -149,6 +165,22 @@ export function isPrivateOrLocalAddress(hostname) {
     return privatePatterns.some(p => p.test(hostname));
 }
 
+export function fallbackIconHtml(icon) {
+    return `<span>${escapeHtml(icon || '🌐')}</span>`;
+}
+
+export function bindImageFallbacks(root = document) {
+    root.querySelectorAll('img[data-fallback-icon], img[data-remove-on-error]').forEach(img => {
+        img.addEventListener('error', () => {
+            if (img.dataset.removeOnError) {
+                img.parentElement?.remove();
+            } else {
+                img.outerHTML = fallbackIconHtml(img.dataset.fallbackIcon || '🌐');
+            }
+        }, { once: true });
+    });
+}
+
 const PREFER_PROXY_HOSTS = [
     'grok.com',
     'github.com',
@@ -178,5 +210,9 @@ export function shouldUseProxyUrl(url) {
 }
 
 export function toSafeImageUrl(url) {
-    return shouldUseProxyUrl(url) ? toProxyUrl(url) : url;
+    const safeDataUrl = toSafeDataImageUrl(url);
+    if (safeDataUrl) return safeDataUrl;
+    const safeUrl = toSafeExternalUrl(url);
+    if (safeUrl === '#') return '';
+    return shouldUseProxyUrl(safeUrl) ? toProxyUrl(safeUrl) : safeUrl;
 }

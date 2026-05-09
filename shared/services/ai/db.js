@@ -2,8 +2,12 @@
  * AI 数据库操作模块
  */
 
+function isMysql(db) {
+    return db.USE_MYSQL || db.getDatabaseType?.() === 'mysql';
+}
+
 async function ensureAiTables(db) {
-    const createSql = db.USE_MYSQL
+    const createSql = isMysql(db)
         ? `CREATE TABLE IF NOT EXISTS bookmark_ai (
                 bookmark_id VARCHAR(50) PRIMARY KEY,
                 tags LONGTEXT,
@@ -27,7 +31,7 @@ async function upsertBookmarkAi(db, { bookmarkId, tags, summary, provider, model
     const tagsJson = JSON.stringify(tags || []);
     const sum = summary ? String(summary) : '';
 
-    if (db.USE_MYSQL) {
+    if (isMysql(db)) {
         await db.execute(
             `INSERT INTO bookmark_ai (bookmark_id, tags, summary, provider, model)
              VALUES (?, ?, ?, ?, ?)
@@ -36,8 +40,14 @@ async function upsertBookmarkAi(db, { bookmarkId, tags, summary, provider, model
         );
     } else {
         await db.execute(
-            `INSERT OR REPLACE INTO bookmark_ai (bookmark_id, tags, summary, provider, model, updated_at)
-             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+            `INSERT INTO bookmark_ai (bookmark_id, tags, summary, provider, model, updated_at)
+             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+             ON CONFLICT(bookmark_id) DO UPDATE SET
+               tags = excluded.tags,
+               summary = excluded.summary,
+               provider = excluded.provider,
+               model = excluded.model,
+               updated_at = CURRENT_TIMESTAMP`,
             [bookmarkId, tagsJson, sum, provider || '', model || '']
         );
     }

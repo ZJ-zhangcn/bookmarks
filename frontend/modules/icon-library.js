@@ -3,7 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { toSafeImageUrl } from './utils.js';
+import { toSafeImageUrl, escapeHtmlAttribute, bindImageFallbacks } from './utils.js';
 
 export async function loadIconLibrary(target = 'bookmark') {
     const gridElement = target === 'bookmark' ? DOM.iconLibraryGrid : DOM.engineIconLibraryGrid;
@@ -27,12 +27,13 @@ export async function loadIconLibrary(target = 'bookmark') {
         gridElement.innerHTML = state.iconLibraryCache.map((icon, index) => {
             const displayIcon = toSafeImageUrl(icon.data);
             return `
-            <div class="icon-library-item" data-index="${index}" data-icon="${encodeURIComponent(icon.data)}" title="${icon.source || '未知来源'}">
-                <img src="${displayIcon}" alt="图标" onerror="this.parentElement.style.display='none'">
+            <div class="icon-library-item" data-index="${index}" data-icon="${encodeURIComponent(icon.data)}" title="${escapeHtmlAttribute(icon.source || '未知来源')}">
+                <img src="${displayIcon}" alt="图标" data-remove-on-error="true">
             </div>
         `;
         }).join('');
 
+        bindImageFallbacks(gridElement);
         gridElement.querySelectorAll('.icon-library-item').forEach(item => {
             item.addEventListener('click', () => {
                 gridElement.querySelectorAll('.icon-library-item').forEach(i => i.classList.remove('selected'));
@@ -82,7 +83,7 @@ export async function renderIconLibrary() {
 
         state.iconLibraryCache.forEach((icon, index) => {
             if (!icon.id) {
-                icon.id = `temp_${index}_${Date.now()}`;
+                icon.id = `temp_${index}_${crypto.randomUUID()}`;
                 icon.isTemp = true;
             }
         });
@@ -92,23 +93,36 @@ export async function renderIconLibrary() {
             return `
             <div class="icon-library-item ${state.selectedIcons.has(icon.id) ? 'selected' : ''}"
                  data-index="${index}"
-                 data-id="${icon.id}"
+                 data-id="${escapeHtmlAttribute(icon.id)}"
                  data-icon="${encodeURIComponent(icon.data)}"
                  data-temp="${icon.isTemp || false}"
-                 title="${icon.source || '未知来源'}${icon.uploaded ? ' (已上传)' : ' (来自书签)'}">
-                <input type="checkbox" class="icon-checkbox" data-id="${icon.id}" ${state.selectedIcons.has(icon.id) ? 'checked' : ''} onchange="handleIconCheckboxChange(event, '${icon.id}')">
-                <img src="${displayIcon}" alt="图标" onclick="handleIconItemClick(event)" onerror="this.parentElement.style.display='none'">
-                <button type="button" class="icon-delete-btn" title="删除" onclick="handleIconDelete('${icon.id}', ${icon.isTemp || false})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+                 title="${escapeHtmlAttribute((icon.source || '未知来源') + (icon.uploaded ? ' (已上传)' : ' (来自书签)'))}">
+                <input type="checkbox" class="icon-checkbox" data-id="${escapeHtmlAttribute(icon.id)}" ${state.selectedIcons.has(icon.id) ? 'checked' : ''}>
+                <img src="${displayIcon}" alt="图标" data-icon-action="copy" data-remove-on-error="true">
+                <button type="button" class="icon-delete-btn" data-icon-action="delete" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
             </div>
         `;
         }).join('');
+        bindImageFallbacks(DOM.settingsIconLibraryGrid);
+        DOM.settingsIconLibraryGrid.querySelectorAll('.icon-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', event => handleIconCheckboxChange(event, checkbox.dataset.id));
+        });
+        DOM.settingsIconLibraryGrid.querySelectorAll('[data-icon-action="copy"]').forEach(img => {
+            img.addEventListener('click', handleIconItemClick);
+        });
+        DOM.settingsIconLibraryGrid.querySelectorAll('[data-icon-action="delete"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const item = btn.closest('.icon-library-item');
+                handleIconDelete(item?.dataset.id || '', item?.dataset.temp === 'true');
+            });
+        });
     } catch (err) {
         console.error('加载图标库失败:', err);
         DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-empty">加载图标库失败</div>';
     }
 }
 
-window.handleIconCheckboxChange = function(event, iconId) {
+function handleIconCheckboxChange(event, iconId) {
     const checkbox = event.target;
     const item = checkbox.closest('.icon-library-item');
 
@@ -122,9 +136,9 @@ window.handleIconCheckboxChange = function(event, iconId) {
         }
         updateBatchDeleteButton();
     }
-};
+}
 
-window.handleIconDelete = async function(iconId, isTemp) {
+async function handleIconDelete(iconId, isTemp) {
     if (!iconId) return;
 
     if (isTemp) {
@@ -160,9 +174,9 @@ window.handleIconDelete = async function(iconId, isTemp) {
         await deleteIconFromLibrary(iconId);
         updateBatchDeleteButton();
     }
-};
+}
 
-window.handleIconItemClick = async function(event) {
+async function handleIconItemClick(event) {
     const item = event.target.closest('.icon-library-item');
     if (!item) return;
 
@@ -174,7 +188,7 @@ window.handleIconItemClick = async function(event) {
     } catch {
         console.log('复制失败');
     }
-};
+}
 
 window.selectAllIcons = function(checked) {
     state.selectedIcons.clear();
@@ -320,21 +334,16 @@ export async function uploadIconToLibrary(file) {
 }
 
 export async function uploadIconFromUrl(url) {
-    try {
-        const res = await fetch(`${state.API_BASE}/api/icons?action=from-url`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
-        });
-        const data = await res.json();
-        if (data.success) {
-            return data.data;
-        } else {
-            throw new Error(data.error);
-        }
-    } catch (e) {
-        throw e;
+    const res = await fetch(`${state.API_BASE}/api/icons?action=from-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    if (data.success) {
+        return data.data;
     }
+    throw new Error(data.error);
 }
 
 export function bindIconLibraryManageEvents() {

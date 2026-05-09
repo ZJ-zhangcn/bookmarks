@@ -3,7 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { toSafeImageUrl } from './utils.js';
+import { toSafeImageUrl, escapeHtmlAttribute } from './utils.js';
 
 export async function loadCoreData() {
     let payload = null;
@@ -159,16 +159,17 @@ export function observeBookmarkIcons() {
 }
 
 function updateBookmarkIcon(bookmarkId, iconInfo) {
-    const card = document.querySelector(`.bookmark-card[data-id="${bookmarkId}"]`);
+    const card = document.querySelector(`.bookmark-card[data-id="${CSS.escape(String(bookmarkId))}"]`);
     if (!card || !iconInfo || !iconInfo.icon_data) return;
 
     const iconContainer = card.querySelector('.bookmark-icon');
-    if (iconContainer) {
+    const iconUrl = toSafeImageUrl(iconInfo.icon_data);
+    if (iconContainer && iconUrl) {
         const existingImg = iconContainer.querySelector('img');
         if (existingImg) {
-            existingImg.src = toSafeImageUrl(iconInfo.icon_data);
+            existingImg.src = iconUrl;
         } else {
-            iconContainer.innerHTML = `<img src="${toSafeImageUrl(iconInfo.icon_data)}" alt="图标" loading="lazy">`;
+            iconContainer.innerHTML = `<img src="${escapeHtmlAttribute(iconUrl)}" alt="图标" loading="lazy">`;
         }
     }
 }

@@ -1,6 +1,12 @@
 /**
  * 书签服务
  */
+const { newId } = require('./ids');
+
+function isMysql(db) {
+    return db.USE_MYSQL || db.getDatabaseType?.() === 'mysql';
+}
+
 
 async function attachBookmarkAi(db, bookmarks) {
     if (!Array.isArray(bookmarks) || bookmarks.length === 0) return;
@@ -85,13 +91,13 @@ async function getBatchIcons(db, ids) {
 }
 
 async function saveBookmark(db, { id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type }) {
-    const bookmarkId = id || `bm_${Date.now()}`;
+    const bookmarkId = id || newId('bm');
     const isNewBookmark = !id;
 
     let finalCategoryId = category_id;
     const existingCat = await db.queryOne('SELECT id FROM categories WHERE id = ?', [category_id]);
     if (!existingCat) {
-        const newCatId = `cat_${Date.now()}`;
+        const newCatId = newId('cat');
         const maxCatOrder = await db.queryOne('SELECT MAX(sort_order) as max_order FROM categories');
         const catSortOrder = (maxCatOrder?.max_order ?? -1) + 1;
         await db.execute('INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)', [newCatId, category_id, '📁', catSortOrder]);
@@ -109,7 +115,7 @@ async function saveBookmark(db, { id, category_id, name, url, description, icon,
 
     const params = [bookmarkId, finalCategoryId, (name || '').trim(), url || '', description || '', icon || '🌐', icon_type || 'auto', icon_data || '', item_type || 'bookmark', component_type || null, sortOrder];
 
-    if (db.USE_MYSQL) {
+    if (isMysql(db)) {
         await db.execute(
             `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE category_id = VALUES(category_id), name = VALUES(name), url = VALUES(url), description = VALUES(description), icon = VALUES(icon), icon_type = VALUES(icon_type), icon_data = VALUES(icon_data), item_type = VALUES(item_type), component_type = VALUES(component_type), sort_order = VALUES(sort_order)`,
@@ -117,7 +123,19 @@ async function saveBookmark(db, { id, category_id, name, url, description, icon,
         );
     } else {
         await db.execute(
-            'INSERT OR REPLACE INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+               category_id = excluded.category_id,
+               name = excluded.name,
+               url = excluded.url,
+               description = excluded.description,
+               icon = excluded.icon,
+               icon_type = excluded.icon_type,
+               icon_data = excluded.icon_data,
+               item_type = excluded.item_type,
+               component_type = excluded.component_type,
+               sort_order = excluded.sort_order`,
             params
         );
     }

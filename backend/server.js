@@ -50,7 +50,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use((req, res, next) => {
-    const limit = req.path.startsWith('/api/webdav') ? '10mb' : '2mb';
+    const limit = req.path.startsWith('/api/webdav') ? '10mb' : (req.path === '/api/ai' ? '64kb' : '2mb');
     express.json({ limit })(req, res, next);
 });
 app.use((req, res, next) => {
@@ -179,6 +179,7 @@ app.use('/api/suggest', routes.suggest);
 // 图标代理（解决被墙图标无法显示问题）
 // 1x1 透明 PNG 作为 fallback
 const TRANSPARENT_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+const { safeFetchPublicUrl, readLimitedArrayBuffer } = require('./utils/safe-fetch');
 
 app.get('/api/proxy-icon', async (req, res) => {
     const { url } = req.query;
@@ -211,10 +212,9 @@ app.get('/api/proxy-icon', async (req, res) => {
             'Sec-Fetch-Site': 'cross-site'
         };
 
-        const response = await fetch(url, {
-            headers,
-            signal: AbortSignal.timeout(15000), // 增加到15秒
-            redirect: 'follow'
+        const { response } = await safeFetchPublicUrl(parsedUrl.href, {
+            timeoutMs: 15000,
+            fetchOptions: { headers }
         });
 
         if (!response.ok) {
@@ -233,14 +233,7 @@ app.get('/api/proxy-icon', async (req, res) => {
             return res.send(TRANSPARENT_PNG);
         }
 
-        const buffer = Buffer.from(await response.arrayBuffer());
-
-        // 验证图片大小（防止恶意大文件）
-        if (buffer.length > 10 * 1024 * 1024) { // 超过10MB
-            res.setHeader('Content-Type', 'image/png');
-            res.setHeader('Cache-Control', 'public, max-age=3600');
-            return res.send(TRANSPARENT_PNG);
-        }
+        const buffer = await readLimitedArrayBuffer(response, 10 * 1024 * 1024);
 
         res.setHeader('Content-Type', contentType);
         res.setHeader('Cache-Control', 'public, max-age=604800'); // 成功缓存7天
