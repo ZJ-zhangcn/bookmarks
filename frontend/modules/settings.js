@@ -10,6 +10,16 @@ import { preloadImage, toSafeImageUrl, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { getMonitorServerConfigs } from './monitor.js';
 
+function buildMonitorEndpoint(origin = '', apiBase = '') {
+    const base = String(apiBase || '').trim();
+    const root = String(origin || '').trim().replace(/\/+$/, '');
+    if (/^https?:\/\//i.test(base)) {
+        return `${base.replace(/\/+$/, '')}/api/system/report`;
+    }
+    const path = base ? `/${base.replace(/^\/+|\/+$/g, '')}` : '';
+    return `${root}${path}/api/system/report`;
+}
+
 const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
 let wallpaperLoadSeq = 0;
 const INITIAL_WALLPAPER_WAIT_MS = 5000;
@@ -87,7 +97,7 @@ export function closeAllModals() {
 const MONITOR_SERVER_CONFIGS_KEY = 'monitor:serverConfigs';
 
 function defaultMonitorEndpoint() {
-    return `${window.location.origin}${state.API_BASE || ''}/api/system/report`;
+    return buildMonitorEndpoint(window.location.origin, state.API_BASE || '');
 }
 
 function renderMonitorServers(servers = []) {
@@ -227,7 +237,11 @@ export function generateMonitorInstallCommand() {
         return;
     }
     if (!token) {
-        alert('请输入上报 Token。Token 只用于生成命令，不会保存。');
+        alert('请输入上报 Token。Token 必须是服务端 MONITOR_AGENT_TOKEN，不是服务器 ID；只用于生成命令，不会保存。');
+        return;
+    }
+    if (token === server.id) {
+        alert('上报 Token 不能填服务器 ID。请填写 bookmarks 服务端 .env 中的 MONITOR_AGENT_TOKEN。');
         return;
     }
     if (DOM.monitorInstallCommand) {

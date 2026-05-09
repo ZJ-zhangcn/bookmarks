@@ -708,7 +708,8 @@
                                 </div>
                                 <div class="form-group monitor-token-field">
                                     <label for="monitorAgentTokenInput">上报 Token *</label>
-                                    <input type="password" id="monitorAgentTokenInput" class="setting-input" placeholder="只用于生成安装命令，不会保存到服务器或浏览器" autocomplete="new-password" data-form-type="other">
+                                    <input type="password" id="monitorAgentTokenInput" class="setting-input" placeholder="填后端 MONITOR_AGENT_TOKEN，不是服务器 ID" autocomplete="new-password" data-form-type="other">
+                                    <small class="setting-hint">必须和 bookmarks 服务端 .env 里的 MONITOR_AGENT_TOKEN 一致；不要填 us-vps 这类服务器 ID。</small>
                                 </div>
                                 <div class="form-group monitor-endpoint-field">
                                     <label for="monitorEndpointInput">上报地址</label>

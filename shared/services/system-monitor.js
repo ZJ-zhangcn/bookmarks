@@ -189,6 +189,16 @@ function buildServerList({ local, agents = [], configs = [], now = Date.now() })
     });
 }
 
+function buildMonitorEndpoint(origin = '', apiBase = '') {
+    const base = String(apiBase || '').trim();
+    const root = String(origin || '').trim().replace(/\/+$/, '');
+    if (/^https?:\/\//i.test(base)) {
+        return `${base.replace(/\/+$/, '')}/api/system/report`;
+    }
+    const path = base ? `/${base.replace(/^\/+|\/+$/g, '')}` : '';
+    return `${root}${path}/api/system/report`;
+}
+
 module.exports = {
     ONLINE_TTL_MS,
     OFFLINE_TTL_MS,
@@ -198,5 +208,6 @@ module.exports = {
     mergeServerConfigs,
     normalizeAgentReport,
     buildServerList,
-    getServerStatus
+    getServerStatus,
+    buildMonitorEndpoint
 };

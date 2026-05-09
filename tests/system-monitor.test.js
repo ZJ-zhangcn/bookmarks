@@ -6,7 +6,8 @@ const {
     buildServerList,
     getServerStatus,
     sanitizeServerConfig,
-    mergeServerConfigs
+    mergeServerConfigs,
+    buildMonitorEndpoint
 } = require('../shared/services/system-monitor');
 
 test('normalizes agent server reports for dashboard display', () => {
@@ -133,6 +134,21 @@ test('server component values target a single configured server id', () => {
     const componentType = 'server:us-vps';
     assert.equal(componentType.startsWith('server:'), true);
     assert.equal(componentType.slice('server:'.length), 'us-vps');
+});
+
+test('buildMonitorEndpoint does not duplicate origin when API base is absolute', () => {
+    assert.equal(
+        buildMonitorEndpoint('https://bookmarks.zhangjiner.com', 'https://bookmarks.zhangjiner.com'),
+        'https://bookmarks.zhangjiner.com/api/system/report'
+    );
+    assert.equal(
+        buildMonitorEndpoint('https://bookmarks.zhangjiner.com', ''),
+        'https://bookmarks.zhangjiner.com/api/system/report'
+    );
+    assert.equal(
+        buildMonitorEndpoint('https://example.com', '/nav'),
+        'https://example.com/nav/api/system/report'
+    );
 });
 
 test('getServerStatus uses nezha-like freshness thresholds', () => {
