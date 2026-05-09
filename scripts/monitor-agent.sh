@@ -7,7 +7,7 @@ SERVER_ID="${MONITOR_SERVER_ID:-$(hostname)}"
 SERVER_NAME="${MONITOR_SERVER_NAME:-$SERVER_ID}"
 SERVER_REGION="${MONITOR_SERVER_REGION:-}"
 SERVER_ROLE="${MONITOR_SERVER_ROLE:-agent}"
-INTERVAL="${MONITOR_INTERVAL:-15}"
+INTERVAL="${MONITOR_INTERVAL:-5}"
 
 if [[ -z "$ENDPOINT" || -z "$TOKEN" ]]; then
   echo "MONITOR_ENDPOINT and MONITOR_AGENT_TOKEN are required" >&2
@@ -82,7 +82,7 @@ def process_count():
 
 def docker_info():
     try:
-        out = subprocess.check_output(['docker', 'ps', '-a', '--format', '{{.State}} {{.Status}}'], stderr=subprocess.DEVNULL, timeout=3, text=True)
+        out = subprocess.check_output(['docker', 'ps', '-a', '--format={{.State}} {{.Status}}'], stderr=subprocess.DEVNULL, timeout=3, text=True)
     except Exception:
         return { 'running': 0, 'total': 0, 'unhealthy': 0 }
     lines = [line.strip() for line in out.splitlines() if line.strip()]

@@ -193,12 +193,17 @@ function buildServerList({ local, agents = [], configs = [], now = Date.now() })
         const normalizedLocal = normalizeAgentReport({ ...local, lastSeen: now }, now);
         if (shouldShow(normalizedLocal.id)) {
             if (!ordered.includes(normalizedLocal.id)) ordered.unshift(normalizedLocal.id);
-            byId.set(normalizedLocal.id, applyConfig(normalizedLocal, configById.get(normalizedLocal.id)));
+            const reportedLocal = agents
+                .map(agent => normalizeAgentReport(agent, now))
+                .filter(agent => agent.id === normalizedLocal.id)
+                .sort((a, b) => b.lastSeen - a.lastSeen)[0];
+            byId.set(normalizedLocal.id, applyConfig(reportedLocal || normalizedLocal, configById.get(normalizedLocal.id)));
         }
     }
     for (const agent of agents) {
         const normalized = normalizeAgentReport(agent, now);
-        if (!shouldShow(normalized.id) || byId.has(normalized.id)) continue;
+        if (!normalized.id || !shouldShow(normalized.id)) continue;
+        if (byId.has(normalized.id)) continue;
         normalized.status = getServerStatus(normalized.lastSeen, now);
         if (!ordered.includes(normalized.id)) ordered.push(normalized.id);
         byId.set(normalized.id, applyConfig(normalized, configById.get(normalized.id)));

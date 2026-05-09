@@ -272,7 +272,7 @@ function normalizeRemoteReport(body) {
     const report = normalizeAgentReport({ ...(body || {}), lastSeen: Date.now() }, Date.now());
     if (!report.id || report.id === 'unknown') throw new AppError('缺少服务器 ID', 400);
     if (!/^[a-zA-Z0-9._:-]{1,43}$/.test(report.id)) throw new AppError('服务器 ID 格式不合法：1-43 位，仅支持字母、数字、点、下划线、冒号和短横线', 400);
-    if (report.id === LOCAL_SERVER_ID) throw new AppError('远端 Agent 不能覆盖本机服务器 ID', 400);
+    if (report.id === LOCAL_SERVER_ID && process.env.ALLOW_LOCAL_AGENT_OVERRIDE !== 'true') throw new AppError('远端 Agent 不能覆盖本机服务器 ID', 400);
     return report;
 }
 

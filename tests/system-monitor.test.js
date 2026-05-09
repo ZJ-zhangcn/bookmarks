@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
     normalizeAgentReport,
@@ -74,16 +76,18 @@ test('buildServerList marks stale and offline agents by last seen time', () => {
     ]);
 });
 
-test('buildServerList keeps local server first when remote id collides', () => {
+test('buildServerList keeps local server first while preferring same-id local agent metrics', () => {
     const now = 1700000000000;
-    const local = normalizeAgentReport({ id: 'hk-vps', name: 'HK VPS', metrics: { cpu: { usage: 10 } } }, now);
-    const agents = [normalizeAgentReport({ id: 'hk-vps', name: 'Spoofed', metrics: { cpu: { usage: 99 } } }, now)];
+    const local = normalizeAgentReport({ id: 'hk-vps', name: 'HK VPS', metrics: { cpu: { usage: 10 }, docker: { running: 0, total: 0 } } }, now);
+    const agents = [normalizeAgentReport({ id: 'hk-vps', name: 'HK Agent', metrics: { cpu: { usage: 99 }, docker: { running: 8, total: 10 } } }, now)];
 
     const servers = buildServerList({ local, agents, now });
 
     assert.equal(servers.length, 1);
     assert.equal(servers[0].name, 'HK VPS');
-    assert.equal(servers[0].cpu.usage, 10);
+    assert.equal(servers[0].cpu.usage, 99);
+    assert.equal(servers[0].docker.running, 8);
+    assert.equal(servers[0].docker.total, 10);
 });
 
 test('buildServerList applies configured server labels and keeps configured offline servers visible', () => {
@@ -169,6 +173,13 @@ test('buildMonitorEndpoint does not duplicate origin when API base is absolute',
         buildMonitorEndpoint('https://example.com', '/nav'),
         'https://example.com/nav/api/system/report'
     );
+});
+
+test('monitor agent defaults to 5 second interval and uses portable docker ps format', () => {
+    const script = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'monitor-agent.sh'), 'utf8');
+    assert.match(script, /MONITOR_INTERVAL:-5/);
+    assert.match(script, /--format=\{\{\.State\}\} \{\{\.Status\}\}/);
+    assert.doesNotMatch(script, /--format', '\{\{\.State\}\}/);
 });
 
 test('getServerStatus uses nezha-like freshness thresholds', () => {
