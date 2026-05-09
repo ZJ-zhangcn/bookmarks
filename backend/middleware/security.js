@@ -15,7 +15,17 @@ function requireAdmin(req, res, next) {
     }
     const auth = String(req.headers.authorization || '').trim();
     if (auth === `Bearer ${token}`) return next();
-    res.status(401).json({ success: false, error: '未授权：请提供 Authorization: Bearer <ADMIN_TOKEN>' });
+    res.status(401).json({ success: false, error: '未授权：请提供 Authorization: Bearer ***' });
+}
+
+function requireStrictAdmin(req, res, next) {
+    const token = String(process.env.ADMIN_TOKEN || '').trim();
+    if (!token) {
+        return res.status(401).json({ success: false, error: '未配置 ADMIN_TOKEN，拒绝执行高风险批量操作' });
+    }
+    const auth = String(req.headers.authorization || '').trim();
+    if (auth === `Bearer ${token}`) return next();
+    res.status(401).json({ success: false, error: '未授权：请提供 Authorization: Bearer ***' });
 }
 
 function normalizeHostForIpCheck(hostname) {
@@ -123,4 +133,4 @@ function assertSafeFetchUrl(raw) {
     return u;
 }
 
-module.exports = { requireAdmin, assertSafeFetchUrl, assertPublicFetchUrl, isPrivateOrLocalAddress };
+module.exports = { requireAdmin, requireStrictAdmin, assertSafeFetchUrl, assertPublicFetchUrl, isPrivateOrLocalAddress };

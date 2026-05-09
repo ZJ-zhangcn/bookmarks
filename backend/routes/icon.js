@@ -4,7 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
-const { requireAdmin, assertPublicFetchUrl } = require('../middleware/security');
+const { requireStrictAdmin, assertPublicFetchUrl } = require('../middleware/security');
 const { safeFetchPublicUrl, readLimitedArrayBuffer, DEFAULT_MAX_BYTES } = require('../utils/safe-fetch');
 const { selectBestIcons } = require('../utils/icon-discovery');
 const { proxyIconRequest } = require('../utils/icon-proxy');
@@ -48,7 +48,7 @@ module.exports = function(db) {
     }));
 
     // POST /api/icon/convert
-    router.post('/convert', requireAdmin, asyncHandler(async (req, res) => {
+    router.post('/convert', requireStrictAdmin, asyncHandler(async (req, res) => {
         const { url } = req.body;
         if (!url) {
             throw new AppError('缺少 URL', 400);
@@ -60,7 +60,7 @@ module.exports = function(db) {
     }));
 
     // POST /api/icon/fix-all
-    router.post('/fix-all', requireAdmin, asyncHandler(async (req, res) => {
+    router.post('/fix-all', requireStrictAdmin, asyncHandler(async (req, res) => {
         const bookmarks = await db.queryAll(`
             SELECT id, icon_data FROM bookmarks
             WHERE icon_type = 'url' AND icon_data IS NOT NULL AND icon_data != ''
@@ -88,7 +88,7 @@ module.exports = function(db) {
     }));
 
     // POST /api/icon/fetch-all
-    router.post('/fetch-all', requireAdmin, asyncHandler(async (req, res) => {
+    router.post('/fetch-all', requireStrictAdmin, asyncHandler(async (req, res) => {
         const bookmarks = await db.queryAll(`
             SELECT id, url FROM bookmarks
             WHERE url IS NOT NULL AND url != ''
