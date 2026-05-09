@@ -58,7 +58,8 @@ module.exports = function(db) {
             throw new AppError('书签名称不能为空', 400);
         }
 
-        const result = await bookmarksService.saveBookmark(db, { id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type });
+        const safeComponentType = String(component_type || '').slice(0, 50);
+        const result = await bookmarksService.saveBookmark(db, { id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type: safeComponentType });
         res.json(success(result));
     }));
 

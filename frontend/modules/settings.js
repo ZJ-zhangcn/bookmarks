@@ -8,6 +8,7 @@ import { renderAll } from './render.js';
 import { renderCategoryList } from './category.js';
 import { preloadImage, toSafeImageUrl, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
+import { getMonitorServerConfigs } from './monitor.js';
 
 const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
 let wallpaperLoadSeq = 0;
@@ -83,44 +84,100 @@ export function closeAllModals() {
     document.body.style.overflow = '';
 }
 
-function defaultMonitorServers() {
-    return [
-        { id: 'hk-vps', name: 'HK VPS', region: 'Hong Kong', role: 'bookmarks', enabled: true },
-        { id: 'us-vps', name: 'US VPS', region: 'US', role: 'relay', enabled: true }
-    ];
+const MONITOR_SERVER_CONFIGS_KEY = 'monitor:serverConfigs';
+
+function defaultMonitorEndpoint() {
+    return `${window.location.origin}${state.API_BASE || ''}/api/system/report`;
 }
 
 function renderMonitorServers(servers = []) {
     if (!DOM.monitorServerList) return;
-    const list = servers.length > 0 ? servers : defaultMonitorServers();
-    DOM.monitorServerList.innerHTML = list.map(server => `
-        <div class="monitor-server-config" data-monitor-server-row>
-            <label class="checkbox-label monitor-enabled">
-                <input type="checkbox" data-field="enabled" ${server.enabled === false ? '' : 'checked'}>
-                <span>显示</span>
-            </label>
-            <input type="text" data-field="id" class="setting-input" placeholder="ID: us-vps" value="${escapeHtmlAttribute(server.id || '')}" autocomplete="off" data-form-type="other">
-            <input type="text" data-field="name" class="setting-input" placeholder="名称" value="${escapeHtmlAttribute(server.name || '')}" autocomplete="off" data-form-type="other">
-            <input type="text" data-field="region" class="setting-input" placeholder="区域" value="${escapeHtmlAttribute(server.region || '')}" autocomplete="off" data-form-type="other">
-            <input type="text" data-field="role" class="setting-input" placeholder="用途" value="${escapeHtmlAttribute(server.role || '')}" autocomplete="off" data-form-type="other">
+    if (DOM.monitorEndpointInput && !DOM.monitorEndpointInput.value) {
+        DOM.monitorEndpointInput.value = defaultMonitorEndpoint();
+    }
+    if (!servers.length) {
+        DOM.monitorServerList.innerHTML = '<div class="server-empty">还没有服务器资料。先在上面添加一台服务器。</div>';
+        renderBookmarkServerOptions();
+        return;
+    }
+    DOM.monitorServerList.innerHTML = servers.map(server => `
+        <div class="monitor-server-config compact" data-monitor-server-row data-server-id="${escapeHtmlAttribute(server.id || '')}">
+            <div class="monitor-server-summary">
+                <strong>${escapeHtmlAttribute(server.name || server.id || '')}</strong>
+                <span>${escapeHtmlAttribute([server.id, server.region, server.role].filter(Boolean).join(' · '))}</span>
+            </div>
             <button type="button" class="btn btn-danger btn-sm" data-action="remove-monitor-server">删除</button>
         </div>
     `).join('');
     DOM.monitorServerList.querySelectorAll('[data-action="remove-monitor-server"]').forEach(btn => {
-        btn.addEventListener('click', () => btn.closest('[data-monitor-server-row]')?.remove());
+        btn.addEventListener('click', async () => {
+            const id = btn.closest('[data-monitor-server-row]')?.dataset.serverId;
+            if (!id || !confirm(`删除服务器资料 ${id}？首页已添加的卡片不会自动删除。`)) return;
+            const next = getMonitorServerConfigs().filter(server => server.id !== id);
+            await persistMonitorServers(next);
+        });
     });
+    renderBookmarkServerOptions();
 }
 
-function collectMonitorServers() {
-    return [...(DOM.monitorServerList?.querySelectorAll('[data-monitor-server-row]') || [])]
-        .map(row => ({
-            id: row.querySelector('[data-field="id"]')?.value.trim() || '',
-            name: row.querySelector('[data-field="name"]')?.value.trim() || '',
-            region: row.querySelector('[data-field="region"]')?.value.trim() || '',
-            role: row.querySelector('[data-field="role"]')?.value.trim() || '',
-            enabled: row.querySelector('[data-field="enabled"]')?.checked !== false
-        }))
-        .filter(server => server.id || server.name);
+export function renderBookmarkServerOptions() {
+    if (!DOM.bookmarkServerId) return;
+    const servers = getMonitorServerConfigs();
+    if (!servers.length) {
+        DOM.bookmarkServerId.innerHTML = '<option value="">请先在设置里添加服务器</option>';
+        return;
+    }
+    DOM.bookmarkServerId.innerHTML = servers.map(server => `
+        <option value="${escapeHtmlAttribute(server.id)}">${escapeHtmlAttribute(server.name || server.id)}${server.region ? ` · ${escapeHtmlAttribute(server.region)}` : ''}</option>
+    `).join('');
+}
+
+function readMonitorForm() {
+    return {
+        id: DOM.monitorServerIdInput?.value.trim() || '',
+        name: DOM.monitorServerNameInput?.value.trim() || '',
+        region: DOM.monitorServerRegionInput?.value.trim() || '',
+        role: DOM.monitorServerRoleInput?.value.trim() || '',
+        enabled: true
+    };
+}
+
+function clearMonitorForm() {
+    if (DOM.monitorServerIdInput) DOM.monitorServerIdInput.value = '';
+    if (DOM.monitorServerNameInput) DOM.monitorServerNameInput.value = '';
+    if (DOM.monitorServerRegionInput) DOM.monitorServerRegionInput.value = '';
+    if (DOM.monitorServerRoleInput) DOM.monitorServerRoleInput.value = '';
+}
+
+function escapeShellSingleQuote(value) {
+    return String(value || '').replace(/'/g, `'"'"'`);
+}
+
+function buildInstallCommand(server, token, endpoint) {
+    return `cd /root && curl -fsSL https://raw.githubusercontent.com/ZJ-zhangcn/bookmarks/main/scripts/monitor-agent.sh -o monitor-agent.sh && chmod +x monitor-agent.sh && MONITOR_ENDPOINT='${escapeShellSingleQuote(endpoint)}' MONITOR_AGENT_TOKEN='${escapeShellSingleQuote(token)}' MONITOR_SERVER_ID='${escapeShellSingleQuote(server.id)}' MONITOR_SERVER_NAME='${escapeShellSingleQuote(server.name || server.id)}' MONITOR_SERVER_REGION='${escapeShellSingleQuote(server.region || '')}' MONITOR_SERVER_ROLE='${escapeShellSingleQuote(server.role || '')}' nohup /root/monitor-agent.sh >/var/log/bookmarks-monitor-agent.log 2>&1 &`;
+}
+
+async function persistMonitorServers(servers) {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = window.prompt('请输入管理员 Token 以保存服务器资料（不会保存到浏览器）');
+    if (!token) return false;
+    headers.Authorization = `Bearer ${token.trim()}`;
+    const res = await fetch(`${state.API_BASE}/api/system/config`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ servers })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.error || '保存失败');
+    const saved = result.data?.servers || servers;
+    state.setMonitorServerConfigs(saved);
+    sessionStorage.setItem(MONITOR_SERVER_CONFIGS_KEY, JSON.stringify(saved));
+    renderMonitorServers(saved);
+    return true;
+}
+
+function existingMonitorServersFromRows() {
+    return getMonitorServerConfigs();
 }
 
 export async function loadMonitorServers() {
@@ -129,40 +186,53 @@ export async function loadMonitorServers() {
     try {
         const res = await fetch(`${state.API_BASE}/api/system/config`);
         const result = await res.json();
-        renderMonitorServers(result.success ? (result.data?.servers || []) : []);
+        const saved = result.success ? (result.data?.servers || []) : [];
+        state.setMonitorServerConfigs(saved);
+        sessionStorage.setItem(MONITOR_SERVER_CONFIGS_KEY, JSON.stringify(saved));
+        renderMonitorServers(saved);
     } catch (e) {
         console.error('加载监控配置失败:', e);
-        renderMonitorServers(defaultMonitorServers());
+        const cached = sessionStorage.getItem(MONITOR_SERVER_CONFIGS_KEY);
+        let fallback = [];
+        try { fallback = cached ? JSON.parse(cached) : []; } catch {}
+        state.setMonitorServerConfigs(fallback);
+        renderMonitorServers(fallback);
     }
 }
 
-export async function saveMonitorServers() {
+export async function registerMonitorServer() {
     try {
-        const servers = collectMonitorServers();
-        const headers = { 'Content-Type': 'application/json' };
-        const token = window.prompt('请输入管理员 Token 以保存服务器配置（不会保存到浏览器）');
-        if (!token) return;
-        headers.Authorization = `Bearer ${token.trim()}`;
-        const res = await fetch(`${state.API_BASE}/api/system/config`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ servers })
-        });
-        const result = await res.json();
-        if (!result.success) throw new Error(result.error || '保存失败');
-        renderMonitorServers(result.data?.servers || servers);
-        await loadData();
-        renderAll();
-        alert('监控配置已保存');
+        const server = readMonitorForm();
+        if (!server.id || !server.name) {
+            alert('请填写服务器 ID 和显示名称');
+            return;
+        }
+        const next = [...existingMonitorServersFromRows().filter(item => item.id !== server.id), server];
+        const saved = await persistMonitorServers(next);
+        if (saved) {
+            clearMonitorForm();
+            alert('服务器资料已保存。下一步：生成并在目标服务器执行 Agent 安装命令，然后在“添加组件”里添加这台服务器卡片。');
+        }
     } catch (e) {
-        alert('保存监控配置失败: ' + e.message);
+        alert('保存服务器资料失败: ' + e.message);
     }
 }
 
-export function addMonitorServerRow() {
-    const servers = collectMonitorServers();
-    servers.push({ id: '', name: '', region: '', role: '', enabled: true });
-    renderMonitorServers(servers);
+export function generateMonitorInstallCommand() {
+    const server = readMonitorForm();
+    const token = DOM.monitorAgentTokenInput?.value.trim() || '';
+    const endpoint = DOM.monitorEndpointInput?.value.trim() || defaultMonitorEndpoint();
+    if (!server.id || !server.name) {
+        alert('请先填写服务器 ID 和显示名称');
+        return;
+    }
+    if (!token) {
+        alert('请输入上报 Token。Token 只用于生成命令，不会保存。');
+        return;
+    }
+    if (DOM.monitorInstallCommand) {
+        DOM.monitorInstallCommand.textContent = buildInstallCommand(server, token, endpoint);
+    }
 }
 
 export async function loadPersonalization(options = {}) {

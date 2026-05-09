@@ -15,6 +15,7 @@ export async function loadCoreData() {
         state.setCategories(payload?.categories || []);
         state.setBookmarks(payload?.bookmarks || []);
         state.setEngines(payload?.engines || []);
+        state.setMonitorServerConfigs(payload?.systemMonitorServers || []);
 
         // 单请求首屏：如果后端提供了 TODO 数据，则直接落状态
         if (payload && 'todos' in payload) {
@@ -41,6 +42,25 @@ export async function loadCoreData() {
     }
 
     return payload;
+}
+
+export async function ensureMonitorServersLoaded() {
+    if (Array.isArray(state.monitorServerConfigs) && state.monitorServerConfigs.length > 0) {
+        return state.monitorServerConfigs;
+    }
+    try {
+        const res = await fetch(`${state.API_BASE}/api/system/config`);
+        const result = await res.json();
+        const servers = result && result.success ? (result.data?.servers || []) : [];
+        state.setMonitorServerConfigs(servers);
+        try { sessionStorage.setItem('monitor:serverConfigs', JSON.stringify(servers)); } catch {}
+        return servers;
+    } catch (e) {
+        let fallback = [];
+        try { fallback = JSON.parse(sessionStorage.getItem('monitor:serverConfigs') || '[]'); } catch {}
+        state.setMonitorServerConfigs(fallback);
+        return fallback;
+    }
 }
 
 export async function loadData() {

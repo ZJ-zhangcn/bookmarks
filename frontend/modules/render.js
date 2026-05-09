@@ -5,6 +5,7 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 
 import { highlightText, toSafeImageUrl, toPreferredIconImageUrl, escapeHtml, escapeHtmlAttribute, toSafeExternalUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
+import { findMonitorServerConfig, parseServerComponentType } from './monitor.js';
 import { observeBookmarkIcons } from './api.js';
 import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 
@@ -227,7 +228,8 @@ export function createBookmarkCard(item, searchTerm) {
 
 export function createComponentCard(item) {
     const componentType = item.component_type || 'cpu';
-    if (componentType === 'servers') return createServerMonitorCard(item);
+    const serverComponent = parseServerComponentType(componentType);
+    if (serverComponent.isServer) return createServerMonitorCard(item, serverComponent.serverId);
 
     const icons = { cpu: '💻', memory: '📊', disk: '💾' };
     const labels = { cpu: 'CPU', memory: 'RAM', disk: '磁盘' };
@@ -251,15 +253,27 @@ export function createComponentCard(item) {
     `;
 }
 
-function createServerMonitorCard(item) {
+function createServerMonitorCard(item, serverId = '') {
+    const config = findMonitorServerConfig(serverId);
+    const title = serverId ? (config?.name || item.name || serverId) : (item.name || '服务器监控');
     return `
-        <div class="server-monitor-grid" data-id="${escapeHtmlAttribute(item.id)}" data-component="servers">
+        <div class="server-monitor-slot" data-id="${escapeHtmlAttribute(item.id)}" data-component="server" data-server-id="${escapeHtmlAttribute(serverId)}">
             <div class="bookmark-actions">
                 <button class="bookmark-action-btn delete" data-id="${escapeHtmlAttribute(item.id)}" title="删除">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
             </div>
-            <div class="server-cards" data-type="servers"><div class="server-empty">加载中...</div></div>
+            <div class="server-card-mount" data-type="server" data-server-id="${escapeHtmlAttribute(serverId)}">
+                <div class="server-card offline">
+                    <div class="server-card-title-row">
+                        <div class="component-icon">🖥️</div>
+                        <div class="server-title">
+                            <div class="server-name">${escapeHtml(title)}</div>
+                            <div class="server-meta">加载中...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -283,49 +297,64 @@ function progressColor(percent) {
     return percent > 80 ? '#ef4444' : percent > 50 ? '#f59e0b' : '#22c55e';
 }
 
-function renderServerCards(servers) {
-    if (!Array.isArray(servers) || servers.length === 0) {
-        return '<div class="server-empty">暂无服务器上报</div>';
-    }
-    return servers.map(server => {
-        const cpu = server.cpu?.usage || 0;
-        const memory = server.memory?.usagePercent || 0;
-        const disk = server.disk?.usagePercent || 0;
-        const statusLabel = { online: '在线', stale: '延迟', offline: '离线' }[server.status] || server.status;
-        const meta = [server.region, server.role].filter(Boolean).join(' · ');
-        return `
-            <div class="component-card server-card ${escapeHtmlAttribute(server.status || 'offline')}">
-                <div class="server-card-top">
-                    <span class="server-status-dot ${escapeHtmlAttribute(server.status || 'offline')}"></span>
-                    <span class="server-status-label">${escapeHtml(statusLabel)}</span>
-                </div>
-                <div class="server-card-title-row">
-                    <div class="component-icon">🖥️</div>
-                    <div class="server-title">
-                        <div class="server-name">${escapeHtml(server.name || server.id)}</div>
-                        <div class="server-meta">${escapeHtml(meta || server.id)}</div>
-                    </div>
-                </div>
-                <div class="server-uptime">运行 ${escapeHtml(formatUptime(server.uptime))}</div>
-                <div class="server-metrics">
-                    <span>CPU <b>${cpu.toFixed(0)}%</b></span>
-                    <span>RAM <b>${memory.toFixed(0)}%</b></span>
-                    <span>磁盘 <b>${disk.toFixed(0)}%</b></span>
-                </div>
-                <div class="server-bars">
-                    <div class="server-mini-bar"><i style="width:${cpu}%;background:${progressColor(cpu)}"></i></div>
-                    <div class="server-mini-bar"><i style="width:${memory}%;background:${progressColor(memory)}"></i></div>
-                    <div class="server-mini-bar"><i style="width:${disk}%;background:${progressColor(disk)}"></i></div>
-                </div>
-                <div class="server-resource-line">${formatBytes(server.memory?.used || 0)} / ${formatBytes(server.memory?.total || 0)} RAM</div>
-                <div class="server-resource-line">${formatBytes(server.disk?.used || 0)} / ${formatBytes(server.disk?.total || 0)} 磁盘</div>
+function renderServerCard(server) {
+    const cpu = server.cpu?.usage || 0;
+    const memory = server.memory?.usagePercent || 0;
+    const disk = server.disk?.usagePercent || 0;
+    const statusLabel = { online: '在线', stale: '延迟', offline: '离线' }[server.status] || server.status;
+    const meta = [server.region, server.role].filter(Boolean).join(' · ');
+    return `
+        <div class="server-card ${escapeHtmlAttribute(server.status || 'offline')}">
+            <div class="server-card-top">
+                <span class="server-status-dot ${escapeHtmlAttribute(server.status || 'offline')}"></span>
+                <span class="server-status-label">${escapeHtml(statusLabel)}</span>
             </div>
-        `;
-    }).join('');
+            <div class="server-card-title-row">
+                <div class="component-icon">🖥️</div>
+                <div class="server-title">
+                    <div class="server-name">${escapeHtml(server.name || server.id)}</div>
+                    <div class="server-meta">${escapeHtml(meta || server.id)}</div>
+                </div>
+            </div>
+            <div class="server-uptime">运行 ${escapeHtml(formatUptime(server.uptime))}</div>
+            <div class="server-metrics">
+                <span>CPU <b>${cpu.toFixed(0)}%</b></span>
+                <span>RAM <b>${memory.toFixed(0)}%</b></span>
+                <span>磁盘 <b>${disk.toFixed(0)}%</b></span>
+            </div>
+            <div class="server-bars">
+                <div class="server-mini-bar"><i style="width:${cpu}%;background:${progressColor(cpu)}"></i></div>
+                <div class="server-mini-bar"><i style="width:${memory}%;background:${progressColor(memory)}"></i></div>
+                <div class="server-mini-bar"><i style="width:${disk}%;background:${progressColor(disk)}"></i></div>
+            </div>
+            <div class="server-resource-line">${formatBytes(server.memory?.used || 0)} / ${formatBytes(server.memory?.total || 0)} RAM</div>
+            <div class="server-resource-line">${formatBytes(server.disk?.used || 0)} / ${formatBytes(server.disk?.total || 0)} 磁盘</div>
+        </div>
+    `;
+}
+
+function renderServerMissingCard(serverId) {
+    const config = findMonitorServerConfig(serverId);
+    return `
+        <div class="server-card offline missing">
+            <div class="server-card-top">
+                <span class="server-status-dot offline"></span>
+                <span class="server-status-label">未上报</span>
+            </div>
+            <div class="server-card-title-row">
+                <div class="component-icon">🖥️</div>
+                <div class="server-title">
+                    <div class="server-name">${escapeHtml(config?.name || serverId || '未选择服务器')}</div>
+                    <div class="server-meta">${escapeHtml([serverId, config?.region, config?.role].filter(Boolean).join(' · ') || '请先安装 Agent')}</div>
+                </div>
+            </div>
+            <div class="server-resource-line">Agent 尚未上报，或 MONITOR_SERVER_ID 不匹配。</div>
+        </div>
+    `;
 }
 
 export async function refreshSystemStats() {
-    const componentCards = document.querySelectorAll('.component-card, .server-monitor-grid');
+    const componentCards = document.querySelectorAll('.component-card[data-component], .server-monitor-slot');
     if (componentCards.length === 0) {
         if (state.systemStatsInterval) {
             clearInterval(state.systemStatsInterval);
@@ -340,8 +369,11 @@ export async function refreshSystemStats() {
         if (!result.success) return;
 
         const servers = result.data?.servers || [];
-        document.querySelectorAll('.server-cards[data-type="servers"]').forEach(el => {
-            el.innerHTML = renderServerCards(servers);
+        const serverById = new Map(servers.map(server => [server.id, server]));
+        document.querySelectorAll('.server-card-mount[data-type="server"]').forEach(el => {
+            const serverId = el.dataset.serverId || '';
+            const server = serverById.get(serverId);
+            el.innerHTML = server ? renderServerCard(server) : renderServerMissingCard(serverId);
         });
 
         const localServer = servers[0] || {};

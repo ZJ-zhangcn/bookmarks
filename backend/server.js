@@ -62,7 +62,8 @@ app.use((req, res, next) => {
             '/api/todos',
             '/api/bootstrap-v2',
             '/api/categories',
-            '/api/config'
+            '/api/config',
+            '/api/system/config'
         ];
         const isDynamic = noStorePaths.some(p => req.path.startsWith(p));
         

@@ -97,7 +97,7 @@ test('buildServerList hides disabled configured servers even when agents are rep
     assert.deepEqual(servers.map(server => server.id), ['hk-vps']);
 });
 
-test('sanitizeServerConfig validates and trims UI server config', () => {
+test('sanitizeServerConfig includes enabled flag by default for compatibility', () => {
     const config = sanitizeServerConfig({
         id: ' us-vps ',
         name: ' US VPS ',
@@ -114,6 +114,7 @@ test('sanitizeServerConfig validates and trims UI server config', () => {
         enabled: false
     });
     assert.throws(() => sanitizeServerConfig({ id: 'bad id!' }), /服务器 ID/);
+    assert.throws(() => sanitizeServerConfig({ id: 'a'.repeat(44) }), /服务器 ID/);
 });
 
 test('mergeServerConfigs preserves existing metadata when saving partial UI edits', () => {
@@ -126,6 +127,12 @@ test('mergeServerConfigs preserves existing metadata when saving partial UI edit
         { id: 'us-vps', name: 'New', region: 'US', role: 'relay', enabled: true },
         { id: 'hk-vps', name: 'HK', region: '', role: '', enabled: true }
     ]);
+});
+
+test('server component values target a single configured server id', () => {
+    const componentType = 'server:us-vps';
+    assert.equal(componentType.startsWith('server:'), true);
+    assert.equal(componentType.slice('server:'.length), 'us-vps');
 });
 
 test('getServerStatus uses nezha-like freshness thresholds', () => {

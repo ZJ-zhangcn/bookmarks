@@ -307,8 +307,15 @@
                         <option value="cpu">CPU 使用率</option>
                         <option value="memory">内存使用</option>
                         <option value="disk">磁盘使用</option>
-                        <option value="servers">多服务器监控</option>
+                        <option value="server">服务器监控（单台）</option>
                     </select>
+                </div>
+                <div class="form-group" id="serverComponentGroup" style="display: none;">
+                    <label for="bookmarkServerId">选择服务器</label>
+                    <select id="bookmarkServerId" class="form-select">
+                        <option value="">加载中...</option>
+                    </select>
+                    <small class="form-hint">先在“设置 → 系统监控”中添加服务器并安装 Agent，再从这里添加单台服务器卡片。</small>
                 </div>
                 <div class="form-group" id="bookmarkNameGroup">
                     <label for="bookmarkInputName">名称 *</label>
@@ -677,16 +684,51 @@
                                 <circle cx="12" cy="12" r="10" />
                                 <path d="M12 16v-4M12 8h.01" />
                             </svg>
-                            <span>在这里配置服务器展示项。Agent 仍需在对应服务器上安装并使用同一个上报 Token。</span>
+                            <span>这里是 Agent 接入配置，不再用来控制首页显示。首页显示哪台服务器，请在“添加书签 → 内置组件 → 服务器监控（单台）”里单独添加。</span>
+                        </div>
+                        <div class="setting-card monitor-agent-card">
+                            <h5 class="card-subtitle">添加一台服务器</h5>
+                            <div class="monitor-form-grid">
+                                <div class="form-group">
+                                    <label for="monitorServerIdInput">服务器 ID *</label>
+                                    <input type="text" id="monitorServerIdInput" class="setting-input" placeholder="例如：us-vps" maxlength="43" autocomplete="off" data-form-type="other">
+                                    <small class="setting-hint">必须与远端 Agent 的 MONITOR_SERVER_ID 一致，最多 43 个字符。</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="monitorServerNameInput">显示名称 *</label>
+                                    <input type="text" id="monitorServerNameInput" class="setting-input" placeholder="例如：US VPS" autocomplete="off" data-form-type="other">
+                                </div>
+                                <div class="form-group">
+                                    <label for="monitorServerRegionInput">区域</label>
+                                    <input type="text" id="monitorServerRegionInput" class="setting-input" placeholder="例如：US" autocomplete="off" data-form-type="other">
+                                </div>
+                                <div class="form-group">
+                                    <label for="monitorServerRoleInput">用途</label>
+                                    <input type="text" id="monitorServerRoleInput" class="setting-input" placeholder="例如：relay" autocomplete="off" data-form-type="other">
+                                </div>
+                                <div class="form-group monitor-token-field">
+                                    <label for="monitorAgentTokenInput">上报 Token *</label>
+                                    <input type="password" id="monitorAgentTokenInput" class="setting-input" placeholder="只用于生成安装命令，不会保存到服务器或浏览器" autocomplete="new-password" data-form-type="other">
+                                </div>
+                                <div class="form-group monitor-endpoint-field">
+                                    <label for="monitorEndpointInput">上报地址</label>
+                                    <input type="url" id="monitorEndpointInput" class="setting-input" placeholder="https://bookmarks.zhangjiner.com/api/system/report" autocomplete="off" data-form-type="other">
+                                </div>
+                            </div>
+                            <div class="panel-actions monitor-actions">
+                                <button class="btn btn-primary" id="monitorRegisterServerBtn">保存服务器资料</button>
+                                <button class="btn btn-secondary" id="monitorGenerateInstallBtn">生成 Agent 安装命令</button>
+                            </div>
+                            <small class="setting-hint">保存资料只保存 ID/名称/区域/用途；Token 仅用于生成命令。远端 Agent 上报成功后，这台服务器卡片才会显示真实数据。</small>
+                        </div>
+                        <div class="setting-card monitor-command-card">
+                            <h5 class="card-subtitle">Agent 安装命令</h5>
+                            <pre class="monitor-command" id="monitorInstallCommand">填写服务器资料和 Token 后生成。</pre>
                         </div>
                         <div class="setting-card">
-                            <h5 class="card-subtitle">服务器列表</h5>
-                            <div class="monitor-server-list" id="monitorServerList"></div>
-                            <div class="panel-actions monitor-actions">
-                                <button class="btn btn-secondary" id="monitorAddServerBtn">+ 添加服务器</button>
-                                <button class="btn btn-primary" id="monitorSaveServersBtn">保存配置</button>
-                            </div>
-                            <small class="setting-hint">ID 必须和远端 Agent 上报的 MONITOR_SERVER_ID 一致；未上报的服务器会显示为离线。</small>
+                            <h5 class="card-subtitle">已接入服务器</h5>
+                            <div class="monitor-server-list compact" id="monitorServerList"></div>
+                            <small class="setting-hint">删除这里只会移除服务器资料和添加组件时的选项；不会删除首页已添加的服务器卡片。</small>
                         </div>
                     </div>
 

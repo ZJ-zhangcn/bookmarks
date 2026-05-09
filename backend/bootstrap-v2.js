@@ -51,9 +51,10 @@ module.exports = function registerBootstrapV2(app, db) {
                 LIMIT 200 OFFSET 0
             `;
 
-            const [rows, configRow, todos] = await Promise.all([
+            const [rows, configRow, monitorConfigRow, todos] = await Promise.all([
                 db.queryAll(sql),
                 db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization']),
+                db.queryOne('SELECT value FROM config WHERE `key` = ?', ['systemMonitorServers']),
                 db.queryAll(todosSql)
             ]);
 
@@ -111,6 +112,13 @@ module.exports = function registerBootstrapV2(app, db) {
             if (configRow && configRow.value) {
                 try { config = JSON.parse(configRow.value); } catch { config = null; }
             }
+            let systemMonitorServers = [];
+            if (monitorConfigRow && monitorConfigRow.value) {
+                try {
+                    const parsed = JSON.parse(monitorConfigRow.value);
+                    systemMonitorServers = Array.isArray(parsed) ? parsed : [];
+                } catch { systemMonitorServers = []; }
+            }
 
             const responseData = {
                 success: true,
@@ -119,6 +127,7 @@ module.exports = function registerBootstrapV2(app, db) {
                     bookmarks,
                     engines,
                     config,
+                    systemMonitorServers,
                     todos: todos || []
                 }
             };

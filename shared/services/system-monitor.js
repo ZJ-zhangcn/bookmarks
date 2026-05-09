@@ -43,7 +43,7 @@ function normalizeAgentReport(report = {}, receivedAt = Date.now()) {
     const explicitLastSeen = report.lastSeen !== undefined ? report.lastSeen : report.last_seen;
     const lastSeen = explicitLastSeen === undefined ? receivedAt : Number(explicitLastSeen);
     return {
-        id: String(report.id || report.name || 'unknown').trim().slice(0, 80) || 'unknown',
+        id: String(report.id || report.name || 'unknown').trim().slice(0, 43) || 'unknown',
         name: String(report.name || report.id || 'Unknown').trim().slice(0, 80) || 'Unknown',
         role: String(report.role || '').trim().slice(0, 80),
         region: String(report.region || '').trim().slice(0, 80),
@@ -62,8 +62,8 @@ function normalizeAgentReport(report = {}, receivedAt = Date.now()) {
 
 function sanitizeServerConfig(input = {}) {
     const id = String(input.id || '').trim();
-    if (!/^[a-zA-Z0-9._:-]{1,80}$/.test(id)) {
-        throw new Error('服务器 ID 格式不合法：仅支持字母、数字、点、下划线、冒号和短横线');
+    if (!/^[a-zA-Z0-9._:-]{1,43}$/.test(id)) {
+        throw new Error('服务器 ID 格式不合法：1-43 位，仅支持字母、数字、点、下划线、冒号和短横线');
     }
     const name = String(input.name || id).trim().slice(0, 80) || id;
     return {
@@ -138,6 +138,26 @@ function buildServerList({ local, agents = [], configs = [], now = Date.now() })
             ordered.push(config.id);
         } catch {
             // Ignore invalid config entries from old data.
+        }
+    }
+    if (!hasExplicitConfigs) {
+        const localId = local ? normalizeAgentReport({ ...local, lastSeen: now }, now).id : '';
+        const addAutoConfig = (server) => {
+            if (!server || configById.has(server.id)) return;
+            configById.set(server.id, {
+                id: server.id,
+                name: server.name,
+                region: server.region,
+                role: server.role,
+                enabled: true
+            });
+            ordered.push(server.id);
+        };
+        if (local) addAutoConfig(normalizeAgentReport({ ...local, lastSeen: now }, now));
+        for (const agent of agents) {
+            const normalized = normalizeAgentReport(agent, now);
+            if (normalized.id === localId) continue;
+            addAutoConfig(normalized);
         }
     }
     const shouldShow = id => !hasExplicitConfigs || configById.has(id);

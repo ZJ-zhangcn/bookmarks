@@ -3,12 +3,28 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { loadData } from './api.js';
+import { loadData, ensureMonitorServersLoaded } from './api.js';
 import { renderAll } from './render.js';
 import { updateAiUiVisibility, getAiClientSettings, setAiButtonsDisabled, buildLocalFallbackSummary } from './ai.js';
 import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
+import { findMonitorServerConfig, parseServerComponentType } from './monitor.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
+
+function renderBookmarkServerOptionsInline(selectedServerId = '') {
+    const servers = Array.isArray(state.monitorServerConfigs) ? state.monitorServerConfigs : [];
+    if (!DOM.bookmarkServerId) return;
+    if (!servers.length) {
+        DOM.bookmarkServerId.innerHTML = '<option value="">请先在设置里添加服务器</option>';
+        return;
+    }
+    DOM.bookmarkServerId.innerHTML = servers.map(server => `
+        <option value="${escapeHtmlAttribute(server.id)}">${escapeHtml(server.name || server.id)}${server.region ? ` · ${escapeHtml(server.region)}` : ''}</option>
+    `).join('');
+    if (selectedServerId && servers.some(server => server.id === selectedServerId)) {
+        DOM.bookmarkServerId.value = selectedServerId;
+    }
+}
 
 export function handleBookmarkClick(e) {
     const editBtn = e.target.closest('.bookmark-action-btn.edit');
@@ -26,6 +42,11 @@ export function handleBookmarkClick(e) {
 
 export function openBookmarkModal(bookmarkId = null, categoryId = null) {
     state.setEditingBookmarkId(bookmarkId);
+    const existingBookmark = bookmarkId ? state.bookmarks.find(b => b.id === bookmarkId) : null;
+    const initialServerId = existingBookmark ? parseServerComponentType(existingBookmark.component_type || '').serverId : '';
+    ensureMonitorServersLoaded().then(() => {
+        if (DOM.bookmarkServerId) renderBookmarkServerOptionsInline(initialServerId || DOM.bookmarkServerId.value);
+    }).catch(() => {});
 
     DOM.bookmarkInputCategory.innerHTML = state.categories.map(c =>
         `<option value="${escapeHtmlAttribute(c.id)}" ${c.id === categoryId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
@@ -33,7 +54,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
 
     if (bookmarkId) {
         DOM.bookmarkModalTitle.textContent = '编辑书签';
-        const bookmark = state.bookmarks.find(b => b.id === bookmarkId);
+        const bookmark = existingBookmark;
         if (bookmark) {
             state.setEditingBookmark(bookmark);
             DOM.bookmarkInputName.value = bookmark.name;
@@ -46,6 +67,12 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
                 DOM.bookmarkInputTags.value = tags.join(',');
             }
             DOM.bookmarkInputCategory.value = bookmark.category_id;
+            if (DOM.bookmarkItemType) DOM.bookmarkItemType.value = bookmark.item_type || 'bookmark';
+            const parsedComponent = parseServerComponentType(bookmark.component_type || '');
+            if (DOM.bookmarkComponentType) DOM.bookmarkComponentType.value = parsedComponent.isServer ? 'server' : (bookmark.component_type || 'cpu');
+            if (DOM.bookmarkServerId) DOM.bookmarkServerId.value = parsedComponent.serverId || DOM.bookmarkServerId.value;
+            if (DOM.componentTypeGroup) DOM.componentTypeGroup.style.display = bookmark.item_type === 'component' ? 'block' : 'none';
+            if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = parsedComponent.isServer ? 'block' : 'none';
 
             const originalIconType = bookmark.icon_type || 'auto';
             state.setCurrentIconType((originalIconType === 'base64') ? 'auto' : originalIconType);
@@ -83,6 +110,11 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
         DOM.bookmarkInputUrl.value = '';
         DOM.bookmarkInputDesc.value = '';
         if (DOM.bookmarkInputTags) DOM.bookmarkInputTags.value = '';
+        if (DOM.bookmarkItemType) DOM.bookmarkItemType.value = 'bookmark';
+        if (DOM.bookmarkComponentType) DOM.bookmarkComponentType.value = 'cpu';
+        if (DOM.componentTypeGroup) DOM.componentTypeGroup.style.display = 'none';
+        if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = 'none';
+        DOM.bookmarkOnlyFields?.forEach(el => el.style.display = 'block');
         state.setCurrentIconType('auto');
         state.setCurrentIconData('');
         DOM.bookmarkInputEmoji.value = '';
@@ -158,18 +190,32 @@ export async function saveBookmark() {
     const description = DOM.bookmarkInputDesc.value.trim();
     const category_id = DOM.bookmarkInputCategory.value;
     const item_type = DOM.bookmarkItemType ? DOM.bookmarkItemType.value : 'bookmark';
-    const component_type = item_type === 'component' ? DOM.bookmarkComponentType.value : null;
+    const selectedComponentType = item_type === 'component' ? DOM.bookmarkComponentType.value : null;
+    const selectedServerId = selectedComponentType === 'server' ? (DOM.bookmarkServerId?.value || '') : '';
+    const component_type = selectedComponentType === 'server' ? `server:${selectedServerId}` : selectedComponentType;
 
     if (!name) { alert('请填写名称'); return; }
     if (item_type === 'bookmark' && !url) { alert('请填写网址'); return; }
+    if (item_type === 'component' && selectedComponentType === 'server' && !selectedServerId) {
+        alert('请选择要监控的服务器。请先在设置 → 系统监控中添加服务器资料。');
+        return;
+    }
 
     let icon_type = state.currentIconType;
     let icon_data = '';
     let icon = '🌐';
 
     if (item_type === 'component') {
-        const componentIcons = { cpu: '💻', memory: '📊', disk: '💾', servers: '🛰️' };
-        icon = componentIcons[component_type] || '📊';
+        const componentIcons = { cpu: '💻', memory: '📊', disk: '💾', server: '🖥️' };
+        if (selectedComponentType === 'server') {
+            const serverConfig = findMonitorServerConfig(selectedServerId);
+            icon = '🖥️';
+            if (serverConfig && DOM.bookmarkInputName.value.trim() === '服务器监控') {
+                DOM.bookmarkInputName.value = `${serverConfig.name || serverConfig.id} 监控`;
+            }
+        } else {
+            icon = componentIcons[selectedComponentType] || '📊';
+        }
         icon_type = 'emoji';
         icon_data = icon;
     } else if (state.currentIconType === 'library') {
@@ -219,12 +265,13 @@ export async function saveBookmark() {
     }
 
     try {
+        const nameForSave = DOM.bookmarkInputName.value.trim();
         const res = await fetch(`${state.API_BASE}/api/bookmarks`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 id: state.editingBookmarkId,
-                category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type
+                category_id, name: nameForSave, url, description, icon, icon_type, icon_data, item_type, component_type
             })
         });
         const result = await res.json().catch(() => null);
@@ -297,7 +344,7 @@ export function toggleBookmarkSorting(categoryId) {
 export function enableBookmarkDrag(grid, _categoryId) {
     let draggedItem = null;
 
-    const cards = grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-grid');
+    const cards = grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-slot');
     cards.forEach(card => {
         card.draggable = true;
 
@@ -331,7 +378,7 @@ export function enableBookmarkDrag(grid, _categoryId) {
 export async function saveBookmarkOrder(categoryId) {
     const section = document.querySelector(`.category-section[data-category-id="${categoryId}"]`);
     const grid = section.querySelector('.bookmarks-grid');
-    const cards = grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-grid');
+    const cards = grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-slot');
 
     const order = Array.from(cards).map((card, index) => ({
         id: card.dataset.id,

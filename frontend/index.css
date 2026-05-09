@@ -1493,13 +1493,13 @@ body {
 
 .bookmarks-grid.sorting-mode .bookmark-card,
 .bookmarks-grid.sorting-mode .component-card,
-.bookmarks-grid.sorting-mode .server-monitor-grid {
+.bookmarks-grid.sorting-mode .server-monitor-slot {
     cursor: grab;
 }
 
 .bookmarks-grid.sorting-mode .bookmark-card.dragging,
 .bookmarks-grid.sorting-mode .component-card.dragging,
-.bookmarks-grid.sorting-mode .server-monitor-grid.dragging {
+.bookmarks-grid.sorting-mode .server-monitor-slot.dragging {
     opacity: 0.5;
     cursor: grabbing;
 }
@@ -1764,13 +1764,12 @@ body {
     transition: width 0.5s ease, background-color 0.3s ease;
 }
 
-.server-monitor-grid {
+.server-monitor-slot {
     position: relative;
-    grid-column: 1 / -1;
-    width: 100%;
+    min-width: 0;
 }
 
-.server-monitor-grid > .bookmark-actions {
+.server-monitor-slot > .bookmark-actions {
     position: absolute;
     top: -10px;
     right: 0;
@@ -1779,21 +1778,30 @@ body {
     z-index: 2;
 }
 
-.server-monitor-grid:hover > .bookmark-actions {
+.server-monitor-slot:hover > .bookmark-actions {
     opacity: 1;
 }
 
-.server-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: var(--spacing-md);
+.server-card-mount {
     width: 100%;
 }
 
 .server-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-lg);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all var(--transition-normal);
     align-items: stretch;
     min-width: 0;
     gap: var(--spacing-sm);
+    width: 100%;
+    min-height: 220px;
 }
 
 .server-card.offline {
@@ -1904,20 +1912,54 @@ body {
     gap: var(--spacing-sm);
 }
 
-.monitor-server-config {
-    display: grid;
-    grid-template-columns: 74px 1fr 1fr 1fr 1fr auto;
-    gap: var(--spacing-sm);
+.monitor-server-config.compact {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-md);
     align-items: center;
-    padding: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
     background: rgba(255, 255, 255, 0.04);
 }
 
-.monitor-enabled {
-    justify-content: flex-start;
-    white-space: nowrap;
+.monitor-server-summary {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.monitor-server-summary span {
+    color: var(--text-tertiary);
+    font-size: 0.78rem;
+    word-break: break-all;
+}
+
+.monitor-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-md);
+}
+
+.monitor-token-field,
+.monitor-endpoint-field {
+    grid-column: 1 / -1;
+}
+
+.monitor-command {
+    margin: 0;
+    padding: var(--spacing-md);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 220px;
+    overflow: auto;
+    font-size: 0.78rem;
+    line-height: 1.5;
 }
 
 .monitor-actions {
@@ -1926,26 +1968,24 @@ body {
 }
 
 @media (max-width: 720px) {
-    .server-monitor-grid {
-        grid-column: 1 / -1;
-    }
-
-    .server-cards {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-sm);
-    }
-
     .server-card {
         padding: var(--spacing-md);
         gap: 8px;
+        min-height: 0;
     }
 
     .server-metrics {
         font-size: 0.72rem;
     }
 
-    .monitor-server-config {
+    .monitor-form-grid {
         grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+
+    .monitor-server-config.compact {
+        align-items: stretch;
+        flex-direction: column;
     }
 }
 

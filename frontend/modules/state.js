@@ -23,6 +23,7 @@ export let collapsedCategories = new Set();
 export let aiStatus = { enabled: false, provider: null, model: null, note: null };
 export let sortingCategory = null;
 export let personalizationConfig = undefined;
+export let monitorServerConfigs = [];
 export let editingTodoId = null;
 export let todoShowCompleted = true; // 是否显示已完成区域
 
@@ -67,6 +68,7 @@ export function setAiLastActionAt(val) { aiLastActionAt = val; }
 export function setAiStatus(val) { aiStatus = val; }
 export function setSortingCategory(val) { sortingCategory = val; }
 export function setPersonalizationConfig(val) { personalizationConfig = val; }
+export function setMonitorServerConfigs(val) { monitorServerConfigs = Array.isArray(val) ? val : []; }
 export function setEditingTodoId(val) { editingTodoId = val; }
 export function setTodoShowCompleted(val) { todoShowCompleted = val; }
 export function setIsLoadingIcons(val) { isLoadingIcons = val; }

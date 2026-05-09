@@ -10,7 +10,7 @@ import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmar
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
 import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl } from './favicon.js';
-import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme, addMonitorServerRow, saveMonitorServers } from './settings.js';
+import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme, registerMonitorServer, generateMonitorInstallCommand, renderBookmarkServerOptions } from './settings.js';
 import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
 import { saveAiClientSettingsFromUi, clearAiClientSettings } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
@@ -109,19 +109,31 @@ export function bindAllEvents() {
     DOM.selectFromLibraryBtn.addEventListener('click', toggleEngineIconLibrary);
 
     if (DOM.bookmarkItemType) {
-        DOM.bookmarkItemType.addEventListener('change', () => {
+        const syncComponentForm = () => {
             const isComponent = DOM.bookmarkItemType.value === 'component';
+            const isServer = isComponent && DOM.bookmarkComponentType.value === 'server';
             DOM.componentTypeGroup.style.display = isComponent ? 'block' : 'none';
+            if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = isServer ? 'block' : 'none';
             DOM.bookmarkOnlyFields.forEach(el => el.style.display = isComponent ? 'none' : 'block');
             if (isComponent) {
-                const componentLabels = { cpu: 'CPU 使用率', memory: '内存使用', disk: '磁盘使用', servers: '服务器监控' };
-                DOM.bookmarkInputName.value = componentLabels[DOM.bookmarkComponentType.value] || '';
+                const componentLabels = { cpu: 'CPU 使用率', memory: '内存使用', disk: '磁盘使用', server: '服务器监控' };
+                if (isServer) {
+                    renderBookmarkServerOptions();
+                    const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId?.value);
+                    DOM.bookmarkInputName.value = selected ? `${selected.name || selected.id} 监控` : '服务器监控';
+                } else {
+                    DOM.bookmarkInputName.value = componentLabels[DOM.bookmarkComponentType.value] || '';
+                }
             }
-        });
-        DOM.bookmarkComponentType.addEventListener('change', () => {
-            const componentLabels = { cpu: 'CPU 使用率', memory: '内存使用', disk: '磁盘使用', servers: '服务器监控' };
-            DOM.bookmarkInputName.value = componentLabels[DOM.bookmarkComponentType.value] || '';
-        });
+        };
+        DOM.bookmarkItemType.addEventListener('change', syncComponentForm);
+        DOM.bookmarkComponentType.addEventListener('change', syncComponentForm);
+        if (DOM.bookmarkServerId) {
+            DOM.bookmarkServerId.addEventListener('change', () => {
+                const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId.value);
+                if (selected) DOM.bookmarkInputName.value = `${selected.name || selected.id} 监控`;
+            });
+        }
     }
 
     DOM.bookmarkInputUrl.addEventListener('blur', fetchFavicon);
@@ -165,8 +177,8 @@ export function bindAllEvents() {
 
     if (DOM.aiSaveSettingsBtn) DOM.aiSaveSettingsBtn.addEventListener('click', saveAiClientSettingsFromUi);
     if (DOM.aiClearSettingsBtn) DOM.aiClearSettingsBtn.addEventListener('click', clearAiClientSettings);
-    if (DOM.monitorAddServerBtn) DOM.monitorAddServerBtn.addEventListener('click', addMonitorServerRow);
-    if (DOM.monitorSaveServersBtn) DOM.monitorSaveServersBtn.addEventListener('click', saveMonitorServers);
+    if (DOM.monitorRegisterServerBtn) DOM.monitorRegisterServerBtn.addEventListener('click', registerMonitorServer);
+    if (DOM.monitorGenerateInstallBtn) DOM.monitorGenerateInstallBtn.addEventListener('click', generateMonitorInstallCommand);
 
     DOM.settingsTabs.forEach(tab => {
         tab.addEventListener('click', () => {
