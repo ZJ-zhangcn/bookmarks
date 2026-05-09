@@ -65,13 +65,31 @@ function isPrivateOrLocalAddress(hostname) {
     return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80;
 }
 
+const PREFER_PROXY_HOSTS = [
+    'grok.com',
+    'github.com',
+    'githubusercontent.com',
+    'google.com',
+    'huggingface.co',
+    'zhihu.com',
+    'tool.lu',
+    'leaflow.net',
+    'the-x.cn'
+];
+
+function shouldPreferProxyHost(hostname) {
+    const host = String(hostname || '').toLowerCase();
+    return PREFER_PROXY_HOSTS.some(domain => host === domain || host.endsWith('.' + domain));
+}
+
 function shouldUseProxyUrlForIcon(url, pageProtocol = 'https:') {
     const safeUrl = toSafeExternalUrl(url);
     if (safeUrl === '#') return false;
     try {
         const parsed = new URL(safeUrl);
         if (isPrivateOrLocalAddress(parsed.hostname)) return false;
-        return pageProtocol === 'https:' && parsed.protocol === 'http:';
+        if (pageProtocol === 'https:' && parsed.protocol === 'http:') return true;
+        return shouldPreferProxyHost(parsed.hostname);
     } catch {
         return false;
     }

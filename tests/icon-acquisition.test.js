@@ -79,7 +79,8 @@ test('saved icon display prefers direct URL and only proxies public HTTP mixed-c
     assert.equal(isPrivateOrLocalAddress('192.168.1.10'), true);
     assert.equal(isPrivateOrLocalAddress('::'), true);
     assert.equal(isPrivateOrLocalAddress('::ffff:192.168.1.1'), true);
-    assert.equal(shouldUseProxyUrlForIcon('https://github.com/favicon.ico', 'https:'), false);
+    assert.equal(shouldUseProxyUrlForIcon('https://github.com/favicon.ico', 'https:'), true);
+    assert.equal(shouldUseProxyUrlForIcon('https://qn11.tool.lu/201711/08/002819v0Gaydtvy2P4y03G_144x144.png', 'https:'), true);
     assert.equal(shouldUseProxyUrlForIcon('http://192.168.1.10/favicon.ico', 'https:'), false);
     assert.equal(shouldUseProxyUrlForIcon('http://127.0.0.2/favicon.ico', 'https:'), false);
     assert.equal(shouldUseProxyUrlForIcon('http://example.com/favicon.ico', 'https:'), true);

@@ -262,5 +262,5 @@ export function toSafeImageUrl(url, options = {}) {
 }
 
 export function toPreferredIconImageUrl(url) {
-    return toSafeImageUrl(url, { preferProxyHosts: false });
+    return toSafeImageUrl(url, { preferProxyHosts: true });
 }
