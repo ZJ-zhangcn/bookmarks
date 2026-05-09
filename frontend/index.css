@@ -1767,6 +1767,15 @@ body {
 .server-monitor-slot {
     position: relative;
     min-width: 0;
+    grid-column: span 2;
+    height: 100%;
+    display: flex;
+}
+
+@media (min-width: 1280px) {
+    .server-monitor-slot {
+        grid-column: span 2;
+    }
 }
 
 .server-monitor-slot > .bookmark-actions {
@@ -1784,13 +1793,15 @@ body {
 
 .server-card-mount {
     width: 100%;
+    display: flex;
+    height: 100%;
 }
 
 .server-card {
     position: relative;
     display: flex;
     flex-direction: column;
-    padding: var(--spacing-lg);
+    padding: 1.35rem 1.4rem;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
@@ -1799,9 +1810,10 @@ body {
     transition: all var(--transition-normal);
     align-items: stretch;
     min-width: 0;
-    gap: var(--spacing-sm);
+    gap: 0.9rem;
     width: 100%;
-    min-height: 220px;
+    min-height: 260px;
+    height: 100%;
 }
 
 .server-card.offline {
@@ -1819,9 +1831,16 @@ body {
     justify-content: flex-end;
 }
 
+.server-card-title-row {
+    align-items: flex-start;
+}
+
 .server-card-title-row .component-icon {
     margin-bottom: 0;
-    font-size: 1.6rem;
+    font-size: 1.85rem;
+    width: 3rem;
+    height: 3rem;
+    flex: 0 0 3rem;
 }
 
 .server-meta,
@@ -1849,8 +1868,10 @@ body {
 }
 
 .server-name {
-    font-weight: 700;
+    font-weight: 750;
     color: var(--text-primary);
+    font-size: 1.08rem;
+    line-height: 1.25;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1862,33 +1883,36 @@ body {
 }
 
 .server-metrics {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--spacing-xs);
-    margin: var(--spacing-xs) 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0.15rem 0 0;
     color: var(--text-secondary);
-    font-size: 0.75rem;
+    font-size: 0.78rem;
 }
 
 .server-metrics span {
-    display: inline-flex;
+    display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0.18rem;
+    min-width: 0;
 }
 
 .server-metrics b {
     color: var(--text-primary);
+    font-size: 1.12rem;
+    line-height: 1.1;
 }
 
 .server-bars {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    margin-bottom: var(--spacing-xs);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.1rem;
 }
 
 .server-mini-bar {
-    height: 4px;
+    height: 6px;
     border-radius: 999px;
     overflow: hidden;
     background: rgba(255, 255, 255, 0.1);
@@ -1968,14 +1992,34 @@ body {
 }
 
 @media (max-width: 720px) {
+    .server-monitor-slot {
+        grid-column: 1 / -1;
+    }
+
     .server-card {
         padding: var(--spacing-md);
-        gap: 8px;
-        min-height: 0;
+        gap: 0.75rem;
+        min-height: 240px;
+    }
+
+    .server-card-title-row .component-icon {
+        width: 2.6rem;
+        height: 2.6rem;
+        flex-basis: 2.6rem;
+        font-size: 1.6rem;
     }
 
     .server-metrics {
-        font-size: 0.72rem;
+        font-size: 0.74rem;
+        gap: 0.55rem;
+    }
+
+    .server-metrics b {
+        font-size: 1rem;
+    }
+
+    .server-bars {
+        gap: 0.55rem;
     }
 
     .monitor-form-grid {
