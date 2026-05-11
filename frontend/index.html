@@ -469,61 +469,31 @@
             <div class="settings-container">
                 <!-- 左侧标签栏 -->
                 <div class="settings-sidebar">
-                    <button class="settings-tab active" data-tab="general">
+                    <button class="settings-tab active" data-tab="common">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3" />
-                            <path
-                                d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+                            <path d="M3 12h18M3 6h18M3 18h18" />
                         </svg>
-                        <span>常规设置</span>
-                    </button>
-                    <button class="settings-tab" data-tab="personalization">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-                        </svg>
-                        <span>个性化</span>
-                    </button>
-                    <button class="settings-tab" data-tab="categories">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                        </svg>
-                        <span>分类管理</span>
-                    </button>
-                    <button class="settings-tab" data-tab="icons">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <path d="M21 15l-5-5L5 21" />
-                        </svg>
-                        <span>图标库</span>
-                    </button>
-                    <button class="settings-tab" data-tab="monitor">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 3v18h18" />
-                            <path d="M7 14l3-3 3 2 4-6" />
-                        </svg>
-                        <span>系统监控</span>
+                        <span>常用</span>
                     </button>
                     <button class="settings-tab" data-tab="sync">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path
-                                d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
                         </svg>
                         <span>数据同步</span>
                     </button>
-                    <button class="settings-tab" data-tab="about">
+                    <button class="settings-tab" data-tab="advanced">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M12 16v-4M12 8h.01" />
+                            <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z" />
+                            <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.8 1.8 0 0 0 15 19.4a1.8 1.8 0 0 0-1 .6 1.8 1.8 0 0 0-.5 1.27V21a2 2 0 1 1-4 0v-.09A1.8 1.8 0 0 0 8 19.4a1.8 1.8 0 0 0-1.98.36l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.8 1.8 0 0 0 4.6 15a1.8 1.8 0 0 0-.6-1 1.8 1.8 0 0 0-1.27-.5H2.6a2 2 0 1 1 0-4h.09A1.8 1.8 0 0 0 4.6 8a1.8 1.8 0 0 0-.36-1.98l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.8 1.8 0 0 0 9 4.6c.35-.14.69-.34 1-.6a1.8 1.8 0 0 0 .5-1.27V2.6a2 2 0 1 1 4 0v.09A1.8 1.8 0 0 0 16 4.6c.35.14.69.34 1 .6l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.8 1.8 0 0 0 19.4 9c.14.35.34.69.6 1a1.8 1.8 0 0 0 1.27.5h.13a2 2 0 1 1 0 4h-.09a1.8 1.8 0 0 0-1.91.5z" />
                         </svg>
-                        <span>关于</span>
+                        <span>高级</span>
                     </button>
                 </div>
 
                 <!-- 右侧内容区 -->
                 <div class="settings-content">
                     <!-- 常规设置 -->
-                    <div class="settings-panel active" data-panel="general">
+                    <div class="settings-panel active" data-panel="general" data-setting-group="common">
                         <h4 class="panel-title">常规设置</h4>
                         <div class="setting-card">
                             <div class="setting-row">
@@ -540,7 +510,7 @@
                     </div>
 
                     <!-- 个性化 -->
-                    <div class="settings-panel" data-panel="personalization">
+                    <div class="settings-panel active" data-panel="personalization" data-setting-group="common">
                         <h4 class="panel-title">个性化设置</h4>
                         <div class="setting-card">
                             <h5 class="card-subtitle">LOGO</h5>
@@ -624,7 +594,7 @@
                     </div>
 
                     <!-- 分类管理 -->
-                    <div class="settings-panel" data-panel="categories">
+                    <div class="settings-panel active" data-panel="categories" data-setting-group="common">
                         <h4 class="panel-title">分类管理</h4>
                         <div class="panel-actions">
                             <button class="btn btn-primary" id="addCategoryBtn">+ 添加分类</button>
@@ -633,7 +603,7 @@
                     </div>
 
                     <!-- 图标库 -->
-                    <div class="settings-panel" data-panel="icons">
+                    <div class="settings-panel" data-panel="icons" data-setting-group="advanced">
                         <h4 class="panel-title">图标库</h4>
                         <div class="info-box">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -694,7 +664,7 @@
                     </div>
 
                     <!-- 系统监控 -->
-                    <div class="settings-panel" data-panel="monitor">
+                    <div class="settings-panel" data-panel="monitor" data-setting-group="advanced">
                         <h4 class="panel-title">系统监控</h4>
                         <div class="info-box">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -751,7 +721,7 @@
                     </div>
 
                     <!-- 数据同步 -->
-                    <div class="settings-panel" data-panel="sync">
+                    <div class="settings-panel" data-panel="sync" data-setting-group="sync">
                         <h4 class="panel-title">数据同步</h4>
                         <div class="setting-card">
                             <h5 class="card-subtitle">📦 本地导入导出</h5>
@@ -859,7 +829,7 @@
 	                    </div>
 
                     <!-- 关于 -->
-                    <div class="settings-panel" data-panel="about">
+                    <div class="settings-panel" data-panel="about" data-setting-group="advanced">
                         <h4 class="panel-title">关于</h4>
                         <div class="about-card">
                             <div class="about-logo">🔖</div>
