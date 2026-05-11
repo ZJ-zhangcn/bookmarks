@@ -10,6 +10,9 @@ import { preloadImage, toSafeImageUrl, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { getMonitorServerConfigs } from './monitor.js';
 import { showToast, showConfirm, showPrompt } from './ux.js';
+import webdavHelpers from './webdav-helpers.cjs';
+
+const { buildWebdavStatusPanel } = webdavHelpers;
 
 function buildMonitorEndpoint(origin = '', apiBase = '') {
     const base = String(apiBase || '').trim();
@@ -473,7 +476,7 @@ export function saveWebdavSettings() {
     localStorage.setItem('webdavUser', DOM.webdavUser.value);
     localStorage.setItem('webdavPass', DOM.webdavPass.value);
     localStorage.setItem('webdavPath', DOM.webdavPath.value);
-    showWebdavStatus('设置已保存', 'success');
+    showWebdavStatus('设置已保存', 'success', { operation: '保存设置', includeIcons: DOM.includeIconsWebdav?.checked ?? true });
 }
 
 export async function webdavUpload() {
@@ -483,10 +486,10 @@ export async function webdavUpload() {
     const filePath = DOM.webdavPath.value.trim();
     const includeIcons = DOM.includeIconsWebdav?.checked ?? true;
 
-    if (!url || !user || !pass) { showWebdavStatus('请填写完整配置', 'error'); return; }
+    if (!url || !user || !pass) { showWebdavStatus('请填写完整配置', 'error', { operation: '上传', path: filePath, includeIcons }); return; }
 
     try {
-        showWebdavStatus('正在上传...', 'success');
+        showWebdavStatus('正在上传...', 'info', { operation: '上传', path: filePath, includeIcons });
         const exportRes = await fetch(`${state.API_BASE}/api/data?includeIcons=${includeIcons}`);
         const data = await exportRes.json();
 
@@ -498,12 +501,12 @@ export async function webdavUpload() {
 
         const result = await response.json();
         if (result.success) {
-            showWebdavStatus('上传成功！' + (includeIcons ? '' : '（不含图标）'), 'success');
+            showWebdavStatus('上传成功！' + (includeIcons ? '' : '（不含图标）'), 'success', { operation: '上传', path: filePath, includeIcons });
         } else {
-            showWebdavStatus(result.error || '上传失败', 'error');
+            showWebdavStatus(result.error || '上传失败', 'error', { operation: '上传', path: filePath, includeIcons });
         }
     } catch (err) {
-        showWebdavStatus('上传错误: ' + err.message, 'error');
+        showWebdavStatus('上传错误: ' + err.message, 'error', { operation: '上传', path: filePath, includeIcons });
     }
 }
 
@@ -512,11 +515,12 @@ export async function webdavDownload() {
     const user = DOM.webdavUser.value.trim();
     const pass = DOM.webdavPass.value;
     const filePath = DOM.webdavPath.value.trim();
+    const includeIcons = DOM.includeIconsWebdav?.checked ?? true;
 
-    if (!url || !user || !pass) { showWebdavStatus('请填写完整配置', 'error'); return; }
+    if (!url || !user || !pass) { showWebdavStatus('请填写完整配置', 'error', { operation: '下载', path: filePath, includeIcons }); return; }
 
     try {
-        showWebdavStatus('正在下载...', 'success');
+        showWebdavStatus('正在下载...', 'info', { operation: '下载', path: filePath, includeIcons });
 
         const response = await fetch(`${state.API_BASE}/api/webdav?action=download`, {
             method: 'POST',
@@ -535,19 +539,37 @@ export async function webdavDownload() {
             renderAll();
             await loadPersonalization();
             refreshIconLibraryCache();
-            showWebdavStatus('下载成功！', 'success');
+            showWebdavStatus('下载成功！', 'success', { operation: '下载', path: filePath, includeIcons });
         } else {
-            showWebdavStatus(result.error || '下载失败', 'error');
+            showWebdavStatus(result.error || '下载失败', 'error', { operation: '下载', path: filePath, includeIcons });
         }
     } catch (err) {
-        showWebdavStatus('下载错误: ' + err.message, 'error');
+        showWebdavStatus('下载错误: ' + err.message, 'error', { operation: '下载', path: filePath, includeIcons });
     }
 }
 
-export function showWebdavStatus(msg, type) {
-    DOM.webdavStatus.textContent = msg;
+function getWebdavMeta(operation, message, status) {
+    return {
+        status,
+        operation,
+        path: DOM.webdavPath?.value.trim() || '',
+        includeIcons: DOM.includeIconsWebdav?.checked ?? true,
+        message,
+        at: new Date().toISOString()
+    };
+}
+
+export function showWebdavStatus(msg, type = 'info', details = {}) {
+    if (!DOM.webdavStatus) return;
+    const meta = {
+        ...getWebdavMeta(details.operation || '同步', msg, type),
+        ...details,
+        status: type,
+        message: msg,
+        at: details.at || new Date().toISOString()
+    };
+    DOM.webdavStatus.innerHTML = buildWebdavStatusPanel(meta);
     DOM.webdavStatus.className = 'webdav-status ' + type;
-    setTimeout(() => { DOM.webdavStatus.className = 'webdav-status'; }, 5000);
 }
 
 export async function exportConfig() {

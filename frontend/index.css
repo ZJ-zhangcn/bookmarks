@@ -3607,22 +3607,62 @@ input:checked+.slider:before {
 
 .webdav-status {
     margin-top: var(--spacing-md);
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: 0;
     font-size: 0.85rem;
     border-radius: var(--radius-sm);
     display: none;
 }
 
-.webdav-status.success {
+.webdav-status.success,
+.webdav-status.error,
+.webdav-status.info {
     display: block;
-    background: hsla(120, 100%, 40%, 0.15);
-    color: hsl(120, 100%, 60%);
 }
 
-.webdav-status.error {
-    display: block;
-    background: hsla(0, 100%, 50%, 0.15);
-    color: hsl(0, 100%, 65%);
+.webdav-status-panel {
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.webdav-status-panel.success {
+    border-color: hsla(120, 100%, 40%, 0.45);
+    background: hsla(120, 100%, 40%, 0.12);
+}
+
+.webdav-status-panel.error {
+    border-color: hsla(0, 100%, 50%, 0.45);
+    background: hsla(0, 100%, 50%, 0.12);
+}
+
+.webdav-status-panel.info {
+    border-color: hsla(210, 100%, 60%, 0.45);
+    background: hsla(210, 100%, 60%, 0.12);
+}
+
+.webdav-status-main {
+    color: var(--text-primary);
+    font-weight: 700;
+    margin-bottom: var(--spacing-sm);
+}
+
+.webdav-status-grid {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.35rem var(--spacing-md);
+    align-items: center;
+}
+
+.webdav-status-grid span {
+    color: var(--text-muted);
+}
+
+.webdav-status-grid strong {
+    color: var(--text-secondary);
+    word-break: break-all;
+    font-weight: 600;
 }
 
 /* ========================================
