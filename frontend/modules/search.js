@@ -4,6 +4,10 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 import { highlightText, escapeHtml, escapeHtmlAttribute, toSafeDataImageUrl, toSafeExternalUrl, toPreferredIconImageUrl, bindImageFallbacks } from './utils.js';
+import searchHelpers from './search-helpers.cjs';
+import { openBookmarkModal } from './bookmark.js';
+
+const { buildSearchEmptyState } = searchHelpers;
 
 export function openBookmarkSearch() {
     DOM.bookmarkSearchOverlay.classList.add('open');
@@ -38,7 +42,16 @@ export function handleBookmarkSearch() {
     });
 
     if (results.length === 0) {
-        DOM.bookmarkSearchResults.innerHTML = '<div class="search-no-results">没有找到匹配的书签</div>';
+        DOM.bookmarkSearchResults.innerHTML = buildSearchEmptyState(searchTerm);
+        DOM.bookmarkSearchResults.querySelector('[data-action="add-bookmark"]')?.addEventListener('click', () => {
+            closeBookmarkSearch();
+            openBookmarkModal();
+            if (DOM.bookmarkInputName && !DOM.bookmarkInputName.value) DOM.bookmarkInputName.value = searchTerm;
+        });
+        DOM.bookmarkSearchResults.querySelector('[data-action="web-search"]')?.addEventListener('click', () => {
+            const engineUrl = state.currentEngine?.url || 'https://www.google.com/search?q=';
+            window.open(engineUrl + encodeURIComponent(searchTerm), '_blank');
+        });
         return;
     }
 
