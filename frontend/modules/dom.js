@@ -20,6 +20,7 @@ export function cacheDOMElements() {
         confirmAccept: document.getElementById('confirmAccept'),
         confirmCancel: document.getElementById('confirmCancel'),
         bookmarksContainer: document.getElementById('bookmarksContainer'),
+        bookmarkInsights: document.getElementById('bookmarkInsights'),
         emptyState: document.getElementById('emptyState'),
         emptyAddBookmark: document.getElementById('emptyAddBookmark'),
         emptyAddCategory: document.getElementById('emptyAddCategory'),

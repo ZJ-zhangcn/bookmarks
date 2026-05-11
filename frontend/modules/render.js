@@ -9,6 +9,7 @@ import { findMonitorServerConfig, parseServerComponentType } from './monitor.js'
 import { observeBookmarkIcons } from './api.js';
 import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { buildCategorySheetItems, buildCategoryFabLabel } from './ux.js';
+import { renderBookmarkInsights } from './insights.js';
 
 export function renderAll() {
     renderCategoryNav();
@@ -44,6 +45,15 @@ export function updateCategoryQuickLabel() {
 export function renderBookmarks() {
     const searchTerm = state.currentSearch.toLowerCase().trim();
     const isSearchMode = !!searchTerm;
+    renderBookmarkInsights({
+        container: DOM.bookmarkInsights,
+        bookmarks: state.currentCategory === 'all'
+            ? state.bookmarks
+            : state.bookmarks.filter(item => item.category_id === state.currentCategory)
+    });
+    if (DOM.bookmarkInsights) {
+        DOM.bookmarkInsights.style.display = (!isSearchMode && state.currentCategory === 'all' && DOM.bookmarkInsights.innerHTML.trim()) ? '' : 'none';
+    }
     let hasResults = false;
 
     // 不再清空整个容器：DOM.bookmarksContainer.innerHTML = '';
