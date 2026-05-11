@@ -4764,3 +4764,24 @@ select:focus {
 .bookmark-stats {
     margin-top: 0.35rem;
 }
+.mobile-sort-toolbar {
+    display: none;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin: -0.25rem 0 var(--spacing-md);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.bookmarks-grid.sorting-mode .sort-selected {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .mobile-sort-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+    }
+}

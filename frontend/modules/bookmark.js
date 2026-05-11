@@ -11,6 +11,9 @@ import { refreshIconLibraryCache } from './icon-library.js';
 import { findMonitorServerConfig, parseServerComponentType } from './monitor.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 import { showToast, showConfirm, showPrompt } from './ux.js';
+import sortHelpers from './sort-helpers.cjs';
+
+const { moveItemInList } = sortHelpers;
 
 function renderBookmarkServerOptionsInline(selectedServerId = '') {
     const servers = Array.isArray(state.monitorServerConfigs) ? state.monitorServerConfigs : [];
@@ -357,6 +360,7 @@ export function toggleBookmarkSorting(categoryId) {
 
     const grid = section.querySelector('.bookmarks-grid');
     const sortBtn = section.querySelector('.sort-btn');
+    const moveToolbar = section.querySelector('.mobile-sort-toolbar');
 
     if (state.sortingCategory === categoryId) {
         state.setSortingCategory(null);
@@ -364,6 +368,7 @@ export function toggleBookmarkSorting(categoryId) {
         sortBtn.classList.remove('active');
         const saveBtn = section.querySelector('.save-sort-btn');
         if (saveBtn) saveBtn.remove();
+        if (moveToolbar) moveToolbar.remove();
     } else {
         state.setSortingCategory(categoryId);
         grid.classList.add('sorting-mode');
@@ -377,9 +382,35 @@ export function toggleBookmarkSorting(categoryId) {
             saveBtn.onclick = () => saveBookmarkOrder(categoryId);
             header.insertAdjacentElement('afterend', saveBtn);
         }
+        if (!section.querySelector('.mobile-sort-toolbar')) {
+            const toolbar = document.createElement('div');
+            toolbar.className = 'mobile-sort-toolbar';
+            toolbar.innerHTML = '<button type="button" class="btn btn-secondary btn-sm mobile-move-btn" data-direction="-1">↑ 上移</button><button type="button" class="btn btn-secondary btn-sm mobile-move-btn" data-direction="1">↓ 下移</button><span>先点选卡片，再上移/下移</span>';
+            toolbar.addEventListener('click', e => {
+                const btn = e.target.closest('.mobile-move-btn');
+                if (!btn) return;
+                moveSelectedBookmark(grid, Number(btn.dataset.direction));
+            });
+            header.insertAdjacentElement('afterend', toolbar);
+        }
 
         enableBookmarkDrag(grid, categoryId);
     }
+}
+
+export function moveSelectedBookmark(grid, direction) {
+    const cards = Array.from(grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-slot'));
+    const selectedIndex = cards.findIndex(card => card.classList.contains('sort-selected'));
+    if (selectedIndex < 0) {
+        showToast('先选择一个书签卡片', 'info');
+        return;
+    }
+    const reordered = moveItemInList(cards, selectedIndex, direction);
+    if (reordered[selectedIndex] === cards[selectedIndex]) return;
+    reordered.forEach(card => grid.appendChild(card));
+    reordered.forEach(card => card.classList.remove('sort-selected'));
+    const newIndex = Math.max(0, Math.min(reordered.length - 1, selectedIndex + direction));
+    reordered[newIndex]?.classList.add('sort-selected');
 }
 
 export function enableBookmarkDrag(grid, _categoryId) {
@@ -388,6 +419,12 @@ export function enableBookmarkDrag(grid, _categoryId) {
     const cards = grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-slot');
     cards.forEach(card => {
         card.draggable = true;
+        card.onclick = (e) => {
+            if (!grid.classList.contains('sorting-mode')) return;
+            e.preventDefault();
+            cards.forEach(item => item.classList.remove('sort-selected'));
+            card.classList.add('sort-selected');
+        };
 
         card.ondragstart = (e) => {
             draggedItem = card;
