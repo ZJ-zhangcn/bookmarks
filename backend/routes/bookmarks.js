@@ -49,6 +49,14 @@ module.exports = function(db) {
         return res.json(success(iconMap));
     }));
 
+    // POST /api/bookmarks/:id/visit
+    router.post('/:id/visit', asyncHandler(async (req, res) => {
+        const { id } = req.params;
+        if (!id) throw new AppError('缺少书签 ID', 400);
+        await bookmarksService.recordBookmarkVisit(db, id);
+        res.json(success());
+    }));
+
     // POST /api/bookmarks (普通创建/更新)
     router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         // 创建/更新书签

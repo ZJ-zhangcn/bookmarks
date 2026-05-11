@@ -117,6 +117,8 @@ async function createTables() {
                     item_type VARCHAR(20) DEFAULT 'bookmark',
                     component_type VARCHAR(50),
                     sort_order INT DEFAULT 0,
+                    visit_count INT DEFAULT 0,
+                    last_visited_at DATETIME NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     INDEX idx_category (category_id),
                     CONSTRAINT fk_bookmarks_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
@@ -212,7 +214,9 @@ async function createTables() {
 
             // 添加可能缺失的列（数据库迁移）
             const alterStatements = [
-                "ALTER TABLE categories ADD COLUMN type VARCHAR(20) DEFAULT 'bookmark'"
+                "ALTER TABLE categories ADD COLUMN type VARCHAR(20) DEFAULT 'bookmark'",
+                "ALTER TABLE bookmarks ADD COLUMN visit_count INT DEFAULT 0",
+                "ALTER TABLE bookmarks ADD COLUMN last_visited_at DATETIME NULL"
             ];
             for (const sql of alterStatements) {
                 try {
@@ -254,6 +258,8 @@ async function createTables() {
                 component_type TEXT,
                 sort_order INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                visit_count INTEGER DEFAULT 0,
+                last_visited_at DATETIME,
                 FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
             );
 
@@ -314,6 +320,8 @@ async function createTables() {
         // 添加可能缺失的列
         try { db.exec('ALTER TABLE bookmarks ADD COLUMN item_type TEXT DEFAULT \'bookmark\''); } catch (e) {}
         try { db.exec('ALTER TABLE bookmarks ADD COLUMN component_type TEXT'); } catch (e) {}
+        try { db.exec('ALTER TABLE bookmarks ADD COLUMN visit_count INTEGER DEFAULT 0'); } catch (e) {}
+        try { db.exec('ALTER TABLE bookmarks ADD COLUMN last_visited_at DATETIME'); } catch (e) {}
         try { db.exec('ALTER TABLE search_engines ADD COLUMN sort_order INTEGER DEFAULT 0'); } catch (e) {}
         try { db.exec('ALTER TABLE categories ADD COLUMN type TEXT DEFAULT \'bookmark\''); } catch (e) {}
 

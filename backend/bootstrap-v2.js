@@ -19,6 +19,7 @@ module.exports = function registerBootstrapV2(app, db) {
                     'category' as row_type, c.id, c.name, c.icon, c.sort_order, c.created_at,
                     NULL as category_id, NULL as url, NULL as description, NULL as icon_type,
                     NULL as icon_data, NULL as item_type, NULL as component_type,
+                    NULL as visit_count, NULL as last_visited_at,
                     NULL as category_name, NULL as category_icon, NULL as tags, NULL as ai_summary
                 FROM categories c
                 UNION ALL
@@ -27,6 +28,7 @@ module.exports = function registerBootstrapV2(app, db) {
                     b.category_id, b.url, b.description, b.icon_type,
                     CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
                     b.item_type, b.component_type,
+                    b.visit_count, b.last_visited_at,
                     c.name as category_name, c.icon as category_icon,
                     ba.tags, ba.summary as ai_summary
                 FROM bookmarks b
@@ -35,7 +37,7 @@ module.exports = function registerBootstrapV2(app, db) {
                 UNION ALL
                 SELECT
                     'engine' as row_type, e.id, e.name, e.icon, e.sort_order, e.created_at,
-                    NULL, e.url, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+                    NULL, e.url, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
                 FROM search_engines e
                 ORDER BY row_type, sort_order, created_at
             `;
@@ -90,6 +92,8 @@ module.exports = function registerBootstrapV2(app, db) {
                         item_type: row.item_type,
                         component_type: row.component_type,
                         sort_order: row.sort_order,
+                        visit_count: row.visit_count || 0,
+                        last_visited_at: row.last_visited_at || null,
                         created_at: row.created_at,
                         category_name: row.category_name,
                         category_icon: row.category_icon,

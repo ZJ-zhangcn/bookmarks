@@ -40,6 +40,7 @@ async function getAllBookmarks(db, { includeIcons = false } = {}) {
         : `SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
                   CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
                   b.item_type, b.component_type, b.sort_order, b.created_at,
+                  b.visit_count, b.last_visited_at,
                   c.name as category_name, c.icon as category_icon
            FROM bookmarks b LEFT JOIN categories c ON b.category_id = c.id
            ORDER BY c.sort_order, b.sort_order, b.created_at`;
@@ -157,6 +158,18 @@ async function sortBookmarks(db, order) {
     });
 }
 
+async function recordBookmarkVisit(db, id) {
+    if (!id) return { changes: 0 };
+    const timestampExpr = isMysql(db) ? 'CURRENT_TIMESTAMP' : 'CURRENT_TIMESTAMP';
+    return db.execute(
+        `UPDATE bookmarks
+         SET visit_count = COALESCE(visit_count, 0) + 1,
+             last_visited_at = ${timestampExpr}
+         WHERE id = ?`,
+        [id]
+    );
+}
+
 module.exports = {
     attachBookmarkAi,
     getAllBookmarks,
@@ -165,5 +178,6 @@ module.exports = {
     getBatchIcons,
     saveBookmark,
     deleteBookmark,
-    sortBookmarks
+    sortBookmarks,
+    recordBookmarkVisit
 };

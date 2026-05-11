@@ -221,6 +221,14 @@ export function createBookmarkCard(item, searchTerm) {
     }
 
     const rawDesc = item.description || '';
+    const visitCount = Number(item.visit_count) || 0;
+    const lastVisited = item.last_visited_at ? new Date(item.last_visited_at) : null;
+    const lastVisitedText = lastVisited && !Number.isNaN(lastVisited.getTime())
+        ? `最后访问 ${lastVisited.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}`
+        : '尚未访问';
+    const statsHtml = visitCount > 0
+        ? `<div class="bookmark-stats" title="${escapeHtmlAttribute(lastVisitedText)}">👁 ${visitCount} · ${escapeHtml(lastVisitedText)}</div>`
+        : '';
     return `
         <a href="${toSafeExternalUrl(item.url)}" class="bookmark-card" target="_blank" rel="noopener" data-id="${escapeHtmlAttribute(item.id)}">
             <div class="bookmark-actions">
@@ -236,6 +244,7 @@ export function createBookmarkCard(item, searchTerm) {
                 <div class="bookmark-name">${name}</div>
                 <div class="bookmark-desc" title="${escapeHtmlAttribute(rawDesc)}">${desc}</div>
                 ${tagsHtml}
+                ${statsHtml}
             </div>
         </a>
     `;

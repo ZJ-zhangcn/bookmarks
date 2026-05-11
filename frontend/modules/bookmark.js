@@ -50,12 +50,28 @@ export function handleBookmarkClick(e) {
     const addBtn = e.target.closest('.header-action-btn.add-btn');
     const sortBtn = e.target.closest('.header-action-btn.sort-btn');
     const collapseBtn = e.target.closest('.collapse-btn');
+    const bookmarkCard = e.target.closest('.bookmark-card[data-id]');
 
     if (collapseBtn) { e.preventDefault(); e.stopPropagation(); toggleCategoryCollapse(collapseBtn.dataset.category); }
     else if (editBtn) { e.preventDefault(); e.stopPropagation(); openBookmarkModal(editBtn.dataset.id); }
     else if (deleteBtn) { e.preventDefault(); e.stopPropagation(); deleteBookmark(deleteBtn.dataset.id); }
     else if (addBtn) { e.preventDefault(); openBookmarkModal(null, addBtn.dataset.category); }
     else if (sortBtn) { e.preventDefault(); toggleBookmarkSorting(sortBtn.dataset.category); }
+    else if (bookmarkCard) { recordBookmarkVisit(bookmarkCard.dataset.id); }
+}
+
+export function recordBookmarkVisit(bookmarkId) {
+    if (!bookmarkId) return;
+    const bookmark = state.bookmarks.find(item => item.id === bookmarkId);
+    if (bookmark) {
+        bookmark.visit_count = (Number(bookmark.visit_count) || 0) + 1;
+        bookmark.last_visited_at = new Date().toISOString();
+    }
+    fetch(`${state.API_BASE}/api/bookmarks/${encodeURIComponent(bookmarkId)}/visit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true
+    }).catch(() => {});
 }
 
 export function openBookmarkModal(bookmarkId = null, categoryId = null) {
