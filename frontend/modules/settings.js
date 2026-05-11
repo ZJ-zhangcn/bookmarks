@@ -352,7 +352,7 @@ export async function applyPersonalization(config, options = {}) {
 
     if (config.wallpaperUrl) {
         const url = String(config.wallpaperUrl || '').trim();
-        const displayUrl = toSafeImageUrl(url);
+        const displayUrl = toSafeImageUrl(url, { preferProxyHosts: false });
         const seq = ++wallpaperLoadSeq;
 
         const blur = config.wallpaperBlur || 0;
