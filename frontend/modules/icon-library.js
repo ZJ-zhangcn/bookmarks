@@ -4,6 +4,7 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 import { toSafeImageUrl, escapeHtmlAttribute, bindImageFallbacks } from './utils.js';
+import { showToast, showConfirm } from './ux.js';
 
 export async function loadIconLibrary(target = 'bookmark') {
     const gridElement = target === 'bookmark' ? DOM.iconLibraryGrid : DOM.engineIconLibraryGrid;
@@ -142,9 +143,13 @@ async function handleIconDelete(iconId, isTemp) {
     if (!iconId) return;
 
     if (isTemp) {
-        if (!confirm('此图标来自书签，删除后将清除使用此图标的书签的图标数据。确定要删除吗？')) {
-            return;
-        }
+        const ok = await showConfirm({
+            title: '删除书签来源图标？',
+            message: '此图标来自书签，删除后将清除使用此图标的书签图标数据。',
+            confirmText: '删除',
+            danger: true
+        });
+        if (!ok) return;
         const item = document.querySelector(`.icon-library-item[data-id="${iconId}"]`);
         if (!item) return;
         const iconData = decodeURIComponent(item.dataset.icon);
@@ -161,15 +166,14 @@ async function handleIconDelete(iconId, isTemp) {
                 await renderIconLibrary();
                 updateBatchDeleteButton();
             } else {
-                alert('删除失败: ' + data.error);
+                showToast('删除失败: ' + data.error, 'error');
             }
         } catch (e) {
-            alert('删除失败: ' + e.message);
+            showToast('删除失败: ' + e.message, 'error');
         }
     } else {
-        if (!confirm('确定要删除此图标吗？')) {
-            return;
-        }
+        const ok = await showConfirm({ title: '删除图标？', message: '确定要删除此图标吗？', confirmText: '删除', danger: true });
+        if (!ok) return;
         state.selectedIcons.delete(iconId);
         await deleteIconFromLibrary(iconId);
         updateBatchDeleteButton();
@@ -238,17 +242,23 @@ export async function deleteIconFromLibrary(iconId) {
             state.selectedIcons.delete(iconId);
             await renderIconLibrary();
         } else {
-            alert('删除失败: ' + data.error);
+            showToast('删除失败: ' + data.error, 'error');
         }
     } catch (e) {
-        alert('删除失败: ' + e.message);
+        showToast('删除失败: ' + e.message, 'error');
     }
 }
 
 export async function batchDeleteIcons() {
     if (state.selectedIcons.size === 0) return;
 
-    if (!confirm(`确定要删除选中的 ${state.selectedIcons.size} 个图标吗？`)) return;
+    const ok = await showConfirm({
+        title: '批量删除图标？',
+        message: `确定要删除选中的 ${state.selectedIcons.size} 个图标吗？`,
+        confirmText: '删除',
+        danger: true
+    });
+    if (!ok) return;
 
     try {
         const realIds = [];
@@ -277,7 +287,7 @@ export async function batchDeleteIcons() {
             const data = await res.json();
             if (!data.success) {
                 hasError = true;
-                alert('删除图标库图标失败: ' + data.error);
+                showToast('删除图标库图标失败: ' + data.error, 'error');
             }
         }
 
@@ -290,7 +300,7 @@ export async function batchDeleteIcons() {
             const data = await res.json();
             if (!data.success) {
                 hasError = true;
-                alert('清除书签图标失败: ' + data.error);
+                showToast('清除书签图标失败: ' + data.error, 'error');
             }
         }
 
@@ -300,7 +310,7 @@ export async function batchDeleteIcons() {
             updateBatchDeleteButton();
         }
     } catch (e) {
-        alert('删除失败: ' + e.message);
+        showToast('删除失败: ' + e.message, 'error');
     }
 }
 
@@ -365,7 +375,7 @@ export function bindIconLibraryManageEvents() {
                 }
                 await renderIconLibrary();
             } catch (err) {
-                alert('上传失败: ' + err.message);
+                showToast('上传失败: ' + err.message, 'error');
             } finally {
                 uploadBtn.disabled = false;
                 uploadBtn.innerHTML = `
@@ -388,7 +398,7 @@ export function bindIconLibraryManageEvents() {
         urlBtn.onclick = async () => {
             const url = urlInput.value.trim();
             if (!url) {
-                alert('请输入图标 URL');
+                showToast('请输入图标 URL', 'warning');
                 return;
             }
 
@@ -400,7 +410,7 @@ export function bindIconLibraryManageEvents() {
                 urlInput.value = '';
                 await renderIconLibrary();
             } catch (err) {
-                alert('添加失败: ' + err.message);
+                showToast('添加失败: ' + err.message, 'error');
             } finally {
                 urlBtn.disabled = false;
                 urlBtn.textContent = '从 URL 添加';

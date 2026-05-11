@@ -8,6 +8,7 @@ import { highlightText, toSafeImageUrl, toPreferredIconImageUrl, escapeHtml, esc
 import { findMonitorServerConfig, parseServerComponentType } from './monitor.js';
 import { observeBookmarkIcons } from './api.js';
 import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
+import { buildCategorySheetItems, buildCategoryFabLabel } from './ux.js';
 
 export function renderAll() {
     renderCategoryNav();
@@ -22,6 +23,7 @@ export function renderCategoryNav() {
     const allBtn = DOM.categoryNav.querySelector('[data-category="all"]');
     DOM.categoryNav.innerHTML = '';
     DOM.categoryNav.appendChild(allBtn);
+    allBtn.classList.toggle('active', state.currentCategory === 'all');
 
     state.categories.forEach(cat => {
         const btn = document.createElement('button');
@@ -30,6 +32,13 @@ export function renderCategoryNav() {
         btn.innerHTML = `<span>${escapeHtml(cat.name)}</span>`;
         DOM.categoryNav.appendChild(btn);
     });
+    updateCategoryQuickLabel();
+}
+
+export function updateCategoryQuickLabel() {
+    if (!DOM.categoryFabLabel) return;
+    const items = buildCategorySheetItems({ categories: state.categories, bookmarks: state.bookmarks });
+    DOM.categoryFabLabel.textContent = buildCategoryFabLabel(items, state.currentCategory);
 }
 
 export function renderBookmarks() {

@@ -7,6 +7,7 @@ import { loadData } from './api.js';
 import { renderEngineDropdown, updateEngineDisplay } from './render.js';
 import { loadIconLibrary } from './icon-library.js';
 import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
+import { showToast, showConfirm } from './ux.js';
 
 export function openEngineModal() {
     renderEngineList();
@@ -89,7 +90,7 @@ export async function saveEngine() {
     }
     icon = icon || '🔍';
 
-    if (!name || !url) { alert('请填写名称和 URL'); return; }
+    if (!name || !url) { showToast('请填写名称和 URL', 'warning'); return; }
 
     try {
         await fetch(`${state.API_BASE}/api/engines`, {
@@ -102,20 +103,23 @@ export async function saveEngine() {
         renderEngineList();
         resetEngineForm();
         DOM.engineIconLibrary.style.display = 'none';
+        showToast('搜索引擎已保存', 'success');
     } catch (e) {
-        alert('保存失败: ' + e.message);
+        showToast('保存失败: ' + e.message, 'error');
     }
 }
 
 export async function deleteEngine(id) {
-    if (!confirm('确定删除？')) return;
+    const ok = await showConfirm({ title: '删除搜索引擎？', message: '删除后将从搜索引擎列表移除。', confirmText: '删除', danger: true });
+    if (!ok) return;
     try {
         await fetch(`${state.API_BASE}/api/engines?id=${id}`, { method: 'DELETE' });
         await loadData();
         renderEngineDropdown();
         renderEngineList();
+        showToast('搜索引擎已删除', 'success');
     } catch (e) {
-        alert('删除失败: ' + e.message);
+        showToast('删除失败: ' + e.message, 'error');
     }
 }
 

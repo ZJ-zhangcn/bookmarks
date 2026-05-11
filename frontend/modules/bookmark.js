@@ -10,6 +10,7 @@ import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } f
 import { refreshIconLibraryCache } from './icon-library.js';
 import { findMonitorServerConfig, parseServerComponentType } from './monitor.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
+import { showToast, showConfirm, showPrompt } from './ux.js';
 
 function renderBookmarkServerOptionsInline(selectedServerId = '') {
     const servers = Array.isArray(state.monitorServerConfigs) ? state.monitorServerConfigs : [];
@@ -151,9 +152,15 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
         loadBookmarkAi(bookmarkId);
     }
 
-    DOM.bookmarkInputCategory.onchange = function () {
+    DOM.bookmarkInputCategory.onchange = async function () {
         if (this.value === '__new__') {
-            const newCatName = prompt('请输入新分类名称：');
+            const newCatName = await showPrompt({
+                title: '新建分类',
+                message: '输入新分类名称，创建后会自动选中。',
+                inputLabel: '分类名称',
+                inputPlaceholder: '例如：开发社区',
+                confirmText: '创建'
+            });
             if (newCatName && newCatName.trim()) {
                 createCategoryForBookmark(newCatName.trim());
             } else {
@@ -209,10 +216,10 @@ export async function saveBookmark() {
     const selectedServerId = selectedComponentType === 'server' ? (DOM.bookmarkServerId?.value || '') : '';
     const component_type = selectedComponentType === 'server' ? `server:${selectedServerId}` : selectedComponentType;
 
-    if (!name) { alert('请填写名称'); return; }
-    if (item_type === 'bookmark' && !url) { alert('请填写网址'); return; }
+    if (!name) { showToast('请填写名称', 'warning'); return; }
+    if (item_type === 'bookmark' && !url) { showToast('请填写网址', 'warning'); return; }
     if (item_type === 'component' && selectedComponentType === 'server' && !selectedServerId) {
-        alert('请选择要监控的服务器。请先在设置 → 系统监控中添加服务器资料。');
+        showToast('请选择要监控的服务器。请先在设置 → 系统监控中添加服务器资料。', 'warning');
         return;
     }
 
@@ -299,24 +306,32 @@ export async function saveBookmark() {
             renderAll();
             refreshIconLibraryCache();
             closeBookmarkModal();
+            showToast('书签已保存', 'success');
         } else {
             const errMsg = result?.error || `HTTP ${res.status}`;
-            alert('保存失败: ' + errMsg);
+            showToast('保存失败: ' + errMsg, 'error');
         }
     } catch (e) {
-        alert('保存失败: ' + e.message);
+        showToast('保存失败: ' + e.message, 'error');
     }
 }
 
 export async function deleteBookmark(id) {
-    if (!confirm('确定删除此书签？')) return;
+    const ok = await showConfirm({
+        title: '删除书签？',
+        message: '删除后将无法从当前页面撤销。',
+        confirmText: '删除',
+        danger: true
+    });
+    if (!ok) return;
 
     try {
         await fetch(`${state.API_BASE}/api/bookmarks?id=${id}`, { method: 'DELETE' });
         await loadData();
         renderAll();
+        showToast('书签已删除', 'success');
     } catch (e) {
-        alert('删除失败: ' + e.message);
+        showToast('删除失败: ' + e.message, 'error');
     }
 }
 
@@ -407,7 +422,7 @@ export async function saveBookmarkOrder(categoryId) {
         await loadData();
         renderAll();
     } catch (e) {
-        alert('保存排序失败: ' + e.message);
+        showToast('保存排序失败: ' + e.message, 'error');
     }
 }
 
@@ -424,7 +439,7 @@ export function handleIconUpload(e) {
 
 export async function handleAiGenerate({ mode }) {
     if (!state.aiStatus || !state.aiStatus.enabled) {
-        alert('AI 功能未启用（建议仅在 Docker 主站开启）');
+        showToast('AI 功能未启用（建议仅在 Docker 主站开启）', 'warning');
         return;
     }
 
@@ -443,7 +458,7 @@ export async function handleAiGenerate({ mode }) {
     const url = DOM.bookmarkInputUrl.value.trim();
     const description = DOM.bookmarkInputDesc.value.trim();
     if (!name && !url) {
-        alert('请先填写名称或网址');
+        showToast('请先填写名称或网址', 'warning');
         return;
     }
 
@@ -493,7 +508,11 @@ export async function handleAiGenerate({ mode }) {
             if (!DOM.bookmarkInputDesc.value) {
                 DOM.bookmarkInputDesc.value = summary;
             } else {
-                const ok = confirm('AI 已生成摘要，是否覆盖当前"描述"？');
+                const ok = await showConfirm({
+                    title: '覆盖描述？',
+                    message: 'AI 已生成摘要，是否覆盖当前“描述”？',
+                    confirmText: '覆盖'
+                });
                 if (ok) DOM.bookmarkInputDesc.value = summary;
             }
         } else if (mode !== 'refine') {
@@ -507,7 +526,11 @@ export async function handleAiGenerate({ mode }) {
             if (!DOM.bookmarkInputTags.value.trim()) {
                 DOM.bookmarkInputTags.value = next;
             } else {
-                const ok = confirm('AI 已生成标签，是否覆盖当前"标签"？');
+                const ok = await showConfirm({
+                    title: '覆盖标签？',
+                    message: 'AI 已生成标签，是否覆盖当前“标签”？',
+                    confirmText: '覆盖'
+                });
                 if (ok) DOM.bookmarkInputTags.value = next;
             }
         }
@@ -517,7 +540,7 @@ export async function handleAiGenerate({ mode }) {
         console.log('[AI] category recommendation:', { recommendedCategory, suggestedNewCategory, allCategories: state.categories.map(c => c.name) });
         showCategoryRecommendations(recommendedCategory, suggestedNewCategory);
     } catch (e) {
-        alert('AI 生成失败: ' + e.message);
+        showToast('AI 生成失败: ' + e.message, 'error');
     } finally {
         state.setAiRequestInFlight(false);
         setAiButtonsDisabled(false);

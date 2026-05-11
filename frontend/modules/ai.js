@@ -3,6 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
+import { showToast } from './ux.js';
 
 export function getAiClientSettings() {
     return {
@@ -28,7 +29,7 @@ export function saveAiClientSettingsFromUi() {
     localStorage.setItem(state.AI_CLIENT_STORAGE.model, DOM.aiModel.value.trim());
     localStorage.setItem(state.AI_CLIENT_STORAGE.provider, DOM.aiProvider.value.trim());
     updateAiSettingsServerHint();
-    alert('AI 设置已保存到当前浏览器');
+    showToast('AI 设置已保存到当前浏览器', 'success');
 }
 
 export function clearAiClientSettings() {
@@ -38,7 +39,7 @@ export function clearAiClientSettings() {
     localStorage.removeItem(state.AI_CLIENT_STORAGE.provider);
     loadAiClientSettingsToUi();
     updateAiSettingsServerHint();
-    alert('AI 设置已清除');
+    showToast('AI 设置已清除', 'success');
 }
 
 export function updateAiSettingsServerHint() {

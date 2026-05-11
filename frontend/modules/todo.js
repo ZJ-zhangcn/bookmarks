@@ -6,6 +6,7 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 import { loadTodos } from './api.js';
 import { renderTodos } from './render.js';
+import { showToast, showConfirm } from './ux.js';
 
 // 拖拽状态
 let draggedTodo = null;
@@ -123,7 +124,7 @@ export function closeTodoModal() {
 export async function saveTodo() {
     const title = DOM.todoInputTitle.value.trim();
     if (!title) {
-        alert('请填写待办标题');
+        showToast('请填写待办标题', 'warning');
         return;
     }
 
@@ -149,10 +150,10 @@ export async function saveTodo() {
             bindTodoDragEvents();
         } else {
             const errMsg = result?.error || `HTTP ${res.status}`;
-            alert('保存失败: ' + errMsg);
+            showToast('保存失败: ' + errMsg, 'error');
         }
     } catch (e) {
-        alert('保存失败: ' + e.message);
+        showToast('保存失败: ' + e.message, 'error');
     }
 }
 
@@ -205,7 +206,13 @@ async function clearCompletedTodos() {
     const completedCount = state.todos.filter(t => t.is_done).length;
     if (completedCount === 0) return;
 
-    if (!confirm(`确定清除 ${completedCount} 条已完成待办？此操作不可恢复。`)) return;
+    const ok = await showConfirm({
+        title: '清除已完成待办？',
+        message: `确定清除 ${completedCount} 条已完成待办？此操作不可恢复。`,
+        confirmText: '清除',
+        danger: true
+    });
+    if (!ok) return;
 
     try {
         const res = await fetch(`${state.API_BASE}/api/todos/completed/all`, { method: 'DELETE' });
@@ -217,15 +224,16 @@ async function clearCompletedTodos() {
             bindQuickInputEvent();
             bindTodoDragEvents();
         } else {
-            alert('清除失败: ' + (result?.error || `HTTP ${res.status}`));
+            showToast('清除失败: ' + (result?.error || `HTTP ${res.status}`), 'error');
         }
     } catch (e) {
-        alert('清除失败: ' + e.message);
+        showToast('清除失败: ' + e.message, 'error');
     }
 }
 
 export async function deleteTodo(id) {
-    if (!confirm('确定删除此待办？')) return;
+    const ok = await showConfirm({ title: '删除待办？', message: '确定删除此待办？', confirmText: '删除', danger: true });
+    if (!ok) return;
 
     try {
         await fetch(`${state.API_BASE}/api/todos?id=${id}`, { method: 'DELETE' });
@@ -234,7 +242,7 @@ export async function deleteTodo(id) {
         bindQuickInputEvent();
         bindTodoDragEvents();
     } catch (e) {
-        alert('删除失败: ' + e.message);
+        showToast('删除失败: ' + e.message, 'error');
     }
 }
 

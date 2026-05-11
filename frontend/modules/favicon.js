@@ -4,6 +4,7 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 import { isPrivateOrLocalAddress, toSafeImageUrl, toPreferredIconImageUrl, toSafeDataImageUrl, bindImageFallbacks, escapeHtml, escapeHtmlAttribute } from './utils.js';
+import { showToast } from './ux.js';
 import { renderIconSelection } from './render.js';
 import {
     normalizeFaviconResponse,
@@ -198,7 +199,7 @@ export async function fetchProxyFavicon(url, request = null) {
 export async function fetchEngineIcon() {
     const url = DOM.engineInputUrl.value.trim();
     if (!url) {
-        alert('请先输入搜索 URL');
+        showToast('请先输入搜索 URL', 'warning');
         return;
     }
 
@@ -234,7 +235,7 @@ export async function fetchEngineIcon() {
         DOM.engineIconPreview.innerHTML = '<span>🔍</span>';
         delete DOM.engineIconPreview.dataset.iconUrl;
     } catch (e) {
-        alert('URL 格式不正确');
+        showToast('URL 格式不正确', 'error');
     }
 }
 

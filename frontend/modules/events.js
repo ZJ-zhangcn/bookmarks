@@ -5,7 +5,7 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 import { debounce } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
-import { renderBookmarks } from './render.js';
+import { renderBookmarks, updateCategoryQuickLabel } from './render.js';
 import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload, refreshBookmarkServerOptions } from './bookmark.js';
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
@@ -16,6 +16,7 @@ import { saveAiClientSettingsFromUi, clearAiClientSettings } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
 import { initSearchSuggestions } from './suggest.js';
 import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
+import { initUxFeedback, renderCategorySheet } from './ux.js';
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -27,18 +28,81 @@ const debouncedBookmarkSearch = debounce(() => {
     handleBookmarkSearch();
 }, 150);
 
+function updateCategoryFabLabel() {
+    updateCategoryQuickLabel();
+}
+
+function openCategorySheet() {
+    if (!DOM.categorySheetOverlay || !DOM.categorySheetGrid) return;
+    renderCategorySheet({
+        grid: DOM.categorySheetGrid,
+        categories: state.categories,
+        bookmarks: state.bookmarks,
+        currentCategory: state.currentCategory
+    });
+    DOM.categorySheetOverlay.classList.add('open');
+    DOM.categorySheetOverlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCategorySheet() {
+    if (!DOM.categorySheetOverlay) return;
+    DOM.categorySheetOverlay.classList.remove('open');
+    DOM.categorySheetOverlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+}
+
+function scrollToCategory(categoryId) {
+    const target = categoryId === 'all'
+        ? DOM.bookmarksContainer
+        : document.querySelector(`.category-section[data-category-id="${CSS.escape(String(categoryId))}"]`);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function selectCategory(categoryId, { scroll = true } = {}) {
+    DOM.categoryNav?.querySelectorAll('.category-btn').forEach(button => {
+        button.classList.toggle('active', String(button.dataset.category) === String(categoryId));
+    });
+    state.setCurrentCategory(categoryId || 'all');
+    renderBookmarks();
+    updateCategoryFabLabel();
+    if (scroll) requestAnimationFrame(() => scrollToCategory(state.currentCategory));
+}
+
+function initCategoryQuickSwitcher() {
+    updateCategoryFabLabel();
+
+    DOM.categoryFab?.addEventListener('click', openCategorySheet);
+    DOM.categorySheetClose?.addEventListener('click', closeCategorySheet);
+    DOM.categorySheetOverlay?.addEventListener('click', e => {
+        if (e.target === DOM.categorySheetOverlay) closeCategorySheet();
+    });
+    DOM.categorySheetGrid?.addEventListener('click', e => {
+        const btn = e.target.closest('.category-sheet-btn');
+        if (!btn) return;
+        closeCategorySheet();
+        selectCategory(btn.dataset.category, { scroll: true });
+    });
+
+    if (DOM.categoryNav && DOM.categoryFab && 'IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(([entry]) => {
+            DOM.categoryFab.classList.toggle('visible', !entry.isIntersecting && window.scrollY > 160);
+        }, { threshold: 0.05 });
+        observer.observe(DOM.categoryNav);
+    }
+}
+
 export function bindAllEvents() {
+    initUxFeedback();
     initSearchSuggestions();
+    initCategoryQuickSwitcher();
     DOM.searchInput.addEventListener('input', e => debouncedSearch(e.target.value));
     DOM.searchClear.addEventListener('click', () => { DOM.searchInput.value = ''; state.setCurrentSearch(''); renderBookmarks(); });
 
     DOM.categoryNav.addEventListener('click', e => {
         const btn = e.target.closest('.category-btn');
         if (!btn) return;
-        DOM.categoryNav.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.setCurrentCategory(btn.dataset.category);
-        renderBookmarks();
+        selectCategory(btn.dataset.category, { scroll: false });
     });
 
     DOM.engineBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); DOM.engineSelector.classList.toggle('open'); });
@@ -295,6 +359,10 @@ export function bindAllEvents() {
             } else {
                 backToTopBtn.classList.remove('visible');
             }
+        }
+
+        if (DOM.categoryFab && (!('IntersectionObserver' in window) || window.scrollY <= 160)) {
+            DOM.categoryFab.classList.toggle('visible', window.scrollY > 420);
         }
     }, { passive: true });
 

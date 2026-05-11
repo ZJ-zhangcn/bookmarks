@@ -6,6 +6,7 @@ import * as state from './state.js';
 import { loadData, saveCollapsedState } from './api.js';
 import { renderAll, renderCategoryNav, renderBookmarks } from './render.js';
 import { escapeHtml, escapeHtmlAttribute } from './utils.js';
+import { showToast, showConfirm } from './ux.js';
 
 export function openCategoryModal(categoryId = null) {
     state.setEditingCategoryId(categoryId);
@@ -35,7 +36,7 @@ export async function saveCategory() {
     const name = DOM.categoryInputName.value.trim();
     const icon = '📁';
 
-    if (!name) { alert('请填写分类名称'); return; }
+    if (!name) { showToast('请填写分类名称', 'warning'); return; }
 
     try {
         await fetch(`${state.API_BASE}/api/categories`, {
@@ -47,13 +48,20 @@ export async function saveCategory() {
         renderAll();
         renderCategoryList();
         closeCategoryModal();
+        showToast('分类已保存', 'success');
     } catch (e) {
-        alert('保存失败: ' + e.message);
+        showToast('保存失败: ' + e.message, 'error');
     }
 }
 
 export async function deleteCategory(id) {
-    if (!confirm('确定删除此分类？分类下的书签也将被删除。')) return;
+    const ok = await showConfirm({
+        title: '删除分类？',
+        message: '确定删除此分类？分类下的书签也将被删除。',
+        confirmText: '删除',
+        danger: true
+    });
+    if (!ok) return;
 
     try {
         await fetch(`${state.API_BASE}/api/categories?id=${id}`, { method: 'DELETE' });
@@ -61,7 +69,7 @@ export async function deleteCategory(id) {
         renderAll();
         renderCategoryList();
     } catch (e) {
-        alert('删除失败: ' + e.message);
+        showToast('删除失败: ' + e.message, 'error');
     }
 }
 
@@ -175,7 +183,7 @@ export async function createCategoryForBookmark(name) {
             return data.data;
         }
     } catch (e) {
-        alert('创建分类失败: ' + e.message);
+        showToast('创建分类失败: ' + e.message, 'error');
     }
     return null;
 }

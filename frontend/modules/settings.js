@@ -9,6 +9,7 @@ import { renderCategoryList } from './category.js';
 import { preloadImage, toSafeImageUrl, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { getMonitorServerConfigs } from './monitor.js';
+import { showToast, showConfirm, showPrompt } from './ux.js';
 
 function buildMonitorEndpoint(origin = '', apiBase = '') {
     const base = String(apiBase || '').trim();
@@ -122,7 +123,14 @@ function renderMonitorServers(servers = []) {
     DOM.monitorServerList.querySelectorAll('[data-action="remove-monitor-server"]').forEach(btn => {
         btn.addEventListener('click', async () => {
             const id = btn.closest('[data-monitor-server-row]')?.dataset.serverId;
-            if (!id || !confirm(`删除服务器资料 ${id}？首页已添加的卡片不会自动删除。`)) return;
+            if (!id) return;
+            const ok = await showConfirm({
+                title: '删除服务器资料？',
+                message: `删除 ${id} 的服务器资料。首页已添加的卡片不会自动删除。`,
+                confirmText: '删除',
+                danger: true
+            });
+            if (!ok) return;
             const next = getMonitorServerConfigs().filter(server => server.id !== id);
             await persistMonitorServers(next);
         });
@@ -169,7 +177,13 @@ function buildInstallCommand(server, token, endpoint) {
 
 async function persistMonitorServers(servers) {
     const headers = { 'Content-Type': 'application/json' };
-    const token = window.prompt('请输入管理员 Token 以保存服务器资料（不会保存到浏览器）');
+    const token = await showPrompt({
+        title: '保存服务器资料',
+        message: '请输入管理员 Token。Token 只用于本次请求，不会保存到浏览器。',
+        inputLabel: '管理员 Token',
+        inputPlaceholder: 'Bearer Token',
+        confirmText: '保存'
+    });
     if (!token) return false;
     headers.Authorization = `Bearer ${token.trim()}`;
     const res = await fetch(`${state.API_BASE}/api/system/config`, {
@@ -214,17 +228,17 @@ export async function registerMonitorServer() {
     try {
         const server = readMonitorForm();
         if (!server.id || !server.name) {
-            alert('请填写服务器 ID 和显示名称');
+            showToast('请填写服务器 ID 和显示名称', 'warning');
             return;
         }
         const next = [...existingMonitorServersFromRows().filter(item => item.id !== server.id), server];
         const saved = await persistMonitorServers(next);
         if (saved) {
             clearMonitorForm();
-            alert('服务器资料已保存。下一步：生成并在目标服务器执行 Agent 安装命令，然后在“添加书签 → 探针”里添加这台服务器卡片。');
+            showToast('服务器资料已保存。下一步：生成并在目标服务器执行 Agent 安装命令，然后在“添加书签 → 探针”里添加这台服务器卡片。', 'success', { timeoutMs: 5200 });
         }
     } catch (e) {
-        alert('保存服务器资料失败: ' + e.message);
+        showToast('保存服务器资料失败: ' + e.message, 'error');
     }
 }
 
@@ -233,15 +247,15 @@ export function generateMonitorInstallCommand() {
     const token = DOM.monitorAgentTokenInput?.value.trim() || '';
     const endpoint = DOM.monitorEndpointInput?.value.trim() || defaultMonitorEndpoint();
     if (!server.id || !server.name) {
-        alert('请先填写服务器 ID 和显示名称');
+        showToast('请先填写服务器 ID 和显示名称', 'warning');
         return;
     }
     if (!token) {
-        alert('请输入上报 Token。Token 必须是服务端 MONITOR_AGENT_TOKEN，不是服务器 ID；只用于生成命令，不会保存。');
+        showToast('请输入上报 Token。Token 必须是服务端 MONITOR_AGENT_TOKEN，不是服务器 ID；只用于生成命令，不会保存。', 'warning', { timeoutMs: 5200 });
         return;
     }
     if (token === server.id) {
-        alert('上报 Token 不能填服务器 ID。请填写 bookmarks 服务端 .env 中的 MONITOR_AGENT_TOKEN。');
+        showToast('上报 Token 不能填服务器 ID。请填写 bookmarks 服务端 .env 中的 MONITOR_AGENT_TOKEN。', 'warning', { timeoutMs: 5200 });
         return;
     }
     if (DOM.monitorInstallCommand) {
@@ -304,9 +318,9 @@ export async function savePersonalization() {
             body: JSON.stringify(config)
         });
         await applyPersonalization(config);
-        alert('保存成功！');
+        showToast('保存成功', 'success');
     } catch (e) {
-        alert('保存失败: ' + e.message);
+        showToast('保存失败: ' + e.message, 'error');
     }
 }
 
@@ -550,7 +564,7 @@ export async function exportConfig() {
         a.click();
         URL.revokeObjectURL(url);
     } catch (e) {
-        alert('导出失败: ' + e.message);
+        showToast('导出失败: ' + e.message, 'error');
     }
 }
 
@@ -567,15 +581,15 @@ export async function importConfig(e) {
             const sizeInMB = new Blob([jsonStr]).size / (1024 * 1024);
 
             if (sizeInMB > 4) {
-                const choice = confirm(
-                    `导入文件较大 (${sizeInMB.toFixed(1)}MB)，可能影响导入性能。\n\n` +
-                    '点击"确定"：清理 base64 图标后导入（URL 和 emoji 图标会保留）\n' +
-                    '点击"取消"：取消导入\n\n' +
-                    '提示：导入后可使用"批量获取图标"功能重新获取被清理的图标'
-                );
+                const choice = await showConfirm({
+                    title: '导入文件较大',
+                    message: `导入文件较大 (${sizeInMB.toFixed(1)}MB)，可能影响导入性能。继续后会清理 base64 图标再导入，URL 和 emoji 图标会保留。导入后可使用“批量获取图标”重新获取。`,
+                    confirmText: '清理并导入',
+                    cancelText: '取消'
+                });
 
                 if (!choice) {
-                    alert('导入已取消');
+                    showToast('导入已取消', 'info');
                     return;
                 }
 
@@ -606,7 +620,7 @@ export async function importConfig(e) {
 
                 const cleanedSize = new Blob([JSON.stringify(data)]).size / (1024 * 1024);
                 if (cleanedSize > 4) {
-                    alert(`清理后仍然较大 (${cleanedSize.toFixed(1)}MB)，请减少书签数量或联系管理员`);
+                    showToast(`清理后仍然较大 (${cleanedSize.toFixed(1)}MB)，请减少书签数量或联系管理员`, 'error', { timeoutMs: 5200 });
                     return;
                 }
             }
@@ -624,9 +638,9 @@ export async function importConfig(e) {
             renderAll();
             await loadPersonalization();
             refreshIconLibraryCache();
-            alert('导入成功！');
+            showToast('导入成功', 'success');
         } catch (err) {
-            alert('导入失败：' + err.message);
+            showToast('导入失败：' + err.message, 'error');
         }
     };
     reader.readAsText(file);
@@ -652,9 +666,9 @@ export async function importBrowserBookmarks(e) {
             }
             await loadData();
             renderAll();
-            alert(`导入成功！\n分类: ${result.data.categories} 个\n书签: ${result.data.bookmarks} 个`);
+            showToast(`导入成功：分类 ${result.data.categories} 个，书签 ${result.data.bookmarks} 个`, 'success', { timeoutMs: 4200 });
         } catch (err) {
-            alert('导入失败：' + err.message);
+            showToast('导入失败：' + err.message, 'error');
         }
     };
     reader.readAsText(file);
