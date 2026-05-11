@@ -83,6 +83,7 @@ export function cacheDOMElements() {
         saveCategoryBtn: document.getElementById('saveCategoryBtn'),
         cancelCategoryBtn: document.getElementById('cancelCategoryBtn'),
         settingsBtn: document.getElementById('settingsBtn'),
+        shortcutHelpBtn: document.getElementById('shortcutHelpBtn'),
         settingsModal: document.getElementById('settingsModal'),
         settingsModalClose: document.getElementById('settingsModalClose'),
         exportBtn: document.getElementById('exportBtn'),
