@@ -18,6 +18,7 @@ import { initSearchSuggestions } from './suggest.js';
 import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { initUxFeedback, renderCategorySheet } from './ux.js';
 import { openShortcutHelp } from './shortcuts.js';
+import { toggleBulkOrganizeMode } from './bulk-organize.js';
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -215,6 +216,7 @@ export function bindAllEvents() {
     DOM.saveCategoryBtn.addEventListener('click', saveCategory);
 
     DOM.settingsBtn.addEventListener('click', openSettingsModal);
+    DOM.bulkOrganizeBtn?.addEventListener('click', toggleBulkOrganizeMode);
     DOM.shortcutHelpBtn?.addEventListener('click', openShortcutHelp);
     DOM.settingsModalClose.addEventListener('click', closeSettingsModal);
     DOM.settingsModal.addEventListener('click', e => { if (e.target === DOM.settingsModal) closeSettingsModal(); });

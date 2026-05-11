@@ -239,8 +239,11 @@ export function createBookmarkCard(item, searchTerm) {
     const statsHtml = visitCount > 0
         ? `<div class="bookmark-stats" title="${escapeHtmlAttribute(lastVisitedText)}">👁 ${visitCount} · ${escapeHtml(lastVisitedText)}</div>`
         : '';
+    const bulkSelectedClass = state.bulkSelectedIds.has(item.id) ? ' bulk-selected' : '';
+    const bulkCheckboxHtml = state.bulkOrganizeMode ? '<span class="bulk-select-indicator">✓</span>' : '';
     return `
-        <a href="${toSafeExternalUrl(item.url)}" class="bookmark-card" target="_blank" rel="noopener" data-id="${escapeHtmlAttribute(item.id)}">
+        <a href="${toSafeExternalUrl(item.url)}" class="bookmark-card${bulkSelectedClass}" target="_blank" rel="noopener" data-id="${escapeHtmlAttribute(item.id)}">
+            ${bulkCheckboxHtml}
             <div class="bookmark-actions">
                 <button class="bookmark-action-btn edit" data-id="${escapeHtmlAttribute(item.id)}" title="编辑">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

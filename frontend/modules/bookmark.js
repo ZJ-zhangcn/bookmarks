@@ -11,6 +11,7 @@ import { refreshIconLibraryCache } from './icon-library.js';
 import { findMonitorServerConfig, parseServerComponentType } from './monitor.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 import { showToast, showConfirm, showPrompt } from './ux.js';
+import { handleBulkCardClick } from './bulk-organize.js';
 import sortHelpers from './sort-helpers.cjs';
 
 const { moveItemInList } = sortHelpers;
@@ -60,6 +61,7 @@ export function handleBookmarkClick(e) {
     else if (deleteBtn) { e.preventDefault(); e.stopPropagation(); deleteBookmark(deleteBtn.dataset.id); }
     else if (addBtn) { e.preventDefault(); openBookmarkModal(null, addBtn.dataset.category); }
     else if (sortBtn) { e.preventDefault(); toggleBookmarkSorting(sortBtn.dataset.category); }
+    else if (bookmarkCard && handleBulkCardClick(bookmarkCard, e)) { return; }
     else if (bookmarkCard) { recordBookmarkVisit(bookmarkCard.dataset.id); }
 }
 
