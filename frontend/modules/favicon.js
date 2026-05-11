@@ -14,6 +14,7 @@ import {
 } from './favicon-helpers.cjs';
 
 const faviconRequestGuard = createFaviconRequestGuard();
+const metadataRequestGuard = createFaviconRequestGuard();
 
 const FALLBACK_SOURCES = [
     domain => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
@@ -143,6 +144,34 @@ export async function fetchFavicon() {
     } catch (e) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
     }
+}
+
+export async function fetchBookmarkMetadata() {
+    const url = DOM.bookmarkInputUrl?.value.trim() || '';
+    if (!url || !DOM.bookmarkInputName || DOM.bookmarkInputName.value.trim()) return;
+
+    let parsedUrl;
+    try {
+        parsedUrl = new URL(url);
+    } catch {
+        return;
+    }
+    if (isPrivateOrLocalAddress(parsedUrl.hostname)) return;
+
+    const request = metadataRequestGuard.start(url);
+    try {
+        const res = await fetch(`${state.API_BASE}/api/metadata`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const result = await res.json().catch(() => null);
+        if (!metadataRequestGuard.isCurrent(request, DOM.bookmarkInputUrl.value.trim())) return;
+        const title = String(result?.data?.title || '').trim();
+        if (res.ok && result?.success && title && !DOM.bookmarkInputName.value.trim()) {
+            DOM.bookmarkInputName.value = title;
+        }
+    } catch {}
 }
 
 export async function fetchMoreIcons(url, domain) {

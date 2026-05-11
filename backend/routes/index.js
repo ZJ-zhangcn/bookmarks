@@ -10,6 +10,7 @@ module.exports = function(db) {
         icons: require('./icons')(db),
         icon: require('./icon')(db),
         favicon: require('./favicon')(db),
+        metadata: require('./metadata')(db),
         config: require('./config')(db),
         webdav: require('./webdav')(db),
         system: require('./system')(db),

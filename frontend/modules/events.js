@@ -9,7 +9,7 @@ import { renderBookmarks, updateCategoryQuickLabel } from './render.js';
 import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload, refreshBookmarkServerOptions } from './bookmark.js';
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
-import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl } from './favicon.js';
+import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl, fetchBookmarkMetadata } from './favicon.js';
 import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme, registerMonitorServer, generateMonitorInstallCommand } from './settings.js';
 import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
 import { saveAiClientSettingsFromUi, clearAiClientSettings } from './ai.js';
@@ -197,7 +197,10 @@ export function bindAllEvents() {
         }
     }
 
-    DOM.bookmarkInputUrl.addEventListener('blur', fetchFavicon);
+    DOM.bookmarkInputUrl.addEventListener('blur', () => {
+        fetchFavicon();
+        fetchBookmarkMetadata();
+    });
 
     DOM.categoryModalClose.addEventListener('click', closeCategoryModal);
     DOM.categoryModal.addEventListener('click', e => { if (e.target === DOM.categoryModal) closeCategoryModal(); });
