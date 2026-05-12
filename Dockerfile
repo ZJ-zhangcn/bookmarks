@@ -5,6 +5,11 @@ FROM node:22-alpine AS frontend-builder
 
 WORKDIR /app
 
+# better-sqlite3 is a production dependency, so a clean npm ci in the
+# frontend build stage also needs native build tooling on platforms where
+# no prebuilt binary is available.
+RUN apk add --no-cache python3 make g++
+
 COPY package*.json ./
 RUN npm ci
 
