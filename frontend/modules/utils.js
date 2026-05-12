@@ -100,7 +100,7 @@ export function escapeRegExp(s) {
 
 export function toSafeDataImageUrl(url) {
     const src = String(url || '').trim();
-    return /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=\s]+$/i.test(src) ? src : '';
+    return /^data:image\/(png|jpe?g|gif|webp|svg\+xml|x-icon|vnd\.microsoft\.icon|icon);base64,[a-z0-9+/=\s]+$/i.test(src) ? src : '';
 }
 
 export function toSafeExternalUrl(url) {

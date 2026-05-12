@@ -1,12 +1,39 @@
 import helpers from './insights-helpers.cjs';
-import { escapeHtml, escapeHtmlAttribute, toSafeExternalUrl } from './utils.js';
+import * as state from './state.js';
+import {
+    bindImageFallbacks,
+    escapeHtml,
+    escapeHtmlAttribute,
+    toPreferredIconImageUrl,
+    toSafeDataImageUrl,
+    toSafeExternalUrl
+} from './utils.js';
 
 const { getFrequentBookmarks, getRecentBookmarks } = helpers;
+
+export function renderInsightIcon(item, iconCache = state.iconCache) {
+    const fallbackIcon = item.icon || '🌐';
+    const cachedIcon = iconCache?.get?.(item.id);
+    const iconInfo = (cachedIcon && cachedIcon.icon_data)
+        ? cachedIcon
+        : (item.icon_data ? { icon_type: item.icon_type, icon_data: item.icon_data } : null);
+
+    if (iconInfo?.icon_data) {
+        const iconUrl = iconInfo.icon_type === 'base64'
+            ? toSafeDataImageUrl(iconInfo.icon_data)
+            : toPreferredIconImageUrl(iconInfo.icon_data);
+        if (iconUrl) {
+            return `<img src="${escapeHtmlAttribute(iconUrl)}" data-original-src="${escapeHtmlAttribute(iconInfo.icon_data)}" alt="${escapeHtmlAttribute(item.name || '图标')}" loading="lazy" data-fallback-icon="${escapeHtmlAttribute(fallbackIcon)}">`;
+        }
+    }
+
+    return `<span>${escapeHtml(fallbackIcon)}</span>`;
+}
 
 function renderInsightCard(item, badge) {
     return `
         <a class="insight-card" href="${toSafeExternalUrl(item.url)}" target="_blank" rel="noopener" data-id="${escapeHtmlAttribute(item.id)}">
-            <span class="insight-icon">${escapeHtml(item.icon || '🌐')}</span>
+            <span class="insight-icon">${renderInsightIcon(item)}</span>
             <span class="insight-text">
                 <strong>${escapeHtml(item.name || '未命名')}</strong>
                 <small>${escapeHtml(badge)}</small>
@@ -45,6 +72,7 @@ export function renderBookmarkInsights({ container, bookmarks }) {
                 <div class="insight-grid">${recent.map(item => renderInsightCard(item, formatVisitBadge(item, 'recent'))).join('')}</div>
             </section>` : ''}
     `;
+    bindImageFallbacks(container);
 }
 
 export { getFrequentBookmarks, getRecentBookmarks };
