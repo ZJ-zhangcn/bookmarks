@@ -9,7 +9,7 @@ import { renderCategoryList } from './category.js';
 import { preloadImage, toSafeImageUrl, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { getMonitorServerConfigs } from './monitor.js';
-import { showToast, showConfirm, showPrompt } from './ux.js';
+import { showToast, showConfirm } from './ux.js';
 import webdavHelpers from './webdav-helpers.cjs';
 
 const { buildWebdavStatusPanel } = webdavHelpers;
@@ -179,19 +179,9 @@ function buildInstallCommand(server, token, endpoint) {
 }
 
 async function persistMonitorServers(servers) {
-    const headers = { 'Content-Type': 'application/json' };
-    const token = await showPrompt({
-        title: '保存服务器资料',
-        message: '请输入管理员 Token。Token 只用于本次请求，不会保存到浏览器。',
-        inputLabel: '管理员 Token',
-        inputPlaceholder: 'Bearer Token',
-        confirmText: '保存'
-    });
-    if (!token) return false;
-    headers.Authorization = `Bearer ${token.trim()}`;
     const res = await fetch(`${state.API_BASE}/api/system/config`, {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ servers })
     });
     const result = await res.json();
