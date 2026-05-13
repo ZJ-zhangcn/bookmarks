@@ -22,8 +22,6 @@ export const AI_CLICK_COOLDOWN_MS = 2500;
 export let collapsedCategories = new Set();
 export let aiStatus = { enabled: false, provider: null, model: null, note: null };
 export let sortingCategory = null;
-export let bulkOrganizeMode = false;
-export const bulkSelectedIds = new Set();
 export let personalizationConfig = undefined;
 export let monitorServerConfigs = [];
 export let editingTodoId = null;
@@ -69,12 +67,6 @@ export function setAiRequestInFlight(val) { aiRequestInFlight = val; }
 export function setAiLastActionAt(val) { aiLastActionAt = val; }
 export function setAiStatus(val) { aiStatus = val; }
 export function setSortingCategory(val) { sortingCategory = val; }
-export function setBulkOrganizeMode(val) { bulkOrganizeMode = Boolean(val); }
-export function clearBulkSelectedIds() { bulkSelectedIds.clear(); }
-export function toggleBulkSelectedId(id) {
-    if (bulkSelectedIds.has(id)) bulkSelectedIds.delete(id);
-    else bulkSelectedIds.add(id);
-}
 export function setPersonalizationConfig(val) { personalizationConfig = val; }
 export function setMonitorServerConfigs(val) { monitorServerConfigs = Array.isArray(val) ? val : []; }
 export function setEditingTodoId(val) { editingTodoId = val; }
