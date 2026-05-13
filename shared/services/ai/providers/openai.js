@@ -7,6 +7,78 @@ const { parseAiTagsAndSummaryFromText, detectAiUpstreamErrorFromText, normalizeT
 const { fetchWithTimeout, createHttpError, formatFetchCause, extractTextFromOpenAiLikeResponse, extractTextFromOpenAiSse, summarizeOpenAiLikeResponseShape } = require('../http');
 const { supportsOpenAiSampling, supportsOpenAiReasoningEffort } = require('../params');
 
+async function sleep(ms) {
+    await new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getHeaderValue(headers, name) {
+    if (!headers) return '';
+    if (typeof headers.get === 'function') return headers.get(name) || '';
+    if (typeof headers === 'object') return headers[name] || headers[name.toLowerCase()] || '';
+    return '';
+}
+
+function isTransientOpenAiGatewayError(status, detail) {
+    const text = String(detail || '').toLowerCase();
+    if (status === 408 || status === 429 || status === 502 || status === 504) return true;
+    if (status === 503) return true;
+    return text.includes('stream disconnected before completion')
+        || text.includes('auth_unavailable')
+        || text.includes('no auth available')
+        || text.includes('temporarily unavailable')
+        || text.includes('timeout')
+        || text.includes('timed out');
+}
+
+async function fetchOpenAiResponseWithRetries(endpoint, requestBody, apiKey, timeoutMs) {
+    const maxAttempts = 3;
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        let response;
+        try {
+            response = await fetchWithTimeout(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            }, timeoutMs);
+        } catch (e) {
+            if (e?.name === 'AbortError') {
+                lastError = createHttpError(504, 'OpenAI 网关请求超时');
+            } else {
+                lastError = createHttpError(502, `无法连接 OpenAI 网关（${endpoint}）：${e?.message || 'network error'}${formatFetchCause(e)}`);
+            }
+            if (attempt < maxAttempts) {
+                await sleep(250 * attempt);
+                continue;
+            }
+            throw lastError;
+        }
+
+        const contentType = getHeaderValue(response.headers, 'content-type');
+        const rawText = await response.text().catch(() => '');
+        const data = safeJsonParse(rawText);
+        if (response.ok) return { contentType, rawText, data };
+
+        const detail = data?.error?.message || '';
+        const fallback = !detail && rawText ? `：${String(rawText).trim().slice(0, 200)}` : '';
+        const message = `OpenAI 网关错误（HTTP ${response.status}）${detail ? `：${detail}` : fallback}`;
+        lastError = createHttpError(502, message);
+
+        if (attempt < maxAttempts && isTransientOpenAiGatewayError(response.status, detail || rawText)) {
+            await sleep(250 * attempt);
+            continue;
+        }
+        throw lastError;
+    }
+
+    throw lastError || createHttpError(502, 'OpenAI 网关请求失败');
+}
+
 async function openaiGenerateWithConfig({ name, url, description, tagsHint, categories, mode, baseUrl, apiKey, model, timeoutMs, generationParams }) {
     const userPayload = {
         name: String(name || '').slice(0, 200),
@@ -45,33 +117,7 @@ async function openaiGenerateWithConfig({ name, url, description, tagsHint, cate
         requestBody.reasoning_effort = params.reasoningEffort;
     }
 
-    let response;
-    try {
-        response = await fetchWithTimeout(endpoint, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        }, timeoutMs);
-    } catch (e) {
-        if (e?.name === 'AbortError') {
-            throw createHttpError(504, 'OpenAI 网关请求超时');
-        }
-        throw createHttpError(502, `无法连接 OpenAI 网关（${endpoint}）：${e?.message || 'network error'}${formatFetchCause(e)}`);
-    }
-
-    const contentType = response.headers.get('content-type') || '';
-    const rawText = await response.text().catch(() => '');
-    const data = safeJsonParse(rawText);
-    if (!response.ok) {
-        const detail = data?.error?.message || '';
-        const fallback = !detail && rawText ? `：${String(rawText).trim().slice(0, 200)}` : '';
-        const message = `OpenAI 网关错误（HTTP ${response.status}）${detail ? `：${detail}` : fallback}`;
-        throw createHttpError(502, message);
-    }
+    const { contentType, rawText, data } = await fetchOpenAiResponseWithRetries(endpoint, requestBody, apiKey, timeoutMs);
 
     const isSse = contentType.includes('text/event-stream') || /^\s*data:\s*\{/.test(rawText);
     const text = data
