@@ -12,14 +12,13 @@ const FETCH_TIMEOUT = 5000;
 const CACHE_TTL = 300000; // 5分钟缓存
 const faviconCache = new Map();
 
-function getFallbackIcons(host, isPrivate, protocol = 'https:') {
-    if (isPrivate) {
-        return [`${protocol}//${host}/favicon.ico`];
-    }
+function getFallbackIcons(host, protocol = 'https:') {
+    const origin = `${protocol}//${host}`;
     return [
-        `https://www.google.com/s2/favicons?domain=${host}&sz=64`,
-        `https://favicon.im/${host}`,
-        `https://icon.horse/icon/${host}`
+        `${origin}/favicon.ico`,
+        `${origin}/favicon.png`,
+        `${origin}/apple-touch-icon.png`,
+        `${origin}/apple-touch-icon-precomposed.png`
     ];
 }
 
@@ -104,7 +103,7 @@ module.exports = function(_db) {
 
             await addIcon(`${baseUrl}/favicon.ico`);
 
-            const fallbacks = getFallbackIcons(domain, isPrivate, parsedUrl.protocol);
+            const fallbacks = getFallbackIcons(domain, parsedUrl.protocol);
             fallbacks.forEach(fb => {
                 if (!icons.includes(fb)) icons.push(fb);
             });
@@ -112,7 +111,7 @@ module.exports = function(_db) {
             setCachedResult(domain, icons);
             res.json(success(icons, 'ok'));
         } catch (e) {
-            const fallbacks = getFallbackIcons(domain, isPrivate, parsedUrl.protocol);
+            const fallbacks = getFallbackIcons(domain, parsedUrl.protocol);
             setCachedResult(domain, fallbacks);
             res.json(success(fallbacks, 'ok'));
         }

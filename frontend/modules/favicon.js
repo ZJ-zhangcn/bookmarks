@@ -16,12 +16,6 @@ import {
 const faviconRequestGuard = createFaviconRequestGuard();
 const metadataRequestGuard = createFaviconRequestGuard();
 
-const FALLBACK_SOURCES = [
-    domain => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-    domain => `https://favicon.im/${domain}`,
-    domain => `https://icon.horse/icon/${domain}`
-];
-
 async function tryLoadImage(url, timeout = 3000) {
     return new Promise(resolve => {
         const img = new Image();
@@ -51,9 +45,6 @@ async function findLoadableIcons(candidates, timeout = 3000) {
 
 function localIconSourceLabel(url) {
     const s = String(url || '');
-    if (s.includes('google.com/s2/favicons')) return { label: 'Google', class: 'source-google' };
-    if (s.includes('favicon.im')) return { label: 'Favicon.im', class: 'source-faviconim' };
-    if (s.includes('icon.horse')) return { label: 'IconHorse', class: 'source-iconhorse' };
     if (s.includes('apple-touch-icon')) return { label: '本地 Apple', class: 'source-apple' };
     return { label: '本地直连', class: 'source-site' };
 }
@@ -88,9 +79,8 @@ function renderLocalIconSelection(localIcons) {
     bindImageFallbacks(DOM.iconPreviewAuto);
 }
 
-function buildBrowserFallbackCandidates(url, domain) {
-    const fallbackSources = isPrivateOrLocalAddress(domain) ? [] : FALLBACK_SOURCES;
-    return buildLocalFaviconCandidates(url, fallbackSources);
+function buildBrowserFallbackCandidates(url, _domain) {
+    return buildLocalFaviconCandidates(url);
 }
 
 async function getLocalFallbackIcons(url, { timeout = 3000 } = {}) {
@@ -118,7 +108,7 @@ export async function fetchFavicon() {
             return;
         }
 
-        // 并行获取：同时请求后端代理和第三方服务
+        // 并行获取：同时请求后端发现和当前浏览器可直连的同源图标候选
         const proxyPromise = fetch(`${state.API_BASE}/api/favicon`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -190,8 +180,7 @@ export async function fetchMoreIcons(url, domain) {
                 renderLocalIconSelection(allIcons);
                 return;
             }
-            const googleFavicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-            state.setAvailableIcons([...new Set([googleFavicon, ...allIcons.filter(i => i !== googleFavicon)])]);
+            state.setAvailableIcons(allIcons);
             renderIconSelection(state.availableIcons);
         }
     } catch (e) { }
@@ -251,14 +240,13 @@ export async function fetchEngineIcon() {
             return;
         }
 
-        for (const getUrl of FALLBACK_SOURCES) {
-            const iconUrl = getUrl(domain);
+        const localIcons = await getLocalFallbackIcons(url);
+        if (localIcons.length > 0) {
+            const iconUrl = localIcons[0];
             const displayIcon = toSafeImageUrl(iconUrl);
-            if (await tryLoadImage(displayIcon)) {
-                DOM.engineIconPreview.innerHTML = `<img src="${displayIcon}">`;
-                DOM.engineIconPreview.dataset.iconUrl = iconUrl;
-                return;
-            }
+            DOM.engineIconPreview.innerHTML = `<img src="${escapeHtmlAttribute(displayIcon)}">`;
+            DOM.engineIconPreview.dataset.iconUrl = iconUrl;
+            return;
         }
 
         DOM.engineIconPreview.innerHTML = '<span>🔍</span>';

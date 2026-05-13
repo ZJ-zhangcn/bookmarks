@@ -461,9 +461,6 @@ export function updateEngineDisplay() {
 
 function getIconSource(url) {
     url = String(url || '');
-    if (url.includes('google.com/s2/favicons')) return { label: 'Google', class: 'source-google' };
-    if (url.includes('favicon.im')) return { label: 'Favicon.im', class: 'source-faviconim' };
-    if (url.includes('icon.horse')) return { label: 'IconHorse', class: 'source-iconhorse' };
     if (url.includes('apple-touch-icon')) return { label: 'Apple', class: 'source-apple' };
     if (url.includes('/favicon.ico')) return { label: '站点', class: 'source-site' };
     return { label: '网站', class: 'source-site' };

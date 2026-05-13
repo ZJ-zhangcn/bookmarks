@@ -34,18 +34,26 @@ test('resolveIconHref resolves relative icon URLs against page URL', () => {
     );
 });
 
-test('local favicon candidates use browser-loadable origin URLs before third-party fallbacks', () => {
-    const candidates = buildLocalFaviconCandidates('https://example.com/docs/page.html', [
-        domain => `https://third-party.example/icon/${domain}`,
-        () => 'javascript:alert(1)'
-    ]);
+test('favicon acquisition source does not use third-party favicon providers', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const frontendFavicon = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/favicon.js'), 'utf8');
+    const backendFavicon = fs.readFileSync(path.resolve(__dirname, '../backend/routes/favicon.js'), 'utf8');
+    const source = `${frontendFavicon}\n${backendFavicon}`;
+    assert.equal(source.includes('google.com/s2/favicons'), false);
+    assert.equal(source.includes('favicon.im'), false);
+    assert.equal(source.includes('icon.horse'), false);
+});
+
+test('browser fallback candidates use origin URLs only to avoid third-party favicon console noise', () => {
+    const candidates = buildLocalFaviconCandidates('https://example.com/docs/page.html');
     assert.deepEqual(candidates, [
         'https://example.com/favicon.ico',
         'https://example.com/favicon.png',
         'https://example.com/apple-touch-icon.png',
-        'https://example.com/apple-touch-icon-precomposed.png',
-        'https://third-party.example/icon/example.com'
+        'https://example.com/apple-touch-icon-precomposed.png'
     ]);
+    assert.equal(candidates.some(url => url.includes('google.com') || url.includes('favicon.im') || url.includes('icon.horse')), false);
 });
 
 test('browser fallback candidates do not include third-party services for private hosts', () => {
