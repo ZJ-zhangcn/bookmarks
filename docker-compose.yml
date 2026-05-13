@@ -24,9 +24,11 @@ services:
       # =====================
       # 鉴权（推荐配置）
       # =====================
-      # 管理员令牌（设置后写操作需要 Authorization: Bearer <token>）
+      # 管理员令牌（设置后写操作需要 Authorization: Bearer ***）
       # - ADMIN_TOKEN=your-secret-token
-      # 允许匿名写入（个人使用可设为 true，对外服务建议设置 ADMIN_TOKEN）
+      # 个人自用免鉴权开关：true 时普通/严格管理员接口都不再校验 ADMIN_TOKEN
+      - DISABLE_ADMIN_AUTH=true
+      # 兼容旧行为：仅当未配置 ADMIN_TOKEN 时，允许普通写接口匿名写入
       - ALLOW_ANONYMOUS_WRITE=true
       # =====================
       # 安全（可选）
