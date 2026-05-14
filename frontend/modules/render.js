@@ -467,12 +467,14 @@ function getIconSource(url) {
 }
 
 export function renderIconSelection(availableIcons) {
-    if (availableIcons.length === 0) {
+    const icons = Array.isArray(availableIcons) ? availableIcons.filter(Boolean) : [];
+    if (icons.length === 0) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+        delete DOM.iconPreviewAuto.dataset.hasCandidates;
         return;
     }
-    if (availableIcons.length === 1) {
-        const icon = availableIcons[0];
+    if (icons.length === 1) {
+        const icon = icons[0];
         const displayIcon = toSafeImageUrl(icon);
         const source = getIconSource(icon);
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
@@ -481,7 +483,7 @@ export function renderIconSelection(availableIcons) {
         </div>`;
     } else {
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
-            ${availableIcons.slice(0, 6).map((icon, idx) => {
+            ${icons.slice(0, 6).map((icon, idx) => {
         const source = getIconSource(icon);
         const displayIcon = toSafeImageUrl(icon);
         return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlAttribute(icon)}" title="${escapeHtmlAttribute(source.label)}">
@@ -499,6 +501,7 @@ export function renderIconSelection(availableIcons) {
             };
         });
     }
+    DOM.iconPreviewAuto.dataset.hasCandidates = 'true';
     bindImageFallbacks(DOM.iconPreviewAuto);
 }
 

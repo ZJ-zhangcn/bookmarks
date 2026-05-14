@@ -55,6 +55,7 @@ function renderLocalIconSelection(localIcons) {
 
     if (icons.length === 0) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+        delete DOM.iconPreviewAuto.dataset.hasCandidates;
         return;
     }
 
@@ -67,6 +68,7 @@ function renderLocalIconSelection(localIcons) {
             </div>`;
     }).join('')}
     </div>`;
+    DOM.iconPreviewAuto.dataset.hasCandidates = 'true';
 
     DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(wrap => {
         wrap.addEventListener('click', (e) => {
@@ -129,10 +131,13 @@ export async function fetchFavicon() {
             state.setAvailableIcons(allIcons);
             renderIconSelection(state.availableIcons);
         } else {
+            state.setAvailableIcons([]);
             DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+            delete DOM.iconPreviewAuto.dataset.hasCandidates;
         }
     } catch (e) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+        delete DOM.iconPreviewAuto.dataset.hasCandidates;
     }
 }
 
@@ -207,10 +212,13 @@ export async function fetchProxyFavicon(url, request = null) {
                 renderIconSelection(state.availableIcons);
             }
         } else {
+            state.setAvailableIcons([]);
             DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+            delete DOM.iconPreviewAuto.dataset.hasCandidates;
         }
     } catch (e) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+        delete DOM.iconPreviewAuto.dataset.hasCandidates;
     }
 }
 

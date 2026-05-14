@@ -135,6 +135,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
                 }
             } else {
                 DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+                delete DOM.iconPreviewAuto.dataset.hasCandidates;
             }
             DOM.iconPreviewUpload.innerHTML = '';
         }
@@ -155,6 +156,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
         DOM.bookmarkInputEmoji.value = '';
         DOM.bookmarkInputIconUrl.value = '';
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
+        delete DOM.iconPreviewAuto.dataset.hasCandidates;
         DOM.iconPreviewUpload.innerHTML = '';
     }
 

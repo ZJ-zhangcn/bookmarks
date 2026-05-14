@@ -216,7 +216,16 @@ export function bindImageFallbacks(root = document) {
     root.querySelectorAll('img[data-fallback-icon], img[data-remove-on-error]').forEach(img => {
         img.addEventListener('error', () => {
             if (img.dataset.removeOnError) {
-                img.parentElement?.remove();
+                const parent = img.parentElement;
+                img.remove();
+                if (parent?.classList.contains('icon-option-wrap')) {
+                    parent.classList.add('icon-option-error');
+                    if (!parent.querySelector('.icon-option-fallback')) {
+                        parent.insertAdjacentHTML('afterbegin', '<span class="icon-option-fallback">🌐</span>');
+                    }
+                    return;
+                }
+                if (parent && parent.childElementCount === 0) parent.remove();
             } else {
                 img.outerHTML = fallbackIconHtml(img.dataset.fallbackIcon || '🌐');
             }

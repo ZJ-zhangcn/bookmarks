@@ -3540,6 +3540,20 @@ input:checked+.slider:before {
     object-fit: contain;
 }
 
+.icon-option-fallback {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.icon-option-wrap.icon-option-error {
+    opacity: 0.72;
+}
+
 .icon-source-label {
     font-size: 8px;
     padding: 1px 4px;
