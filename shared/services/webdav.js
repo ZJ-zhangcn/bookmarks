@@ -14,6 +14,14 @@ function createOperationalError(message, statusCode) {
     return err;
 }
 
+async function readUpstreamError(response) {
+    const contentType = String(response.headers?.get?.('content-type') || '').toLowerCase();
+    const text = await response.text();
+    if (!contentType.includes('text/html')) return text;
+    const title = text.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1];
+    return title ? title.replace(/\s+/g, ' ').trim() : '';
+}
+
 async function upload({ url, username, password, path: filePath, data }) {
     const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
 
@@ -45,8 +53,8 @@ async function upload({ url, username, password, path: filePath, data }) {
         return { message: '上传成功' };
     }
 
-    const text = await response.text();
-    throw createOperationalError(`上传失败: ${response.status} ${text}`, response.status || 502);
+    const text = await readUpstreamError(response);
+    throw createOperationalError(`上传失败: ${response.status}${text ? ` ${text}` : ''}`, response.status || 502);
 }
 
 async function download({ url, username, password, path: filePath }) {

@@ -12,7 +12,7 @@ import { getMonitorServerConfigs } from './monitor.js';
 import { showToast, showConfirm } from './ux.js';
 import webdavHelpers from './webdav-helpers.cjs';
 
-const { buildWebdavStatusPanel } = webdavHelpers;
+const { buildWebdavStatusPanel, parseJsonResponse } = webdavHelpers;
 
 function buildMonitorEndpoint(origin = '', apiBase = '') {
     const base = String(apiBase || '').trim();
@@ -489,7 +489,7 @@ export async function webdavUpload() {
             body: JSON.stringify({ url, username: user, password: pass, path: filePath, data })
         });
 
-        const result = await response.json();
+        const result = await parseJsonResponse(response, '上传失败，服务器返回了非 JSON 响应');
         if (result.success) {
             showWebdavStatus('上传成功！' + (includeIcons ? '' : '（不含图标）'), 'success', { operation: '上传', path: filePath, includeIcons });
         } else {
@@ -518,7 +518,7 @@ export async function webdavDownload() {
             body: JSON.stringify({ url, username: user, password: pass, path: filePath })
         });
 
-        const result = await response.json();
+        const result = await parseJsonResponse(response, '下载失败，服务器返回了非 JSON 响应');
         if (result.success && result.data) {
             await fetch(`${state.API_BASE}/api/data`, {
                 method: 'POST',

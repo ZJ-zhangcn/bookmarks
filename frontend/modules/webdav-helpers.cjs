@@ -24,4 +24,15 @@ function buildWebdavStatusPanel({ status = 'info', operation = '同步', path = 
     `;
 }
 
-module.exports = { buildWebdavStatusPanel };
+async function parseJsonResponse(response, fallbackMessage = '请求失败，服务器返回了非 JSON 响应') {
+    try {
+        return await response.json();
+    } catch (err) {
+        return {
+            success: false,
+            error: `${fallbackMessage}: ${err.message}`
+        };
+    }
+}
+
+module.exports = { buildWebdavStatusPanel, parseJsonResponse };

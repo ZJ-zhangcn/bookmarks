@@ -64,7 +64,12 @@ test('webdav upload upstream failures keep their message visible in production e
     const originalFetch = global.fetch;
     global.fetch = async (_url, options = {}) => {
         if (options.method === 'MKCOL') return { ok: false, status: 405, text: async () => '' };
-        return { ok: false, status: 507, text: async () => 'quota exceeded' };
+        return {
+            ok: false,
+            status: 507,
+            headers: { get: () => 'text/plain; charset=utf-8' },
+            text: async () => 'quota exceeded'
+        };
     };
     try {
         await assert.rejects(
@@ -79,6 +84,39 @@ test('webdav upload upstream failures keep their message visible in production e
                 assert.equal(err.statusCode, 507);
                 assert.equal(err.isOperational, true);
                 assert.match(err.message, /上传失败: 507 quota exceeded/);
+                return true;
+            }
+        );
+    } finally {
+        global.fetch = originalFetch;
+    }
+});
+
+test('webdav upload html upstream errors are summarized instead of dumping an error page', async () => {
+    const originalFetch = global.fetch;
+    global.fetch = async (_url, options = {}) => {
+        if (options.method === 'MKCOL') return { ok: false, status: 405, text: async () => '' };
+        return {
+            ok: false,
+            status: 502,
+            headers: { get: () => 'text/html; charset=UTF-8' },
+            text: async () => '<!DOCTYPE html><html><head><title>error code: 502</title></head><body>large cloudflare page</body></html>'
+        };
+    };
+    try {
+        await assert.rejects(
+            () => webdavService.upload({
+                url: 'https://webdav.example.test',
+                username: 'user',
+                password: 'pass',
+                path: 'bookmarks/config.json',
+                data: { ok: true }
+            }),
+            err => {
+                assert.equal(err.statusCode, 502);
+                assert.equal(err.isOperational, true);
+                assert.equal(err.message, '上传失败: 502 error code: 502');
+                assert.doesNotMatch(err.message, /DOCTYPE|large cloudflare page/);
                 return true;
             }
         );
