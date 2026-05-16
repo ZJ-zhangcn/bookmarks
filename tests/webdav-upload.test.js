@@ -60,6 +60,46 @@ test('webdav route reports blocked private upload URL as operational 400 instead
     });
 });
 
+test('webdav route maps upstream/network upload failures to JSON 424 to avoid Cloudflare replacing the body', async () => {
+    const originalUpload = webdavService.upload;
+    await withEnv({ DISABLE_ADMIN_AUTH: 'true', ALLOW_PRIVATE_FETCH: undefined, NODE_ENV: 'production' }, async () => {
+        webdavService.upload = async () => {
+            const err = new Error('WebDAV 上传请求失败: fetch failed');
+            err.statusCode = 502;
+            err.isOperational = true;
+            throw err;
+        };
+
+        const app = express();
+        app.use(express.json({ limit: '10mb' }));
+        app.use('/api/webdav', createWebdavRoute({}));
+        app.use(errorHandler);
+
+        const server = await listen(app);
+        try {
+            const port = server.address().port;
+            const response = await fetch(`http://127.0.0.1:${port}/api/webdav?action=upload`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: 'https://webdav.example.test',
+                    username: 'user',
+                    password: 'pass',
+                    path: 'bookmarks/config.json',
+                    data: { ok: true }
+                })
+            });
+            const body = await response.json();
+            assert.equal(response.status, 424);
+            assert.equal(body.success, false);
+            assert.match(body.error, /WebDAV 上传请求失败: fetch failed/);
+        } finally {
+            await new Promise(resolve => server.close(resolve));
+            webdavService.upload = originalUpload;
+        }
+    });
+});
+
 test('webdav upload upstream failures keep their message visible in production error handler', async () => {
     const originalFetch = global.fetch;
     global.fetch = async (_url, options = {}) => {

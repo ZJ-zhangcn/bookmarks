@@ -8,8 +8,14 @@ const { requireAdmin, assertSafeFetchUrl } = require('../middleware/security');
 const webdavService = require('../../shared/services/webdav');
 
 function toOperationalError(err, fallbackStatusCode = 400) {
-    if (err?.isOperational) return err;
-    const operational = new AppError(err?.message || 'WebDAV 操作失败', err?.statusCode || fallbackStatusCode);
+    if (err?.isOperational) {
+        if ((err.statusCode || 500) >= 500) {
+            return new AppError(err.message || 'WebDAV 操作失败', 424);
+        }
+        return err;
+    }
+    const statusCode = err?.statusCode || fallbackStatusCode;
+    const operational = new AppError(err?.message || 'WebDAV 操作失败', statusCode >= 500 ? 424 : statusCode);
     if (err?.stack) operational.stack = err.stack;
     return operational;
 }
@@ -32,13 +38,21 @@ module.exports = function(_db) {
         }
 
         if (action === 'upload') {
-            const result = await webdavService.upload({ url, username, password, path: filePath, data });
-            return res.json(success(null, result.message));
+            try {
+                const result = await webdavService.upload({ url, username, password, path: filePath, data });
+                return res.json(success(null, result.message));
+            } catch (err) {
+                throw toOperationalError(err, 424);
+            }
         }
 
         if (action === 'download') {
-            const downloadedData = await webdavService.download({ url, username, password, path: filePath });
-            return res.json(success(downloadedData));
+            try {
+                const downloadedData = await webdavService.download({ url, username, password, path: filePath });
+                return res.json(success(downloadedData));
+            } catch (err) {
+                throw toOperationalError(err, 424);
+            }
         }
 
         throw new AppError('无效的操作，请使用 action=upload 或 action=download', 400);
