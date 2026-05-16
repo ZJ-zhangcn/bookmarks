@@ -7,6 +7,13 @@ const { success, asyncHandler, AppError } = require('../utils');
 const { requireAdmin, assertSafeFetchUrl } = require('../middleware/security');
 const webdavService = require('../../shared/services/webdav');
 
+function toOperationalError(err, fallbackStatusCode = 400) {
+    if (err?.isOperational) return err;
+    const operational = new AppError(err?.message || 'WebDAV 操作失败', err?.statusCode || fallbackStatusCode);
+    if (err?.stack) operational.stack = err.stack;
+    return operational;
+}
+
 module.exports = function(_db) {
     // POST /api/webdav?action=upload/download
     router.post('/', requireAdmin, asyncHandler(async (req, res) => {
@@ -18,7 +25,11 @@ module.exports = function(_db) {
         }
 
         const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
-        assertSafeFetchUrl(fullUrl);
+        try {
+            assertSafeFetchUrl(fullUrl);
+        } catch (err) {
+            throw toOperationalError(err, 400);
+        }
 
         if (action === 'upload') {
             const result = await webdavService.upload({ url, username, password, path: filePath, data });

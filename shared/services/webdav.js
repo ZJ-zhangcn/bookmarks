@@ -7,6 +7,13 @@ function buildAuthHeader(username, password) {
     return 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
 }
 
+function createOperationalError(message, statusCode) {
+    const err = new Error(message);
+    err.statusCode = statusCode;
+    err.isOperational = true;
+    return err;
+}
+
 async function upload({ url, username, password, path: filePath, data }) {
     const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
 
@@ -20,23 +27,26 @@ async function upload({ url, username, password, path: filePath, data }) {
         }).catch(() => { });
     }
 
-    const response = await fetch(fullUrl, {
-        method: 'PUT',
-        headers: {
-            'Authorization': buildAuthHeader(username, password),
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data, null, 2)
-    });
+    let response;
+    try {
+        response = await fetch(fullUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': buildAuthHeader(username, password),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data, null, 2)
+        });
+    } catch (e) {
+        throw createOperationalError(`WebDAV 上传请求失败: ${e.message}`, 502);
+    }
 
     if (response.ok || response.status === 201 || response.status === 204) {
         return { message: '上传成功' };
     }
 
     const text = await response.text();
-    const err = new Error(`上传失败: ${response.status} ${text}`);
-    err.statusCode = response.status;
-    throw err;
+    throw createOperationalError(`上传失败: ${response.status} ${text}`, response.status || 502);
 }
 
 async function download({ url, username, password, path: filePath }) {
