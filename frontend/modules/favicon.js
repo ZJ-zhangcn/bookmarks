@@ -10,6 +10,7 @@ import {
     normalizeFaviconResponse,
     createFaviconRequestGuard,
     buildLocalFaviconCandidates,
+    shouldProbeBrowserFallbacks,
     mergeIconsWithLocalFallback
 } from './favicon-helpers.cjs';
 
@@ -88,6 +89,7 @@ function buildBrowserFallbackCandidates(url, _domain) {
 async function getLocalFallbackIcons(url, { timeout = 3000 } = {}) {
     let domain = '';
     try { domain = new URL(url).hostname; } catch { return []; }
+    if (!shouldProbeBrowserFallbacks(url)) return [];
     return findLoadableIcons(buildBrowserFallbackCandidates(url, domain), timeout);
 }
 

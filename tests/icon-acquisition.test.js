@@ -5,6 +5,7 @@ const {
     normalizeFaviconResponse,
     createFaviconRequestGuard,
     buildLocalFaviconCandidates,
+    shouldProbeBrowserFallbacks,
     mergeIconsWithLocalFallback,
     isPrivateOrLocalAddress,
     shouldUseProxyUrlForIcon
@@ -54,6 +55,13 @@ test('browser fallback candidates use origin URLs only to avoid third-party favi
         'https://example.com/apple-touch-icon-precomposed.png'
     ]);
     assert.equal(candidates.some(url => url.includes('google.com') || url.includes('favicon.im') || url.includes('icon.horse')), false);
+});
+
+test('browser fallback probing is limited to private/local hosts to avoid public-site console noise', () => {
+    assert.equal(shouldProbeBrowserFallbacks('https://www.douyu.com/'), false);
+    assert.equal(shouldProbeBrowserFallbacks('https://github.com/'), false);
+    assert.equal(shouldProbeBrowserFallbacks('http://10.52.200.26:7905/'), true);
+    assert.equal(shouldProbeBrowserFallbacks('http://nas.local/admin'), true);
 });
 
 test('browser fallback candidates do not include third-party services for private hosts', () => {

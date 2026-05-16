@@ -160,6 +160,17 @@ function buildLocalFaviconCandidates(rawUrl, fallbackSources = []) {
     ]);
 }
 
+function shouldProbeBrowserFallbacks(rawUrl) {
+    let parsed;
+    try {
+        parsed = new URL(String(rawUrl || '').trim());
+    } catch {
+        return false;
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    return isPrivateOrLocalAddress(parsed.hostname);
+}
+
 function mergeIconsWithLocalFallback(siteIcons, localIcons) {
     return uniqueUrls([...(siteIcons || []), ...(localIcons || [])]);
 }
@@ -169,6 +180,7 @@ if (typeof module !== 'undefined') {
         normalizeFaviconResponse,
         createFaviconRequestGuard,
         buildLocalFaviconCandidates,
+        shouldProbeBrowserFallbacks,
         mergeIconsWithLocalFallback,
         isPrivateOrLocalAddress,
         shouldUseProxyUrlForIcon
