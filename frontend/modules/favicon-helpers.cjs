@@ -149,11 +149,13 @@ function buildLocalFaviconCandidates(rawUrl, fallbackSources = []) {
 
     const origin = parsed.origin;
     const domain = parsed.hostname;
+    const publicLetterFallback = isPrivateOrLocalAddress(domain) ? [] : [`https://icon.horse/icon/${domain}`];
     return uniqueUrls([
         `${origin}/favicon.ico`,
         `${origin}/favicon.png`,
         `${origin}/apple-touch-icon.png`,
         `${origin}/apple-touch-icon-precomposed.png`,
+        ...publicLetterFallback,
         ...fallbackSources.map(getUrl => {
             try { return getUrl(domain); } catch { return ''; }
         })

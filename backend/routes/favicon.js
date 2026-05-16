@@ -12,14 +12,18 @@ const FETCH_TIMEOUT = 5000;
 const CACHE_TTL = 300000; // 5分钟缓存
 const faviconCache = new Map();
 
-function getFallbackIcons(host, protocol = 'https:') {
+function getFallbackIcons(host, protocol = 'https:', { includePublicLetterFallback = true } = {}) {
     const origin = `${protocol}//${host}`;
-    return [
+    const fallbacks = [
         `${origin}/favicon.ico`,
         `${origin}/favicon.png`,
         `${origin}/apple-touch-icon.png`,
         `${origin}/apple-touch-icon-precomposed.png`
     ];
+    if (includePublicLetterFallback && !isPrivateOrLocalAddress(host)) {
+        fallbacks.push(`https://icon.horse/icon/${host}`);
+    }
+    return fallbacks;
 }
 
 function getCachedResult(domain) {
