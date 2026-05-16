@@ -6,7 +6,7 @@ import * as state from './state.js';
 import { debounce } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
 import { renderBookmarks, updateCategoryQuickLabel } from './render.js';
-import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload, refreshBookmarkServerOptions, recordBookmarkVisit } from './bookmark.js';
+import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload, refreshBookmarkServerOptions } from './bookmark.js';
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
 import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl, fetchBookmarkMetadata } from './favicon.js';
@@ -135,12 +135,6 @@ export function bindAllEvents() {
     DOM.engineInputIconUrl.addEventListener('input', updateEngineIconPreviewUrl);
 
     DOM.bookmarksContainer.addEventListener('click', handleBookmarkClick);
-    if (DOM.bookmarkInsights) {
-        DOM.bookmarkInsights.addEventListener('click', e => {
-            const card = e.target.closest('.insight-card[data-id]');
-            if (card) recordBookmarkVisit(card.dataset.id);
-        });
-    }
 
     DOM.bookmarkModalClose.addEventListener('click', closeBookmarkModal);
     DOM.bookmarkModal.addEventListener('click', e => { if (e.target === DOM.bookmarkModal) closeBookmarkModal(); });
