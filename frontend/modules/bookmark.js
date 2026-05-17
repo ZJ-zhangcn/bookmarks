@@ -12,6 +12,7 @@ import { findMonitorServerConfig, parseServerComponentType } from './monitor.js'
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 import { showToast, showConfirm, showPrompt } from './ux.js';
 import sortHelpers from './sort-helpers.cjs';
+import { openServiceDiagnoseFromElement } from './hermes-console.js';
 
 const { moveItemInList } = sortHelpers;
 
@@ -54,8 +55,10 @@ export function handleBookmarkClick(e) {
     const sortBtn = e.target.closest('.header-action-btn.sort-btn');
     const collapseBtn = e.target.closest('.collapse-btn');
     const bookmarkCard = e.target.closest('.bookmark-card[data-id]');
+    const diagnoseBtn = e.target.closest('.server-diagnose-btn');
 
     if (collapseBtn) { e.preventDefault(); e.stopPropagation(); toggleCategoryCollapse(collapseBtn.dataset.category); }
+    else if (diagnoseBtn) { e.preventDefault(); e.stopPropagation(); openServiceDiagnoseFromElement(diagnoseBtn); }
     else if (editBtn) { e.preventDefault(); e.stopPropagation(); openBookmarkModal(editBtn.dataset.id); }
     else if (deleteBtn) { e.preventDefault(); e.stopPropagation(); deleteBookmark(deleteBtn.dataset.id); }
     else if (addBtn) { e.preventDefault(); openBookmarkModal(null, addBtn.dataset.category); }
