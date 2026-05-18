@@ -15,7 +15,6 @@ module.exports = function(db) {
         webdav: require('./webdav')(db),
         system: require('./system')(db),
         data: require('./data')(db),
-        suggest: require('./suggest')(db),
-        hermes: require('./hermes')(db)
+        suggest: require('./suggest')(db)
     };
 };

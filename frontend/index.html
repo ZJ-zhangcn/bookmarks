@@ -208,12 +208,6 @@
                 <path d="m21 21-4.35-4.35"></path>
             </svg>
         </button>
-        <button class="fixed-btn hermes-console-btn" id="hermesBtn" title="Hermes 控制台">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
-                <circle cx="12" cy="12" r="3" />
-            </svg>
-        </button>
         <button class="fixed-btn" id="settingsBtn" title="设置">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3" />
@@ -852,43 +846,6 @@
         </div>
     </div>
 
-    <!-- Hermes 控制台 -->
-    <div class="modal-overlay hermes-console" id="hermesModal">
-        <div class="modal hermes-panel" role="dialog" aria-modal="true" aria-labelledby="hermesModalTitle">
-            <div class="modal-header">
-                <h3 class="modal-title" id="hermesModalTitle">Hermes 控制台</h3>
-                <button class="modal-close" id="hermesModalClose" aria-label="关闭 Hermes 控制台">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 6 6 18M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-            <div class="hermes-console-body">
-                <div class="hermes-status" id="hermesStatusText">正在检查 Hermes 状态...</div>
-                <div class="form-group">
-                    <label for="hermesAction">动作</label>
-                    <select id="hermesAction" class="setting-select">
-                        <option value="command_panel">控制台提问</option>
-                        <option value="service_diagnose">服务诊断</option>
-                        <option value="bookmark_organize">整理书签</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="hermesQuestion">问题 / 补充上下文</label>
-                    <textarea id="hermesQuestion" rows="5" placeholder="描述你想让 Hermes 分析的问题..." autocomplete="off" data-form-type="other"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="hermesAdminToken">管理员 Token</label>
-                    <input type="password" id="hermesAdminToken" placeholder="仅本次请求使用，不保存到前端代码" autocomplete="new-password" data-form-type="other">
-                    <small class="setting-hint">Token 只随请求发给 bookmarks 后端代理；前端不会持有 Hermes 上游密钥。</small>
-                </div>
-                <div class="hermes-actions-row">
-                    <button class="btn btn-primary" id="hermesRunBtn">发送给 Hermes</button>
-                </div>
-                <div class="hermes-result-wrap" id="hermesResult"></div>
-            </div>
-        </div>
-    </div>
 
     <!-- 回到顶部按钮 -->
     <button id="backToTop" class="back-to-top" title="回到顶部">

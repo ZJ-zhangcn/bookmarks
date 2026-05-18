@@ -24,8 +24,6 @@ export let aiStatus = { enabled: false, provider: null, model: null, note: null 
 export let sortingCategory = null;
 export let personalizationConfig = undefined;
 export let monitorServerConfigs = [];
-export let hermesStatus = { configured: false, transport: null, model: null, actions: [] };
-export let hermesCurrentJob = null;
 export let editingTodoId = null;
 export let todoShowCompleted = true; // 是否显示已完成区域
 
@@ -71,8 +69,6 @@ export function setAiStatus(val) { aiStatus = val; }
 export function setSortingCategory(val) { sortingCategory = val; }
 export function setPersonalizationConfig(val) { personalizationConfig = val; }
 export function setMonitorServerConfigs(val) { monitorServerConfigs = Array.isArray(val) ? val : []; }
-export function setHermesStatus(val) { hermesStatus = val || { configured: false, transport: null, model: null, actions: [] }; }
-export function setHermesCurrentJob(val) { hermesCurrentJob = val; }
 export function setEditingTodoId(val) { editingTodoId = val; }
 export function setTodoShowCompleted(val) { todoShowCompleted = val; }
 export function setIsLoadingIcons(val) { isLoadingIcons = val; }

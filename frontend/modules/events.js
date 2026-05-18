@@ -17,7 +17,6 @@ import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from 
 import { initSearchSuggestions } from './suggest.js';
 import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { initUxFeedback, renderCategorySheet } from './ux.js';
-import { openHermesConsole, closeHermesConsole, runHermesConsole } from './hermes-console.js';
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -214,10 +213,6 @@ export function bindAllEvents() {
     DOM.addCategoryBtn.addEventListener('click', () => openCategoryModal());
 
     DOM.bookmarkSearchBtn.addEventListener('click', openBookmarkSearch);
-    if (DOM.hermesBtn) DOM.hermesBtn.addEventListener('click', () => openHermesConsole({ action: 'command_panel' }));
-    if (DOM.hermesModalClose) DOM.hermesModalClose.addEventListener('click', closeHermesConsole);
-    if (DOM.hermesModal) DOM.hermesModal.addEventListener('click', e => { if (e.target === DOM.hermesModal) closeHermesConsole(); });
-    if (DOM.hermesRunBtn) DOM.hermesRunBtn.addEventListener('click', runHermesConsole);
     DOM.bookmarkSearchClose.addEventListener('click', closeBookmarkSearch);
     DOM.bookmarkSearchOverlay.addEventListener('click', e => { if (e.target === DOM.bookmarkSearchOverlay) closeBookmarkSearch(); });
     DOM.bookmarkSearchInput.addEventListener('input', debouncedBookmarkSearch);

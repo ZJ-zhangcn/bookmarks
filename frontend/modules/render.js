@@ -263,9 +263,6 @@ function createServerMonitorCard(item, serverId = '') {
     return `
         <div class="server-monitor-slot" data-id="${escapeHtmlAttribute(item.id)}" data-component="server" data-server-id="${escapeHtmlAttribute(serverId)}">
             <div class="bookmark-actions server-actions">
-                <button class="bookmark-action-btn server-diagnose-btn" data-action="hermes-service-diagnose" data-id="${escapeHtmlAttribute(item.id)}" data-server-id="${escapeHtmlAttribute(serverId)}" title="Hermes 诊断">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
                 <button class="bookmark-action-btn delete" data-id="${escapeHtmlAttribute(item.id)}" title="删除">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>

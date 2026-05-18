@@ -63,10 +63,7 @@ app.use((req, res, next) => {
             '/api/bootstrap-v2',
             '/api/categories',
             '/api/config',
-            '/api/system/config',
-            '/api/hermes/status',
-            '/api/hermes/audit',
-            '/api/hermes/jobs'
+            '/api/system/config'
         ];
         const isDynamic = noStorePaths.some(p => req.path.startsWith(p));
         
@@ -182,7 +179,6 @@ app.use('/api/system', routes.system);
 app.use('/api/data', routes.data);
 app.use('/api/todos', routes.todos);
 app.use('/api/suggest', routes.suggest);
-app.use('/api/hermes', routes.hermes);
 
 // 图标代理（解决被墙图标无法显示问题）
 app.get('/api/proxy-icon', asyncHandler(async (req, res) => {

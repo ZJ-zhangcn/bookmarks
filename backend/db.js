@@ -181,20 +181,6 @@ async function createTables() {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
-            // Hermes 控制台审计
-            await conn.execute(`
-                CREATE TABLE IF NOT EXISTS hermes_audit (
-                    id VARCHAR(50) PRIMARY KEY,
-                    job_id VARCHAR(80) NOT NULL,
-                    action VARCHAR(80) NOT NULL,
-                    risk VARCHAR(30) DEFAULT 'low',
-                    status VARCHAR(30) NOT NULL,
-                    message TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_hermes_audit_created (created_at),
-                    INDEX idx_hermes_audit_job (job_id)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            `);
 
             // 添加性能优化索引（忽略已存在的索引错误）
             const indexStatements = [
@@ -323,16 +309,6 @@ async function createTables() {
                 CHECK (is_done IN (0, 1))
             );
 
-            -- Hermes 控制台审计
-            CREATE TABLE IF NOT EXISTS hermes_audit (
-                id TEXT PRIMARY KEY,
-                job_id TEXT NOT NULL,
-                action TEXT NOT NULL,
-                risk TEXT DEFAULT 'low',
-                status TEXT NOT NULL,
-                message TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            );
 
             -- 性能优化索引
             CREATE INDEX IF NOT EXISTS idx_bookmarks_category_id ON bookmarks(category_id);
@@ -341,8 +317,6 @@ async function createTables() {
             CREATE INDEX IF NOT EXISTS idx_search_engines_sort_order ON search_engines(sort_order);
             CREATE INDEX IF NOT EXISTS idx_todos_is_done ON todos(is_done);
             CREATE INDEX IF NOT EXISTS idx_todos_list ON todos(is_done, sort_order, created_at);
-            CREATE INDEX IF NOT EXISTS idx_hermes_audit_created ON hermes_audit(created_at);
-            CREATE INDEX IF NOT EXISTS idx_hermes_audit_job ON hermes_audit(job_id);
         `);
 
         // 添加可能缺失的列
