@@ -25,6 +25,16 @@ function extractFunctionSource(source, functionName) {
     return source.slice(start, end);
 }
 
+test('monitor install command installs the agent as a restartable systemd service', () => {
+    const settingsSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/settings.js'), 'utf8');
+    const installSource = extractFunctionSource(settingsSource, 'buildInstallCommand');
+
+    assert.match(installSource, /bookmarks-monitor-agent\.service/);
+    assert.match(installSource, /systemctl daemon-reload/);
+    assert.match(installSource, /systemctl enable --now bookmarks-monitor-agent\.service/);
+    assert.doesNotMatch(installSource, /nohup \/root\/monitor-agent\.sh/);
+});
+
 test('monitor server save does not prompt for admin token', () => {
     const settingsSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/settings.js'), 'utf8');
     const persistSource = extractFunctionSource(settingsSource, 'persistMonitorServers');

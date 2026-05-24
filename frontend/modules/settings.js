@@ -175,7 +175,43 @@ function escapeShellSingleQuote(value) {
 }
 
 function buildInstallCommand(server, token, endpoint) {
-    return `cd /root && curl -fsSL https://raw.githubusercontent.com/ZJ-zhangcn/bookmarks/main/scripts/monitor-agent.sh -o monitor-agent.sh && chmod +x monitor-agent.sh && MONITOR_ENDPOINT='${escapeShellSingleQuote(endpoint)}' MONITOR_AGENT_TOKEN='${escapeShellSingleQuote(token)}' MONITOR_SERVER_ID='${escapeShellSingleQuote(server.id)}' MONITOR_SERVER_NAME='${escapeShellSingleQuote(server.name || server.id)}' MONITOR_SERVER_REGION='${escapeShellSingleQuote(server.region || '')}' MONITOR_SERVER_ROLE='${escapeShellSingleQuote(server.role || '')}' nohup /root/monitor-agent.sh >/var/log/bookmarks-monitor-agent.log 2>&1 &`;
+    const envLines = [
+        `export MONITOR_ENDPOINT='${escapeShellSingleQuote(endpoint)}'`,
+        `export MONITOR_AGENT_TOKEN='${escapeShellSingleQuote(token)}'`,
+        `export MONITOR_SERVER_ID='${escapeShellSingleQuote(server.id)}'`,
+        `export MONITOR_SERVER_NAME='${escapeShellSingleQuote(server.name || server.id)}'`,
+        `export MONITOR_SERVER_REGION='${escapeShellSingleQuote(server.region || '')}'`,
+        `export MONITOR_SERVER_ROLE='${escapeShellSingleQuote(server.role || '')}'`
+    ].join('\n');
+
+    return [
+        'set -e',
+        'cd /root',
+        'curl -fsSL https://raw.githubusercontent.com/ZJ-zhangcn/bookmarks/main/scripts/monitor-agent.sh -o /root/monitor-agent.sh',
+        'chmod +x /root/monitor-agent.sh',
+        "cat >/root/bookmarks-monitor-agent-env.sh <<'BOOKMARKS_MONITOR_ENV'",
+        envLines,
+        'BOOKMARKS_MONITOR_ENV',
+        'chmod 600 /root/bookmarks-monitor-agent-env.sh',
+        "cat >/etc/systemd/system/bookmarks-monitor-agent.service <<'BOOKMARKS_MONITOR_SERVICE'",
+        '[Unit]',
+        'Description=Bookmarks Monitor Agent',
+        'After=network-online.target',
+        'Wants=network-online.target',
+        '',
+        '[Service]',
+        'Type=simple',
+        "ExecStart=/bin/bash -lc 'source /root/bookmarks-monitor-agent-env.sh && exec /root/monitor-agent.sh'",
+        'Restart=always',
+        'RestartSec=5',
+        '',
+        '[Install]',
+        'WantedBy=multi-user.target',
+        'BOOKMARKS_MONITOR_SERVICE',
+        'systemctl daemon-reload',
+        'systemctl enable --now bookmarks-monitor-agent.service',
+        'systemctl status --no-pager bookmarks-monitor-agent.service'
+    ].join('\n');
 }
 
 async function persistMonitorServers(servers) {
