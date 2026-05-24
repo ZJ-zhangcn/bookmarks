@@ -2281,6 +2281,13 @@ body {
     word-break: break-all;
 }
 
+.monitor-server-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--spacing-xs);
+}
+
 .monitor-form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2308,6 +2315,9 @@ body {
 }
 
 .monitor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
     justify-content: flex-start;
     margin-top: var(--spacing-md);
 }
@@ -2362,6 +2372,10 @@ body {
     .monitor-server-config.compact {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .monitor-server-actions {
+        justify-content: flex-start;
     }
 }
 

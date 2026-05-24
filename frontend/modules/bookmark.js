@@ -77,11 +77,12 @@ export function recordBookmarkVisit(bookmarkId) {
     }).catch(() => {});
 }
 
-export function openBookmarkModal(bookmarkId = null, categoryId = null) {
+export function openBookmarkModal(bookmarkId = null, categoryId = null, options = {}) {
     state.setEditingBookmarkId(bookmarkId);
     const existingBookmark = bookmarkId ? state.bookmarks.find(b => b.id === bookmarkId) : null;
-    const initialServerId = existingBookmark ? parseServerComponentType(existingBookmark.component_type || '').serverId : '';
-    refreshBookmarkServerOptions(initialServerId).catch(() => {});
+    const isServerProbeShortcut = !bookmarkId && options.itemType === 'component' && options.componentType === 'server';
+    const initialServerId = existingBookmark ? parseServerComponentType(existingBookmark.component_type || '').serverId : (options.serverId || '');
+    refreshBookmarkServerOptions(initialServerId, { updateName: isServerProbeShortcut }).catch(() => {});
 
     DOM.bookmarkInputCategory.innerHTML = state.categories.map(c =>
         `<option value="${escapeHtmlAttribute(c.id)}" ${c.id === categoryId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
@@ -146,11 +147,12 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
         DOM.bookmarkInputUrl.value = '';
         DOM.bookmarkInputDesc.value = '';
         if (DOM.bookmarkInputTags) DOM.bookmarkInputTags.value = '';
-        if (DOM.bookmarkItemType) DOM.bookmarkItemType.value = 'bookmark';
+        if (DOM.bookmarkItemType) DOM.bookmarkItemType.value = isServerProbeShortcut ? 'component' : 'bookmark';
         if (DOM.bookmarkComponentType) DOM.bookmarkComponentType.value = 'server';
-        if (DOM.componentTypeGroup) DOM.componentTypeGroup.style.display = 'none';
-        if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = 'none';
-        DOM.bookmarkOnlyFields?.forEach(el => el.style.display = 'block');
+        if (DOM.bookmarkServerId && initialServerId) DOM.bookmarkServerId.value = initialServerId;
+        if (DOM.componentTypeGroup) DOM.componentTypeGroup.style.display = isServerProbeShortcut ? 'block' : 'none';
+        if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = isServerProbeShortcut ? 'block' : 'none';
+        DOM.bookmarkOnlyFields?.forEach(el => el.style.display = isServerProbeShortcut ? 'none' : 'block');
         state.setCurrentIconType('auto');
         state.setCurrentIconData('');
         DOM.bookmarkInputEmoji.value = '';
@@ -159,6 +161,8 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
         delete DOM.iconPreviewAuto.dataset.hasCandidates;
         DOM.iconPreviewUpload.innerHTML = '';
     }
+
+    if (isServerProbeShortcut) applySelectedServerName();
 
     document.querySelectorAll('.icon-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.icon-panel').forEach(p => p.classList.remove('active'));
@@ -189,6 +193,14 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
             }
         }
     };
+}
+
+export function openServerProbeBookmarkModal(serverId = '') {
+    openBookmarkModal(null, null, {
+        itemType: 'component',
+        componentType: 'server',
+        serverId
+    });
 }
 
 export async function loadBookmarkAi(bookmarkId) {

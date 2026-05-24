@@ -9,6 +9,7 @@ import { renderCategoryList } from './category.js';
 import { preloadImage, toSafeImageUrl, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { getMonitorServerConfigs } from './monitor.js';
+import { openServerProbeBookmarkModal } from './bookmark.js';
 import { showToast, showConfirm } from './ux.js';
 import webdavHelpers from './webdav-helpers.cjs';
 
@@ -120,9 +121,25 @@ function renderMonitorServers(servers = []) {
                 <strong>${escapeHtmlAttribute(server.name || server.id || '')}</strong>
                 <span>${escapeHtmlAttribute([server.id, server.region, server.role].filter(Boolean).join(' · '))}</span>
             </div>
-            <button type="button" class="btn btn-danger btn-sm" data-action="remove-monitor-server">删除</button>
+            <div class="monitor-server-actions">
+                <button type="button" class="btn btn-secondary btn-sm" data-action="check-monitor-server">检测</button>
+                <button type="button" class="btn btn-primary btn-sm" data-action="add-monitor-probe">添加探针</button>
+                <button type="button" class="btn btn-danger btn-sm" data-action="remove-monitor-server">删除</button>
+            </div>
         </div>
     `).join('');
+    DOM.monitorServerList.querySelectorAll('[data-action="check-monitor-server"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.closest('[data-monitor-server-row]')?.dataset.serverId;
+            checkMonitorReportStatus(id);
+        });
+    });
+    DOM.monitorServerList.querySelectorAll('[data-action="add-monitor-probe"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.closest('[data-monitor-server-row]')?.dataset.serverId;
+            openMonitorProbeBookmark(id);
+        });
+    });
     DOM.monitorServerList.querySelectorAll('[data-action="remove-monitor-server"]').forEach(btn => {
         btn.addEventListener('click', async () => {
             const id = btn.closest('[data-monitor-server-row]')?.dataset.serverId;
@@ -161,13 +178,6 @@ function readMonitorForm() {
         role: DOM.monitorServerRoleInput?.value.trim() || '',
         enabled: true
     };
-}
-
-function clearMonitorForm() {
-    if (DOM.monitorServerIdInput) DOM.monitorServerIdInput.value = '';
-    if (DOM.monitorServerNameInput) DOM.monitorServerNameInput.value = '';
-    if (DOM.monitorServerRegionInput) DOM.monitorServerRegionInput.value = '';
-    if (DOM.monitorServerRoleInput) DOM.monitorServerRoleInput.value = '';
 }
 
 function escapeShellSingleQuote(value) {
@@ -263,8 +273,7 @@ export async function registerMonitorServer() {
         const next = [...existingMonitorServersFromRows().filter(item => item.id !== server.id), server];
         const saved = await persistMonitorServers(next);
         if (saved) {
-            clearMonitorForm();
-            showToast('服务器资料已保存。下一步：生成并在目标服务器执行 Agent 安装命令，然后在“添加书签 → 探针”里添加这台服务器卡片。', 'success', { timeoutMs: 5200 });
+            showToast('服务器资料已保存。下一步：生成并复制 Agent 安装命令，执行后可检测上报状态，再添加首页探针。', 'success', { timeoutMs: 5200 });
         }
     } catch (e) {
         showToast('保存服务器资料失败: ' + e.message, 'error');
@@ -290,6 +299,72 @@ export function generateMonitorInstallCommand() {
     if (DOM.monitorInstallCommand) {
         DOM.monitorInstallCommand.textContent = buildInstallCommand(server, token, endpoint);
     }
+}
+
+export async function copyMonitorInstallCommand() {
+    const command = DOM.monitorInstallCommand?.textContent?.trim() || '';
+    if (!command || command === '填写服务器资料和 Token 后生成。') {
+        showToast('请先生成 Agent 安装命令', 'warning');
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(command);
+        showToast('安装命令已复制', 'success');
+    } catch {
+        showToast('复制失败，请手动选中命令复制', 'error');
+    }
+}
+
+export async function checkMonitorReportStatus(serverId = '') {
+    const server = readMonitorForm();
+    const explicitId = typeof serverId === 'string' ? serverId.trim() : '';
+    const targetId = explicitId || server.id;
+    if (!targetId) {
+        showToast('请先填写服务器 ID', 'warning');
+        return;
+    }
+    try {
+        const res = await fetch(`${state.API_BASE}/api/system/servers`, { cache: 'no-store' });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.error || '检测失败');
+        const matched = (result.data?.servers || []).find(item => item.id === targetId);
+        if (!matched) {
+            showToast('还没有找到这台服务器，请先保存资料并确认 Agent 已执行安装命令。', 'warning', { timeoutMs: 5200 });
+            return;
+        }
+        if (matched.status === 'online') {
+            showToast(`${matched.name || matched.id} 已在线，首页探针会显示实时数据。`, 'success', { timeoutMs: 4200 });
+            return;
+        }
+        if (matched.status === 'stale') {
+            showToast(`${matched.name || matched.id} 曾经上报过，但最近心跳延迟。`, 'warning', { timeoutMs: 5200 });
+            return;
+        }
+        if (Number(matched.lastSeen) > 0) {
+            showToast(`${matched.name || matched.id} 上报已离线，请检查 Agent 服务状态。`, 'warning', { timeoutMs: 5200 });
+        } else {
+            showToast(`${matched.name || matched.id} 还没有收到首次上报，请在目标服务器执行安装命令。`, 'info', { timeoutMs: 5200 });
+        }
+    } catch (e) {
+        showToast('检测上报状态失败: ' + e.message, 'error');
+    }
+}
+
+export function openMonitorProbeBookmark(serverId = '') {
+    const server = readMonitorForm();
+    const explicitId = typeof serverId === 'string' ? serverId.trim() : '';
+    const targetId = explicitId || server.id;
+    if (!targetId) {
+        showToast('请先填写服务器 ID', 'warning');
+        return;
+    }
+    const saved = getMonitorServerConfigs().find(item => item.id === targetId);
+    if (!saved) {
+        showToast('请先保存服务器资料，再添加首页探针。', 'warning');
+        return;
+    }
+    closeSettingsModal();
+    openServerProbeBookmarkModal(saved.id);
 }
 
 export async function loadPersonalization(options = {}) {

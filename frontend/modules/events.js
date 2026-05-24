@@ -10,7 +10,7 @@ import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmar
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
 import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl, fetchBookmarkMetadata } from './favicon.js';
-import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme, registerMonitorServer, generateMonitorInstallCommand } from './settings.js';
+import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme, registerMonitorServer, generateMonitorInstallCommand, copyMonitorInstallCommand, checkMonitorReportStatus, openMonitorProbeBookmark } from './settings.js';
 import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
 import { saveAiClientSettingsFromUi, clearAiClientSettings } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
@@ -243,6 +243,9 @@ export function bindAllEvents() {
     if (DOM.aiClearSettingsBtn) DOM.aiClearSettingsBtn.addEventListener('click', clearAiClientSettings);
     if (DOM.monitorRegisterServerBtn) DOM.monitorRegisterServerBtn.addEventListener('click', registerMonitorServer);
     if (DOM.monitorGenerateInstallBtn) DOM.monitorGenerateInstallBtn.addEventListener('click', generateMonitorInstallCommand);
+    if (DOM.monitorCopyInstallBtn) DOM.monitorCopyInstallBtn.addEventListener('click', copyMonitorInstallCommand);
+    if (DOM.monitorCheckStatusBtn) DOM.monitorCheckStatusBtn.addEventListener('click', checkMonitorReportStatus);
+    if (DOM.monitorAddProbeBtn) DOM.monitorAddProbeBtn.addEventListener('click', openMonitorProbeBookmark);
 
     DOM.settingsTabs.forEach(tab => {
         tab.addEventListener('click', () => {
