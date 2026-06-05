@@ -62,8 +62,7 @@ app.use((req, res, next) => {
             '/api/todos',
             '/api/bootstrap-v2',
             '/api/categories',
-            '/api/config',
-            '/api/system/config'
+            '/api/config'
         ];
         const isDynamic = noStorePaths.some(p => req.path.startsWith(p));
         
@@ -175,7 +174,6 @@ app.use('/api/favicon', routes.favicon);
 app.use('/api/metadata', routes.metadata);
 app.use('/api/config', routes.config);
 app.use('/api/webdav', routes.webdav);
-app.use('/api/system', routes.system);
 app.use('/api/data', routes.data);
 app.use('/api/todos', routes.todos);
 app.use('/api/suggest', routes.suggest);

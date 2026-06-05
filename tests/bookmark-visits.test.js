@@ -45,9 +45,8 @@ function createMemoryBookmarkDb() {
             if (/INSERT INTO bookmarks/i.test(sql)) {
                 const row = {
                     id: params[0], category_id: params[1], name: params[2], url: params[3], description: params[4],
-                    icon: params[5], icon_type: params[6], icon_data: params[7], item_type: params[8],
-                    component_type: params[9], sort_order: params[10], visit_count: params[11] || 0,
-                    last_visited_at: params[12] || null, created_at: '2026-01-01'
+                    icon: params[5], icon_type: params[6], icon_data: params[7], sort_order: params[8],
+                    visit_count: params[9] || 0, last_visited_at: params[10] || null, created_at: '2026-01-01'
                 };
                 const index = tables.bookmarks.findIndex(b => b.id === row.id);
                 if (index >= 0) tables.bookmarks[index] = { ...tables.bookmarks[index], ...row };
@@ -81,9 +80,7 @@ test('recordBookmarkVisit increments visit count and last visited timestamp', as
         description: '',
         icon: '🌐',
         icon_type: 'auto',
-        icon_data: '',
-        item_type: 'bookmark',
-        component_type: null
+        icon_data: ''
     });
 
     await bookmarksService.recordBookmarkVisit(db, 'bm-visit');

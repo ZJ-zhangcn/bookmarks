@@ -34,15 +34,18 @@ async function attachBookmarkAi(db, bookmarks) {
 
 async function getAllBookmarks(db, { includeIcons = false } = {}) {
     const sql = includeIcons
-        ? `SELECT b.*, c.name as category_name, c.icon as category_icon
+        ? `SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
+                  b.icon_data, b.sort_order, b.created_at, b.visit_count, b.last_visited_at,
+                  c.name as category_name, c.icon as category_icon
            FROM bookmarks b LEFT JOIN categories c ON b.category_id = c.id
+           WHERE COALESCE(b.item_type, 'bookmark') <> 'component'
            ORDER BY c.sort_order, b.sort_order, b.created_at`
         : `SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
                   CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
-                  b.item_type, b.component_type, b.sort_order, b.created_at,
-                  b.visit_count, b.last_visited_at,
+                  b.sort_order, b.created_at, b.visit_count, b.last_visited_at,
                   c.name as category_name, c.icon as category_icon
            FROM bookmarks b LEFT JOIN categories c ON b.category_id = c.id
+           WHERE COALESCE(b.item_type, 'bookmark') <> 'component'
            ORDER BY c.sort_order, b.sort_order, b.created_at`;
 
     const bookmarks = await db.queryAll(sql);
@@ -61,7 +64,13 @@ async function getAllBookmarks(db, { includeIcons = false } = {}) {
 
 async function getGroupedBookmarks(db) {
     const categories = await db.queryAll('SELECT * FROM categories ORDER BY sort_order, created_at');
-    const bookmarks = await db.queryAll('SELECT * FROM bookmarks ORDER BY sort_order, created_at');
+    const bookmarks = await db.queryAll(`
+        SELECT id, category_id, name, url, description, icon, icon_type, icon_data,
+               sort_order, created_at, visit_count, last_visited_at
+        FROM bookmarks
+        WHERE COALESCE(item_type, 'bookmark') <> 'component'
+        ORDER BY sort_order, created_at
+    `);
 
     try {
         await attachBookmarkAi(db, bookmarks);
@@ -74,7 +83,7 @@ async function getGroupedBookmarks(db) {
 }
 
 async function getBookmarkIcon(db, id) {
-    return db.queryOne('SELECT icon_data, icon_type FROM bookmarks WHERE id = ?', [id]);
+    return db.queryOne("SELECT icon_data, icon_type FROM bookmarks WHERE id = ? AND COALESCE(item_type, 'bookmark') <> 'component'", [id]);
 }
 
 async function getBatchIcons(db, ids) {
@@ -82,7 +91,7 @@ async function getBatchIcons(db, ids) {
 
     const placeholders = ids.map(() => '?').join(',');
     const bookmarks = await db.queryAll(
-        `SELECT id, icon_data, icon_type FROM bookmarks WHERE id IN (${placeholders})`,
+        `SELECT id, icon_data, icon_type FROM bookmarks WHERE id IN (${placeholders}) AND COALESCE(item_type, 'bookmark') <> 'component'`,
         ids
     );
 
@@ -91,7 +100,7 @@ async function getBatchIcons(db, ids) {
     );
 }
 
-async function saveBookmark(db, { id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type }) {
+async function saveBookmark(db, { id, category_id, name, url, description, icon, icon_type, icon_data }) {
     const bookmarkId = id || newId('bm');
     const isNewBookmark = !id;
 
@@ -114,18 +123,18 @@ async function saveBookmark(db, { id, category_id, name, url, description, icon,
         sortOrder = existing?.sort_order ?? 0;
     }
 
-    const params = [bookmarkId, finalCategoryId, (name || '').trim(), url || '', description || '', icon || '🌐', icon_type || 'auto', icon_data || '', item_type || 'bookmark', component_type || null, sortOrder];
+    const params = [bookmarkId, finalCategoryId, (name || '').trim(), url || '', description || '', icon || '🌐', icon_type || 'auto', icon_data || '', sortOrder];
 
     if (isMysql(db)) {
         await db.execute(
-            `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE category_id = VALUES(category_id), name = VALUES(name), url = VALUES(url), description = VALUES(description), icon = VALUES(icon), icon_type = VALUES(icon_type), icon_data = VALUES(icon_data), item_type = VALUES(item_type), component_type = VALUES(component_type), sort_order = VALUES(sort_order)`,
+            `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE category_id = VALUES(category_id), name = VALUES(name), url = VALUES(url), description = VALUES(description), icon = VALUES(icon), icon_type = VALUES(icon_type), icon_data = VALUES(icon_data), sort_order = VALUES(sort_order)`,
             params
         );
     } else {
         await db.execute(
-            `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                category_id = excluded.category_id,
                name = excluded.name,
@@ -134,8 +143,6 @@ async function saveBookmark(db, { id, category_id, name, url, description, icon,
                icon = excluded.icon,
                icon_type = excluded.icon_type,
                icon_data = excluded.icon_data,
-               item_type = excluded.item_type,
-               component_type = excluded.component_type,
                sort_order = excluded.sort_order`,
             params
         );

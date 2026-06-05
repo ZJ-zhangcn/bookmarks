@@ -43,8 +43,7 @@ function createMemoryDataDb() {
         if (/INSERT INTO bookmarks/i.test(sql)) {
             upsert(tables.bookmarks, 'id', {
                 id: params[0], category_id: params[1], name: params[2], url: params[3], description: params[4],
-                icon: params[5], icon_type: params[6], icon_data: params[7], item_type: params[8],
-                component_type: params[9], sort_order: params[10]
+                icon: params[5], icon_type: params[6], icon_data: params[7], sort_order: params[8]
             });
             return { changes: 1 };
         }
@@ -89,8 +88,6 @@ test('data export includes bookmark AI tags for WebDAV sync', async () => {
         icon: '',
         icon_type: 'emoji',
         icon_data: '🏷️',
-        item_type: 'bookmark',
-        component_type: null,
         sort_order: 0
     });
     db.tables.bookmark_ai.push({
@@ -128,8 +125,6 @@ test('data import restores bookmark AI tags from WebDAV sync payload', async () 
             icon: '',
             icon_type: 'emoji',
             icon_data: '🏷️',
-            item_type: 'bookmark',
-            component_type: null,
             sort_order: 0
         }],
         bookmark_ai: [{

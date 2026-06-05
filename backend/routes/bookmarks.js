@@ -60,14 +60,13 @@ module.exports = function(db) {
     // POST /api/bookmarks (普通创建/更新)
     router.post('/', requireAdmin, asyncHandler(async (req, res) => {
         // 创建/更新书签
-        const { id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type } = req.body;
+        const { id, category_id, name, url, description, icon, icon_type, icon_data } = req.body;
 
         if (!name?.trim()) {
             throw new AppError('书签名称不能为空', 400);
         }
 
-        const safeComponentType = String(component_type || '').slice(0, 50);
-        const result = await bookmarksService.saveBookmark(db, { id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type: safeComponentType });
+        const result = await bookmarksService.saveBookmark(db, { id, category_id, name, url, description, icon, icon_type, icon_data });
         res.json(success(result));
     }));
 

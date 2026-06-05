@@ -13,7 +13,6 @@ module.exports = function(db) {
         metadata: require('./metadata')(db),
         config: require('./config')(db),
         webdav: require('./webdav')(db),
-        system: require('./system')(db),
         data: require('./data')(db),
         suggest: require('./suggest')(db)
     };

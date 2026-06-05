@@ -6,11 +6,11 @@ import * as state from './state.js';
 import { debounce } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
 import { renderBookmarks, updateCategoryQuickLabel } from './render.js';
-import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload, refreshBookmarkServerOptions } from './bookmark.js';
+import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload } from './bookmark.js';
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
 import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl, fetchBookmarkMetadata } from './favicon.js';
-import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme, registerMonitorServer, generateMonitorInstallCommand, copyMonitorInstallCommand, checkMonitorReportStatus, openMonitorProbeBookmark } from './settings.js';
+import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme } from './settings.js';
 import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
 import { saveAiClientSettingsFromUi, clearAiClientSettings } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
@@ -172,31 +172,6 @@ export function bindAllEvents() {
 
     DOM.selectFromLibraryBtn.addEventListener('click', toggleEngineIconLibrary);
 
-    if (DOM.bookmarkItemType) {
-        const syncComponentForm = () => {
-            const isComponent = DOM.bookmarkItemType.value === 'component';
-            const isServer = isComponent && DOM.bookmarkComponentType.value === 'server';
-            DOM.componentTypeGroup.style.display = isComponent ? 'block' : 'none';
-            if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = isServer ? 'block' : 'none';
-            DOM.bookmarkOnlyFields.forEach(el => el.style.display = isComponent ? 'none' : 'block');
-            if (isComponent) {
-                DOM.bookmarkComponentType.value = 'server';
-                refreshBookmarkServerOptions(DOM.bookmarkServerId?.value || '', { updateName: true, force: true }).catch(() => {
-                    const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId?.value);
-                    DOM.bookmarkInputName.value = selected ? `${selected.name || selected.id} 探针` : '服务器探针';
-                });
-            }
-        };
-        DOM.bookmarkItemType.addEventListener('change', syncComponentForm);
-        DOM.bookmarkComponentType.addEventListener('change', syncComponentForm);
-        if (DOM.bookmarkServerId) {
-            DOM.bookmarkServerId.addEventListener('change', () => {
-                const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId.value);
-                if (selected) DOM.bookmarkInputName.value = `${selected.name || selected.id} 探针`;
-            });
-        }
-    }
-
     DOM.bookmarkInputUrl.addEventListener('blur', () => {
         fetchFavicon();
         fetchBookmarkMetadata();
@@ -241,11 +216,6 @@ export function bindAllEvents() {
 
     if (DOM.aiSaveSettingsBtn) DOM.aiSaveSettingsBtn.addEventListener('click', saveAiClientSettingsFromUi);
     if (DOM.aiClearSettingsBtn) DOM.aiClearSettingsBtn.addEventListener('click', clearAiClientSettings);
-    if (DOM.monitorRegisterServerBtn) DOM.monitorRegisterServerBtn.addEventListener('click', registerMonitorServer);
-    if (DOM.monitorGenerateInstallBtn) DOM.monitorGenerateInstallBtn.addEventListener('click', generateMonitorInstallCommand);
-    if (DOM.monitorCopyInstallBtn) DOM.monitorCopyInstallBtn.addEventListener('click', copyMonitorInstallCommand);
-    if (DOM.monitorCheckStatusBtn) DOM.monitorCheckStatusBtn.addEventListener('click', checkMonitorReportStatus);
-    if (DOM.monitorAddProbeBtn) DOM.monitorAddProbeBtn.addEventListener('click', openMonitorProbeBookmark);
 
     DOM.settingsTabs.forEach(tab => {
         tab.addEventListener('click', () => {

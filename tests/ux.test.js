@@ -44,19 +44,19 @@ test('buildCategorySheetItems includes all entry and category counts', async () 
 
     const items = buildCategorySheetItems({
         categories: [
-            { id: 'probe', name: '探针', icon: '🖥️' },
+            { id: 'tools', name: '工具箱', icon: '🧰' },
             { id: 'dev', name: '开发社区' }
         ],
         bookmarks: [
-            { id: 'a', category_id: 'probe' },
-            { id: 'b', category_id: 'probe' },
+            { id: 'a', category_id: 'tools' },
+            { id: 'b', category_id: 'tools' },
             { id: 'c', category_id: 'dev' }
         ]
     });
 
     assert.deepEqual(items, [
         { id: 'all', name: '全部', icon: '📚', count: 3 },
-        { id: 'probe', name: '探针', icon: '🖥️', count: 2 },
+        { id: 'tools', name: '工具箱', icon: '🧰', count: 2 },
         { id: 'dev', name: '开发社区', icon: '📁', count: 1 }
     ]);
 });

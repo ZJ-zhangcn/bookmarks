@@ -3,49 +3,16 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { loadData, ensureMonitorServersLoaded } from './api.js';
+import { loadData } from './api.js';
 import { renderAll } from './render.js';
 import { updateAiUiVisibility, getAiClientSettings, setAiButtonsDisabled, buildLocalFallbackSummary } from './ai.js';
 import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
-import { findMonitorServerConfig, parseServerComponentType } from './monitor.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 import { showToast, showConfirm, showPrompt } from './ux.js';
 import sortHelpers from './sort-helpers.cjs';
 
 const { moveItemInList } = sortHelpers;
-
-function renderBookmarkServerOptionsInline(selectedServerId = '') {
-    const servers = Array.isArray(state.monitorServerConfigs) ? state.monitorServerConfigs : [];
-    if (!DOM.bookmarkServerId) return;
-    if (!servers.length) {
-        DOM.bookmarkServerId.innerHTML = '<option value="">请先在设置里添加服务器</option>';
-        return;
-    }
-    const previousValue = selectedServerId || DOM.bookmarkServerId.value || '';
-    DOM.bookmarkServerId.innerHTML = servers.map(server => `
-        <option value="${escapeHtmlAttribute(server.id)}">${escapeHtml(server.name || server.id)}${server.region ? ` · ${escapeHtml(server.region)}` : ''}</option>
-    `).join('');
-    if (previousValue && servers.some(server => server.id === previousValue)) {
-        DOM.bookmarkServerId.value = previousValue;
-    } else {
-        DOM.bookmarkServerId.value = servers[0]?.id || '';
-    }
-}
-
-function applySelectedServerName() {
-    if (!DOM.bookmarkServerId || !DOM.bookmarkInputName) return;
-    const selected = state.monitorServerConfigs.find(server => server.id === DOM.bookmarkServerId.value);
-    if (selected) DOM.bookmarkInputName.value = `${selected.name || selected.id} 探针`;
-}
-
-export async function refreshBookmarkServerOptions(selectedServerId = '', { updateName = false, force = false } = {}) {
-    if (!DOM.bookmarkServerId) return [];
-    const servers = await ensureMonitorServersLoaded({ force });
-    renderBookmarkServerOptionsInline(selectedServerId || DOM.bookmarkServerId.value);
-    if (updateName) applySelectedServerName();
-    return servers;
-}
 
 export function handleBookmarkClick(e) {
     const editBtn = e.target.closest('.bookmark-action-btn.edit');
@@ -77,12 +44,9 @@ export function recordBookmarkVisit(bookmarkId) {
     }).catch(() => {});
 }
 
-export function openBookmarkModal(bookmarkId = null, categoryId = null, options = {}) {
+export function openBookmarkModal(bookmarkId = null, categoryId = null) {
     state.setEditingBookmarkId(bookmarkId);
     const existingBookmark = bookmarkId ? state.bookmarks.find(b => b.id === bookmarkId) : null;
-    const isServerProbeShortcut = !bookmarkId && options.itemType === 'component' && options.componentType === 'server';
-    const initialServerId = existingBookmark ? parseServerComponentType(existingBookmark.component_type || '').serverId : (options.serverId || '');
-    refreshBookmarkServerOptions(initialServerId, { updateName: isServerProbeShortcut }).catch(() => {});
 
     DOM.bookmarkInputCategory.innerHTML = state.categories.map(c =>
         `<option value="${escapeHtmlAttribute(c.id)}" ${c.id === categoryId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
@@ -103,12 +67,6 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null, options 
                 DOM.bookmarkInputTags.value = tags.join(',');
             }
             DOM.bookmarkInputCategory.value = bookmark.category_id;
-            if (DOM.bookmarkItemType) DOM.bookmarkItemType.value = bookmark.item_type || 'bookmark';
-            const parsedComponent = parseServerComponentType(bookmark.component_type || '');
-            if (DOM.bookmarkComponentType) DOM.bookmarkComponentType.value = 'server';
-            if (DOM.bookmarkServerId) DOM.bookmarkServerId.value = parsedComponent.serverId || DOM.bookmarkServerId.value;
-            if (DOM.componentTypeGroup) DOM.componentTypeGroup.style.display = bookmark.item_type === 'component' ? 'block' : 'none';
-            if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = parsedComponent.isServer ? 'block' : 'none';
 
             const originalIconType = bookmark.icon_type || 'auto';
             state.setCurrentIconType((originalIconType === 'base64') ? 'auto' : originalIconType);
@@ -147,12 +105,6 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null, options 
         DOM.bookmarkInputUrl.value = '';
         DOM.bookmarkInputDesc.value = '';
         if (DOM.bookmarkInputTags) DOM.bookmarkInputTags.value = '';
-        if (DOM.bookmarkItemType) DOM.bookmarkItemType.value = isServerProbeShortcut ? 'component' : 'bookmark';
-        if (DOM.bookmarkComponentType) DOM.bookmarkComponentType.value = 'server';
-        if (DOM.bookmarkServerId && initialServerId) DOM.bookmarkServerId.value = initialServerId;
-        if (DOM.componentTypeGroup) DOM.componentTypeGroup.style.display = isServerProbeShortcut ? 'block' : 'none';
-        if (DOM.serverComponentGroup) DOM.serverComponentGroup.style.display = isServerProbeShortcut ? 'block' : 'none';
-        DOM.bookmarkOnlyFields?.forEach(el => el.style.display = isServerProbeShortcut ? 'none' : 'block');
         state.setCurrentIconType('auto');
         state.setCurrentIconData('');
         DOM.bookmarkInputEmoji.value = '';
@@ -161,8 +113,6 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null, options 
         delete DOM.iconPreviewAuto.dataset.hasCandidates;
         DOM.iconPreviewUpload.innerHTML = '';
     }
-
-    if (isServerProbeShortcut) applySelectedServerName();
 
     document.querySelectorAll('.icon-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.icon-panel').forEach(p => p.classList.remove('active'));
@@ -193,14 +143,6 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null, options 
             }
         }
     };
-}
-
-export function openServerProbeBookmarkModal(serverId = '') {
-    openBookmarkModal(null, null, {
-        itemType: 'component',
-        componentType: 'server',
-        serverId
-    });
 }
 
 export async function loadBookmarkAi(bookmarkId) {
@@ -244,31 +186,15 @@ export async function saveBookmark() {
     const url = DOM.bookmarkInputUrl.value.trim();
     const description = DOM.bookmarkInputDesc.value.trim();
     const category_id = DOM.bookmarkInputCategory.value;
-    const item_type = DOM.bookmarkItemType ? DOM.bookmarkItemType.value : 'bookmark';
-    const selectedComponentType = item_type === 'component' ? 'server' : null;
-    const selectedServerId = selectedComponentType === 'server' ? (DOM.bookmarkServerId?.value || '') : '';
-    const component_type = selectedComponentType === 'server' ? `server:${selectedServerId}` : selectedComponentType;
 
     if (!name) { showToast('请填写名称', 'warning'); return; }
-    if (item_type === 'bookmark' && !url) { showToast('请填写网址', 'warning'); return; }
-    if (item_type === 'component' && selectedComponentType === 'server' && !selectedServerId) {
-        showToast('请选择要监控的服务器。请先在设置 → 系统监控中添加服务器资料。', 'warning');
-        return;
-    }
+    if (!url) { showToast('请填写网址', 'warning'); return; }
 
     let icon_type = state.currentIconType;
     let icon_data = '';
     let icon = '🌐';
 
-    if (item_type === 'component') {
-        const serverConfig = findMonitorServerConfig(selectedServerId);
-        icon = '🖥️';
-        if (serverConfig && ['服务器监控', '服务器探针'].includes(DOM.bookmarkInputName.value.trim())) {
-            DOM.bookmarkInputName.value = `${serverConfig.name || serverConfig.id} 探针`;
-        }
-        icon_type = 'emoji';
-        icon_data = icon;
-    } else if (state.currentIconType === 'library') {
+    if (state.currentIconType === 'library') {
         if (state.currentIconData) {
             icon_type = state.currentIconData.startsWith('data:') ? 'base64' : 'url';
             icon_data = state.currentIconData;
@@ -321,7 +247,7 @@ export async function saveBookmark() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 id: state.editingBookmarkId,
-                category_id, name: nameForSave, url, description, icon, icon_type, icon_data, item_type, component_type
+                category_id, name: nameForSave, url, description, icon, icon_type, icon_data
             })
         });
         const result = await res.json().catch(() => null);
@@ -413,7 +339,7 @@ export function toggleBookmarkSorting(categoryId) {
 }
 
 export function moveSelectedBookmark(grid, direction) {
-    const cards = Array.from(grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-slot'));
+    const cards = Array.from(grid.querySelectorAll('.bookmark-card'));
     const selectedIndex = cards.findIndex(card => card.classList.contains('sort-selected'));
     if (selectedIndex < 0) {
         showToast('先选择一个书签卡片', 'info');
@@ -430,7 +356,7 @@ export function moveSelectedBookmark(grid, direction) {
 export function enableBookmarkDrag(grid, _categoryId) {
     let draggedItem = null;
 
-    const cards = grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-slot');
+    const cards = grid.querySelectorAll('.bookmark-card');
     cards.forEach(card => {
         card.draggable = true;
         card.onclick = (e) => {
@@ -470,7 +396,7 @@ export function enableBookmarkDrag(grid, _categoryId) {
 export async function saveBookmarkOrder(categoryId) {
     const section = document.querySelector(`.category-section[data-category-id="${categoryId}"]`);
     const grid = section.querySelector('.bookmarks-grid');
-    const cards = grid.querySelectorAll('.bookmark-card, .component-card, .server-monitor-slot');
+    const cards = grid.querySelectorAll('.bookmark-card');
 
     const order = Array.from(cards).map((card, index) => ({
         id: card.dataset.id,

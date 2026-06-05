@@ -50,8 +50,6 @@ function parseNetscapeBookmarks(html) {
                         icon: '🌐',
                         icon_type: 'auto',
                         icon_data: '',
-                        item_type: 'bookmark',
-                        component_type: null,
                         sort_order: bmOrder++
                     });
                 }
@@ -90,8 +88,6 @@ function parseNetscapeBookmarks(html) {
                     icon: '🌐',
                     icon_type: 'auto',
                     icon_data: '',
-                    item_type: 'bookmark',
-                    component_type: null,
                     sort_order: bmOrder++
                 });
             }

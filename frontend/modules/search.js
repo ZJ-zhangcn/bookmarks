@@ -33,7 +33,6 @@ export function handleBookmarkSearch() {
     }
 
     const results = state.bookmarks.filter(b => {
-        if (b.item_type === 'component') return false;
         const tagsText = Array.isArray(b.tags) ? b.tags.join(',') : String(b.tags || '');
         return b.name.toLowerCase().includes(searchTerm) ||
             (b.description && b.description.toLowerCase().includes(searchTerm)) ||

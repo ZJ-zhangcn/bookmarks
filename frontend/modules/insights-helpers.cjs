@@ -5,7 +5,7 @@ function visitTime(item) {
 
 function getVisitedBookmarks(bookmarks) {
     return (Array.isArray(bookmarks) ? bookmarks : [])
-        .filter(item => item && item.item_type !== 'component' && ((Number(item.visit_count) || 0) > 0 || visitTime(item) > 0));
+        .filter(item => item && ((Number(item.visit_count) || 0) > 0 || visitTime(item) > 0));
 }
 
 function getFrequentBookmarks(bookmarks, limit = 6) {

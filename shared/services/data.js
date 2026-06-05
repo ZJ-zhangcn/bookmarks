@@ -8,7 +8,12 @@ function isMysql(db) {
 
 async function exportData(db, includeIcons) {
     const categories = await db.queryAll('SELECT * FROM categories');
-    let bookmarks = await db.queryAll('SELECT * FROM bookmarks');
+    let bookmarks = await db.queryAll(`
+        SELECT id, category_id, name, url, description, icon, icon_type, icon_data,
+               sort_order, created_at, visit_count, last_visited_at
+        FROM bookmarks
+        WHERE COALESCE(item_type, 'bookmark') <> 'component'
+    `);
     let engines = await db.queryAll('SELECT * FROM search_engines');
     let bookmarkAi = [];
     try {
@@ -80,17 +85,17 @@ async function importData(db, data) {
                 const b = bookmarks[i];
                 if (isMysql(db)) {
                     await conn.execute(
-                        `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, sort_order)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                          ON DUPLICATE KEY UPDATE category_id = VALUES(category_id), name = VALUES(name), url = VALUES(url),
                          description = VALUES(description), icon = VALUES(icon), icon_type = VALUES(icon_type),
-                         icon_data = VALUES(icon_data), item_type = VALUES(item_type), component_type = VALUES(component_type), sort_order = VALUES(sort_order)`,
-                        [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order ?? i]
+                         icon_data = VALUES(icon_data), sort_order = VALUES(sort_order)`,
+                        [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '', b.icon_type || 'auto', b.icon_data || '', b.sort_order ?? i]
                     );
                 } else {
                     await conn.execute(
-                        `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, item_type, component_type, sort_order)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, sort_order)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                          ON CONFLICT(id) DO UPDATE SET
                            category_id = excluded.category_id,
                            name = excluded.name,
@@ -99,10 +104,8 @@ async function importData(db, data) {
                            icon = excluded.icon,
                            icon_type = excluded.icon_type,
                            icon_data = excluded.icon_data,
-                           item_type = excluded.item_type,
-                           component_type = excluded.component_type,
                            sort_order = excluded.sort_order`,
-                        [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '', b.icon_type || 'auto', b.icon_data || '', b.item_type || 'bookmark', b.component_type || null, b.sort_order ?? i]
+                        [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '', b.icon_type || 'auto', b.icon_data || '', b.sort_order ?? i]
                     );
                 }
             }

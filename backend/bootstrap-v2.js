@@ -18,8 +18,7 @@ module.exports = function registerBootstrapV2(app, db) {
                 SELECT
                     'category' as row_type, c.id, c.name, c.icon, c.sort_order, c.created_at,
                     NULL as category_id, NULL as url, NULL as description, NULL as icon_type,
-                    NULL as icon_data, NULL as item_type, NULL as component_type,
-                    NULL as visit_count, NULL as last_visited_at,
+                    NULL as icon_data, NULL as visit_count, NULL as last_visited_at,
                     NULL as category_name, NULL as category_icon, NULL as tags, NULL as ai_summary
                 FROM categories c
                 UNION ALL
@@ -27,17 +26,17 @@ module.exports = function registerBootstrapV2(app, db) {
                     'bookmark' as row_type, b.id, b.name, b.icon, b.sort_order, b.created_at,
                     b.category_id, b.url, b.description, b.icon_type,
                     CASE WHEN b.icon_type = 'url' THEN b.icon_data ELSE NULL END as icon_data,
-                    b.item_type, b.component_type,
                     b.visit_count, b.last_visited_at,
                     c.name as category_name, c.icon as category_icon,
                     ba.tags, ba.summary as ai_summary
                 FROM bookmarks b
                 LEFT JOIN categories c ON b.category_id = c.id
                 LEFT JOIN bookmark_ai ba ON b.id = ba.bookmark_id
+                WHERE COALESCE(b.item_type, 'bookmark') <> 'component'
                 UNION ALL
                 SELECT
                     'engine' as row_type, e.id, e.name, e.icon, e.sort_order, e.created_at,
-                    NULL, e.url, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+                    NULL, e.url, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
                 FROM search_engines e
                 ORDER BY row_type, sort_order, created_at
             `;
@@ -53,10 +52,9 @@ module.exports = function registerBootstrapV2(app, db) {
                 LIMIT 200 OFFSET 0
             `;
 
-            const [rows, configRow, monitorConfigRow, todos] = await Promise.all([
+            const [rows, configRow, todos] = await Promise.all([
                 db.queryAll(sql),
                 db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization']),
-                db.queryOne('SELECT value FROM config WHERE `key` = ?', ['systemMonitorServers']),
                 db.queryAll(todosSql)
             ]);
 
@@ -89,8 +87,6 @@ module.exports = function registerBootstrapV2(app, db) {
                         icon: row.icon,
                         icon_type: row.icon_type,
                         icon_data: row.icon_data,
-                        item_type: row.item_type,
-                        component_type: row.component_type,
                         sort_order: row.sort_order,
                         visit_count: row.visit_count || 0,
                         last_visited_at: row.last_visited_at || null,
@@ -116,14 +112,6 @@ module.exports = function registerBootstrapV2(app, db) {
             if (configRow && configRow.value) {
                 try { config = JSON.parse(configRow.value); } catch { config = null; }
             }
-            let systemMonitorServers = [];
-            if (monitorConfigRow && monitorConfigRow.value) {
-                try {
-                    const parsed = JSON.parse(monitorConfigRow.value);
-                    systemMonitorServers = Array.isArray(parsed) ? parsed : [];
-                } catch { systemMonitorServers = []; }
-            }
-
             const responseData = {
                 success: true,
                 data: {
@@ -131,7 +119,6 @@ module.exports = function registerBootstrapV2(app, db) {
                     bookmarks,
                     engines,
                     config,
-                    systemMonitorServers,
                     todos: todos || []
                 }
             };
