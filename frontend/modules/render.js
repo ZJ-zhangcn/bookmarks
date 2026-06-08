@@ -275,12 +275,46 @@ function getIconSource(url) {
     if (url.includes('favicon.im')) return { label: 'Favicon.im', class: 'source-faviconim' };
     if (url.includes('icon.horse')) return { label: '字母', class: 'source-site' };
     if (url.includes('apple-touch-icon')) return { label: 'Apple', class: 'source-apple' };
-    if (url.includes('/favicon.ico')) return { label: '站点', class: 'source-site' };
-    return { label: '网站', class: 'source-site' };
+    if (url.includes('/favicon.ico') || url.includes('/favicon.png')) return { label: '默认图标', class: 'source-site' };
+    return { label: '页面图标', class: 'source-site' };
+}
+
+function getIconSourceFamily(icon) {
+    const url = String(icon || '');
+    if (url.includes('apple-touch-icon')) return 'apple';
+    return url;
+}
+
+function isSameIconSourceFamily(a, b) {
+    return getIconSourceFamily(a) === getIconSourceFamily(b);
+}
+
+function getLetterFallbackText(icon) {
+    try {
+        const hostname = new URL(String(icon || '')).pathname.split('/').filter(Boolean).at(-1) || '';
+        const first = hostname.replace(/^www\./i, '').charAt(0);
+        return first ? first.toUpperCase() : 'A';
+    } catch {
+        return 'A';
+    }
+}
+
+function renderIconPreviewImage(icon, source) {
+    if (String(icon || '').includes('icon.horse')) {
+        return `<span class="icon-option-fallback icon-letter-fallback">${escapeHtml(getLetterFallbackText(icon))}</span>`;
+    }
+    const displayIcon = toSafeImageUrl(icon);
+    return `<img src="${displayIcon}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true" data-fallback-icon="${escapeHtmlAttribute(source.label)}">`;
 }
 
 function getVisibleIconOptions(icons, limit = 6) {
-    const visible = icons.slice(0, limit);
+    const deduped = [];
+    for (const icon of icons) {
+        if (!deduped.some(existing => isSameIconSourceFamily(existing, icon))) {
+            deduped.push(icon);
+        }
+    }
+    const visible = deduped.slice(0, limit);
     const letterFallback = icons.find(icon => String(icon || '').includes('icon.horse'));
     if (!letterFallback || visible.includes(letterFallback) || icons.length <= limit) return visible;
     return [...visible.slice(0, Math.max(0, limit - 1)), letterFallback];
@@ -295,10 +329,9 @@ export function renderIconSelection(availableIcons) {
     }
     if (icons.length === 1) {
         const icon = icons[0];
-        const displayIcon = toSafeImageUrl(icon);
         const source = getIconSource(icon);
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
-            <img src="${displayIcon}" data-url="${escapeHtmlAttribute(icon)}" data-fallback-icon="🌐">
+            ${renderIconPreviewImage(icon, source)}
             <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
         </div>`;
     } else {
@@ -306,9 +339,8 @@ export function renderIconSelection(availableIcons) {
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
             ${visibleIcons.map((icon, idx) => {
         const source = getIconSource(icon);
-        const displayIcon = toSafeImageUrl(icon);
         return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlAttribute(icon)}" title="${escapeHtmlAttribute(source.label)}">
-                    <img src="${displayIcon}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true">
+                    ${renderIconPreviewImage(icon, source)}
                     <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
                 </div>`;
     }).join('')}

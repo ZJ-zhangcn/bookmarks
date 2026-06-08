@@ -3092,6 +3092,12 @@ input:checked+.slider:before {
     object-fit: contain;
 }
 
+.icon-single .icon-letter-fallback {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+}
+
 .icon-option-wrap {
     display: flex;
     flex-direction: column;
@@ -3134,6 +3140,14 @@ input:checked+.slider:before {
     justify-content: center;
     font-size: 18px;
     line-height: 1;
+}
+
+.icon-letter-fallback {
+    border-radius: 50%;
+    background: linear-gradient(135deg, #22c55e, #0ea5e9);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
 }
 
 .icon-option-wrap.icon-option-error {

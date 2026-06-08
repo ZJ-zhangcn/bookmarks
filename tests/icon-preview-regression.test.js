@@ -32,3 +32,14 @@ test('auto icon renderer preserves public letter fallback in visible candidates'
     assert.match(renderSource, /icon\.horse/);
     assert.doesNotMatch(renderSource, /icons\.slice\(0,\s*6\)\.map/);
 });
+
+test('auto icon renderer uses clear labels and local letter fallback previews', () => {
+    const renderSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/render.js'), 'utf8');
+
+    assert.match(renderSource, /function getLetterFallbackText/);
+    assert.match(renderSource, /function isSameIconSourceFamily/);
+    assert.match(renderSource, /页面图标/);
+    assert.match(renderSource, /默认图标/);
+    assert.match(renderSource, /class="icon-option-fallback icon-letter-fallback"/);
+    assert.doesNotMatch(renderSource, /label: '网站'/);
+});
