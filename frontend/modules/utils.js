@@ -217,6 +217,10 @@ export function bindImageFallbacks(root = document) {
         img.addEventListener('error', () => {
             if (img.dataset.removeOnError) {
                 const parent = img.parentElement;
+                if (img.dataset.hideOnError && parent?.classList.contains('icon-option-wrap')) {
+                    parent.hidden = true;
+                    return;
+                }
                 img.remove();
                 if (parent?.classList.contains('icon-option-wrap')) {
                     parent.classList.add('icon-option-error');

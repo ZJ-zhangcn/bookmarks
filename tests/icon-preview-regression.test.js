@@ -43,3 +43,13 @@ test('auto icon renderer uses clear labels and local letter fallback previews', 
     assert.match(renderSource, /class="icon-option-fallback icon-letter-fallback"/);
     assert.doesNotMatch(renderSource, /label: '网站'/);
 });
+
+test('auto icon renderer hides failed favicon service candidates', () => {
+    const renderSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/render.js'), 'utf8');
+    const utilsSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/utils.js'), 'utf8');
+
+    assert.match(renderSource, /function shouldHideIconOnError/);
+    assert.match(renderSource, /data-hide-on-error="true"/);
+    assert.match(utilsSource, /dataset\.hideOnError/);
+    assert.match(utilsSource, /parent\.hidden\s*=\s*true/);
+});
