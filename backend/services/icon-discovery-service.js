@@ -238,14 +238,15 @@ function createIconDiscoveryService(overrides = {}) {
                 return result;
             }
 
+            const bestSiteIcon = candidates[0];
             const result = {
                 status: 'ok',
                 cache: 'miss',
                 target: parsedUrl.href,
                 origin: cacheKey,
-                icons: uniqueUrls([...candidates.map(candidate => candidate.url), publicLetterFallback].filter(Boolean)),
+                icons: uniqueUrls([bestSiteIcon.url, publicLetterFallback].filter(Boolean)),
                 candidates: [
-                    ...candidates,
+                    bestSiteIcon,
                     ...(publicLetterFallback ? [{
                         url: publicLetterFallback,
                         source: 'public-fallback',

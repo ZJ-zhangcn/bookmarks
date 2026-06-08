@@ -97,6 +97,31 @@ test('icon discovery keeps public letter fallback when site icons are usable', a
     assert.equal(result.candidates.at(-1).source, 'public-fallback');
 });
 
+test('icon discovery returns only the highest-quality site icon plus public letter fallback', async () => {
+    const pageUrl = 'https://multi.example/page';
+    const html = `<!doctype html>
+      <link rel="icon" sizes="16x16" href="/icon-16.png">
+      <link rel="icon" sizes="64x64" href="/icon-64.png">
+      <link rel="apple-touch-icon" sizes="256x256" href="/icon-256.png">`;
+    const service = createFakeService({
+        [pageUrl]: response({ body: html }),
+        'https://multi.example/icon-16.png': response({ contentType: 'image/png', body: 'small' }),
+        'https://multi.example/icon-64.png': response({ contentType: 'image/png', body: 'medium' }),
+        'https://multi.example/icon-256.png': response({ contentType: 'image/png', body: 'large' })
+    });
+
+    const result = await service.discoverIcons(pageUrl);
+
+    assert.deepEqual(result.icons, [
+        'https://multi.example/icon-256.png',
+        'https://icon.horse/icon/multi.example'
+    ]);
+    assert.deepEqual(
+        result.candidates.filter(candidate => candidate.source !== 'public-fallback').map(candidate => candidate.url),
+        ['https://multi.example/icon-256.png']
+    );
+});
+
 test('icon discovery caches successful results by normalized origin', async () => {
     const pageUrl = 'https://example.com/docs/page';
     const html = '<link rel="icon" href="/favicon.png">';
