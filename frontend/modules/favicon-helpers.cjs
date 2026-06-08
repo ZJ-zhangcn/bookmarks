@@ -98,6 +98,13 @@ function shouldUseProxyUrlForIcon(url, pageProtocol = 'https:') {
 function normalizeFaviconResponse(result) {
     if (!result || result.success !== true) return [];
     if (Array.isArray(result.data)) return result.data;
+    if (Array.isArray(result.data?.icons)) return result.data.icons;
+    if (Array.isArray(result.data?.candidates)) {
+        return result.data.candidates
+            .filter(candidate => candidate?.usable !== false)
+            .map(candidate => candidate?.url)
+            .filter(Boolean);
+    }
     if (Array.isArray(result.icons)) return result.icons;
     return [];
 }

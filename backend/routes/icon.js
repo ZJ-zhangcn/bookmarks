@@ -4,19 +4,15 @@
 const express = require('express');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
-const { requireStrictAdmin, assertPublicFetchUrl } = require('../middleware/security');
+const { requireStrictAdmin } = require('../middleware/security');
 const { safeFetchPublicUrl, readLimitedArrayBuffer, DEFAULT_MAX_BYTES } = require('../utils/safe-fetch');
-const { selectBestIcons } = require('../utils/icon-discovery');
 const { proxyIconRequest } = require('../utils/icon-proxy');
+const { createIconDiscoveryService } = require('../services/icon-discovery-service');
 
 const IMAGE_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     'Accept': 'image/*,*/*;q=0.8'
 };
-const PAGE_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-};
-
 async function fetchPublicImage(url) {
     const { response, url: finalUrl } = await safeFetchPublicUrl(url, {
         timeoutMs: 10000,
@@ -37,6 +33,8 @@ async function fetchPublicImage(url) {
 }
 
 module.exports = function(db) {
+    const iconDiscovery = createIconDiscoveryService();
+
     // GET /api/icon/proxy - 代理外部图标（解决被墙问题）
     router.get('/proxy', asyncHandler(async (req, res) => {
         await proxyIconRequest(req, res, {
@@ -100,34 +98,9 @@ module.exports = function(db) {
 
         for (const bm of bookmarks) {
             try {
-                const parsedUrl = await assertPublicFetchUrl(bm.url);
-                const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
-
-                let iconUrl = null;
-                try {
-                    const { response: pageRes } = await safeFetchPublicUrl(parsedUrl.href, {
-                        timeoutMs: 10000,
-                        fetchOptions: { headers: PAGE_HEADERS }
-                    });
-                    if (pageRes.ok) {
-                        const pageBuffer = await readLimitedArrayBuffer(pageRes, 512 * 1024);
-                        const html = pageBuffer.toString('utf8');
-                        const icons = await selectBestIcons(html, parsedUrl.href, async manifestUrl => {
-                            const { response: manifestResponse } = await safeFetchPublicUrl(manifestUrl, {
-                                timeoutMs: 5000,
-                                fetchOptions: { headers: PAGE_HEADERS }
-                            });
-                            if (!manifestResponse.ok) return null;
-                            const manifestText = (await readLimitedArrayBuffer(manifestResponse, 128 * 1024)).toString('utf8');
-                            return JSON.parse(manifestText);
-                        });
-                        iconUrl = icons[0] || null;
-                    }
-                } catch { }
-
-                if (!iconUrl) {
-                    iconUrl = `${baseUrl}/favicon.ico`;
-                }
+                const discovered = await iconDiscovery.discoverIcons(bm.url);
+                const iconUrl = discovered.icons[0];
+                if (!iconUrl) throw new AppError('未找到可用图标', 502);
 
                 const { buffer, contentType } = await fetchPublicImage(iconUrl);
                 if (buffer.byteLength > 0) {

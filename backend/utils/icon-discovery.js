@@ -51,6 +51,10 @@ function addCandidate(candidates, seen, candidate) {
 }
 
 async function selectBestIcons(html, pageUrl, fetchManifestJson = null) {
+    return (await discoverIconCandidates(html, pageUrl, fetchManifestJson)).map(c => c.url);
+}
+
+async function discoverIconCandidates(html, pageUrl, fetchManifestJson = null) {
     const $ = cheerio.load(String(html || ''));
     const candidates = [];
     const seen = new Set();
@@ -103,8 +107,7 @@ async function selectBestIcons(html, pageUrl, fetchManifestJson = null) {
 
     return candidates
         .filter(c => c.source !== 'manifest-link')
-        .sort((a, b) => b.score - a.score)
-        .map(c => c.url);
+        .sort((a, b) => b.score - a.score);
 }
 
-module.exports = { resolveIconHref, selectBestIcons, parseLargestSize };
+module.exports = { resolveIconHref, selectBestIcons, discoverIconCandidates, parseLargestSize };

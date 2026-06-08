@@ -250,11 +250,16 @@ export async function fetchEngineIcon() {
             return;
         }
 
-        const localIcons = await getLocalFallbackIcons(url);
-        if (localIcons.length > 0) {
-            const iconUrl = localIcons[0];
-            const displayIcon = toSafeImageUrl(iconUrl);
-            DOM.engineIconPreview.innerHTML = `<img src="${escapeHtmlAttribute(displayIcon)}">`;
+        const res = await fetch(`${state.API_BASE}/api/favicon`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const data = await res.json().catch(() => null);
+        const icons = normalizeFaviconResponse(data);
+        if (res.ok && icons.length > 0) {
+            const iconUrl = icons[0];
+            DOM.engineIconPreview.innerHTML = `<img src="${escapeHtmlAttribute(toSafeImageUrl(iconUrl))}">`;
             DOM.engineIconPreview.dataset.iconUrl = iconUrl;
             return;
         }
