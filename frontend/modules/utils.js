@@ -212,13 +212,64 @@ export function fallbackIconHtml(icon) {
     return `<span>${escapeHtml(icon || '🌐')}</span>`;
 }
 
+function selectNextVisibleIconOption(hiddenWrap) {
+    if (!hiddenWrap?.classList?.contains('selected')) return;
+    hiddenWrap.classList.remove('selected');
+    const options = [...hiddenWrap.parentElement?.querySelectorAll('.icon-option-wrap') || []];
+    const next = options.find(option => option !== hiddenWrap && !option.hidden);
+    if (next) next.classList.add('selected');
+}
+
+function hideIconOption(wrap) {
+    if (!wrap?.classList?.contains('icon-option-wrap')) return;
+    selectNextVisibleIconOption(wrap);
+    wrap.hidden = true;
+}
+
+function isSolidPlaceholderImage(img) {
+    if (!img?.dataset?.hideSolidPlaceholder) return false;
+    const width = img.naturalWidth || img.width || 0;
+    const height = img.naturalHeight || img.height || 0;
+    if (width < 2 || height < 2) return true;
+
+    const canvas = document.createElement('canvas');
+    const size = 16;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return false;
+    try {
+        ctx.drawImage(img, 0, 0, size, size);
+        const data = ctx.getImageData(0, 0, size, size).data;
+        let samples = 0;
+        let same = 0;
+        const base = [data[0], data[1], data[2], data[3]];
+        for (let i = 0; i < data.length; i += 4) {
+            samples += 1;
+            const delta = Math.abs(data[i] - base[0])
+                + Math.abs(data[i + 1] - base[1])
+                + Math.abs(data[i + 2] - base[2])
+                + Math.abs(data[i + 3] - base[3]);
+            if (delta <= 18) same += 1;
+        }
+        return same / samples > 0.98;
+    } catch {
+        return false;
+    }
+}
+
 export function bindImageFallbacks(root = document) {
     root.querySelectorAll('img[data-fallback-icon], img[data-remove-on-error]').forEach(img => {
+        img.addEventListener('load', () => {
+            if (isSolidPlaceholderImage(img)) {
+                hideIconOption(img.parentElement);
+            }
+        }, { once: true });
         img.addEventListener('error', () => {
             if (img.dataset.removeOnError) {
                 const parent = img.parentElement;
                 if (img.dataset.hideOnError && parent?.classList.contains('icon-option-wrap')) {
-                    parent.hidden = true;
+                    hideIconOption(parent);
                     return;
                 }
                 img.remove();

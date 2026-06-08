@@ -51,5 +51,16 @@ test('auto icon renderer hides failed favicon service candidates', () => {
     assert.match(renderSource, /function shouldHideIconOnError/);
     assert.match(renderSource, /data-hide-on-error="true"/);
     assert.match(utilsSource, /dataset\.hideOnError/);
-    assert.match(utilsSource, /parent\.hidden\s*=\s*true/);
+    assert.match(utilsSource, /hideIconOption\(parent\)/);
+});
+
+test('auto icon renderer hides solid google favicon placeholders', () => {
+    const renderSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/render.js'), 'utf8');
+    const utilsSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/utils.js'), 'utf8');
+
+    assert.match(renderSource, /function shouldHideSolidPlaceholder/);
+    assert.match(renderSource, /data-hide-solid-placeholder="true"/);
+    assert.match(utilsSource, /function isSolidPlaceholderImage/);
+    assert.match(utilsSource, /getImageData/);
+    assert.match(utilsSource, /function selectNextVisibleIconOption/);
 });

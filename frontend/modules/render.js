@@ -304,13 +304,18 @@ function shouldHideIconOnError(icon) {
     return url.includes('google.com/s2/favicons') || url.includes('favicon.im');
 }
 
+function shouldHideSolidPlaceholder(icon) {
+    return String(icon || '').includes('google.com/s2/favicons');
+}
+
 function renderIconPreviewImage(icon, source) {
     if (String(icon || '').includes('icon.horse')) {
         return `<span class="icon-option-fallback icon-letter-fallback">${escapeHtml(getLetterFallbackText(icon))}</span>`;
     }
     const displayIcon = toSafeImageUrl(icon);
     const hideOnError = shouldHideIconOnError(icon) ? ' data-hide-on-error="true"' : '';
-    return `<img src="${displayIcon}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true"${hideOnError} data-fallback-icon="${escapeHtmlAttribute(source.label)}">`;
+    const hideSolidPlaceholder = shouldHideSolidPlaceholder(icon) ? ' data-hide-solid-placeholder="true"' : '';
+    return `<img src="${displayIcon}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true"${hideOnError}${hideSolidPlaceholder} data-fallback-icon="${escapeHtmlAttribute(source.label)}">`;
 }
 
 function getVisibleIconOptions(icons, limit = 6) {
