@@ -30,7 +30,7 @@ function response({ ok = true, status = 200, contentType = 'text/html', body = '
     };
 }
 
-function createFakeService(routes, calls = []) {
+function createFakeService(routes, calls = [], overrides = {}) {
     return createIconDiscoveryService({
         assertPublicFetchUrl: async raw => new URL(raw),
         isPrivateOrLocalAddress: () => false,
@@ -49,7 +49,8 @@ function createFakeService(routes, calls = []) {
                 throw new Error('response too large');
             }
             return buffer;
-        }
+        },
+        ...overrides
     });
 }
 
@@ -156,7 +157,7 @@ test('icon discovery caches successful results by normalized origin', async () =
     assert.equal(calls.filter(url => url === pageUrl).length, 1);
 });
 
-test('icon discovery returns short-lived fallback icons when page fetch fails', async () => {
+test('icon discovery returns public provider fallbacks when public page fetch fails', async () => {
     const pageUrl = 'https://example.com/page';
     const service = createFakeService({
         [pageUrl]: new Error('network down')
@@ -165,6 +166,28 @@ test('icon discovery returns short-lived fallback icons when page fetch fails', 
     const result = await service.discoverIcons(pageUrl);
 
     assert.equal(result.status, 'fallback');
-    assert.deepEqual(result.icons, getFallbackIcons('example.com', 'https:'));
+    assert.deepEqual(result.icons, [
+        'https://www.google.com/s2/favicons?domain=example.com&sz=64',
+        'https://favicon.im/example.com',
+        'https://icon.horse/icon/example.com'
+    ]);
+    assert.equal(result.candidates.every(candidate => candidate.usable === false), true);
+});
+
+test('icon discovery keeps same-origin fallbacks for private page fetch failures', async () => {
+    const pageUrl = 'http://router.local/page';
+    const service = createFakeService({
+        [pageUrl]: new Error('network down')
+    }, [], {
+        isPrivateOrLocalAddress: () => true
+    });
+
+    const result = await service.discoverIcons(pageUrl);
+
+    assert.equal(result.status, 'fallback');
+    assert.deepEqual(result.icons, getFallbackIcons('router.local', 'http:', {
+        hostname: 'router.local',
+        isPrivateOrLocalAddressFn: () => true
+    }));
     assert.equal(result.candidates.every(candidate => candidate.usable === false), true);
 });

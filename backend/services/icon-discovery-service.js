@@ -96,11 +96,18 @@ function getPublicProviderFallbacks(hostname, deps) {
     ];
 }
 
-function fallbackResult(parsedUrl, reason, rejected, deps) {
-    const fallbackIcons = getFallbackIcons(parsedUrl.host, parsedUrl.protocol, {
+function getResultFallbackIcons(parsedUrl, deps) {
+    if (!deps.isPrivateOrLocalAddress(parsedUrl.hostname)) {
+        return getPublicProviderFallbacks(parsedUrl.hostname, deps);
+    }
+    return getFallbackIcons(parsedUrl.host, parsedUrl.protocol, {
         hostname: parsedUrl.hostname,
         isPrivateOrLocalAddressFn: deps.isPrivateOrLocalAddress
     });
+}
+
+function fallbackResult(parsedUrl, reason, rejected, deps) {
+    const fallbackIcons = getResultFallbackIcons(parsedUrl, deps);
     return {
         status: 'fallback',
         cache: 'miss',
