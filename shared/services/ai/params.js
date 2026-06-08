@@ -1,5 +1,7 @@
+const { allowAiClientOverride } = require('../env');
+
 function allowClientParams() {
-    return String(process.env.AI_ALLOW_CLIENT_PARAMS).toLowerCase() === 'true';
+    return allowAiClientOverride('params');
 }
 
 function isPlainObject(value) {
@@ -87,7 +89,7 @@ function resolveGenerationParams({ body } = {}) {
     const requestBody = body || {};
     if (hasOwn(requestBody, 'aiParams') && requestBody.aiParams != null) {
         if (!allowClientParams()) {
-            throw new Error('服务器未允许从前端覆盖 AI 生成参数（可设置 AI_ALLOW_CLIENT_PARAMS=true 放开）');
+            throw new Error('服务器未允许从前端覆盖 AI 生成参数（可设置 AI_CLIENT_OVERRIDES=true 放开）');
         }
         applyGenerationParams(params, requestBody.aiParams);
     }

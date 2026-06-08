@@ -24,15 +24,15 @@ services:
       # =====================
       # 鉴权（推荐配置）
       # =====================
-      # 管理员令牌（设置后写操作需要 Authorization: Bearer <token>）
+      # 访问控制：anonymous / token / off
+      - AUTH_MODE=anonymous
+      # 管理员令牌（AUTH_MODE=token 时写操作需要 Authorization: Bearer <token>）
       # - ADMIN_TOKEN=your-secret-token
-      # 允许匿名写入（个人使用可设为 true，对外服务建议设置 ADMIN_TOKEN）
-      - ALLOW_ANONYMOUS_WRITE=true
       # =====================
       # 安全（可选）
       # =====================
-      # 允许访问内网地址（WebDAV 同步到 NAS 时需要）
-      # - ALLOW_PRIVATE_FETCH=true
+      # 允许访问内网地址（WebDAV 同步到 NAS 或内网 AI 网关时需要）
+      # - ALLOW_PRIVATE_NETWORK=true
       # CORS 允许的源（多个用逗号分隔，不设置则允许所有）
       # - CORS_ORIGIN=https://example.com
       # MySQL 数据库连接（必填，建议写入 .env）
@@ -54,7 +54,4 @@ services:
       # - ANTHROPIC_VERSION=2023-06-01
       #
       # 若要在网页里临时切换（自用可选，不建议对外站点开启）
-      # - AI_ALLOW_CLIENT_KEY=true
-      # - AI_ALLOW_CLIENT_BASE_URL=true
-      # - AI_ALLOW_CLIENT_PROVIDER=true
-      # - AI_ALLOW_PRIVATE_BASE_URL=true
+      # - AI_CLIENT_OVERRIDES=true

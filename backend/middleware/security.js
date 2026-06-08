@@ -5,19 +5,15 @@
 
 const dns = require('dns').promises;
 const net = require('net');
-
-function isAdminAuthDisabled() {
-    const value = String(process.env.DISABLE_ADMIN_AUTH || process.env.DISABLE_AUTH || '').trim().toLowerCase();
-    return ['1', 'true', 'yes', 'on'].includes(value);
-}
+const { isAdminAuthDisabled, isAnonymousWriteAllowed, isPrivateFetchAllowed } = require('../../shared/services/env');
 
 function requireAdmin(req, res, next) {
     if (isAdminAuthDisabled()) return next();
     const token = String(process.env.ADMIN_TOKEN || '').trim();
-    const allowAnonymous = String(process.env.ALLOW_ANONYMOUS_WRITE || '').toLowerCase() === 'true';
+    const allowAnonymous = isAnonymousWriteAllowed();
     if (!token) {
         if (allowAnonymous) return next();
-        return res.status(401).json({ success: false, error: '未配置 ADMIN_TOKEN 且未允许匿名写入（设置 ALLOW_ANONYMOUS_WRITE=true 可放开）' });
+        return res.status(401).json({ success: false, error: '未配置 ADMIN_TOKEN 且未允许匿名写入（设置 AUTH_MODE=anonymous 可放开）' });
     }
     const auth = String(req.headers.authorization || '').trim();
     if (auth === `Bearer ${token}`) return next();
@@ -115,7 +111,7 @@ function isPrivateIpv6(ip) {
 
 async function assertPublicFetchUrl(raw) {
     const u = assertSafeFetchUrl(raw);
-    const allowPrivate = String(process.env.ALLOW_PRIVATE_FETCH || '').toLowerCase() === 'true';
+    const allowPrivate = isPrivateFetchAllowed();
     if (allowPrivate) return u;
 
     const records = await dns.lookup(u.hostname, { all: true, verbatim: true });
@@ -133,9 +129,9 @@ function assertSafeFetchUrl(raw) {
     if (u.protocol !== 'http:' && u.protocol !== 'https:') {
         throw new Error('仅允许 http/https 协议');
     }
-    const allowPrivate = String(process.env.ALLOW_PRIVATE_FETCH || '').toLowerCase() === 'true';
+    const allowPrivate = isPrivateFetchAllowed();
     if (!allowPrivate && isPrivateOrLocalAddress(u.hostname)) {
-        throw new Error('禁止访问内网/本地地址（可设置 ALLOW_PRIVATE_FETCH=true 放开）');
+        throw new Error('禁止访问内网/本地地址（可设置 ALLOW_PRIVATE_NETWORK=true 放开）');
     }
     return u;
 }

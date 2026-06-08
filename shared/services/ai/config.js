@@ -3,6 +3,7 @@
  */
 
 const { allowClientParams, resolveGenerationParams } = require('./params');
+const { allowAiClientOverride, isPrivateAiBaseUrlAllowed } = require('../env');
 
 function isAiEnabledFlag() {
     return String(process.env.AI_ENABLED).toLowerCase() === 'true';
@@ -46,19 +47,19 @@ function getDefaultBaseUrlForProvider(provider) {
 }
 
 function allowClientKey() {
-    return String(process.env.AI_ALLOW_CLIENT_KEY).toLowerCase() === 'true';
+    return allowAiClientOverride('key');
 }
 
 function allowClientBaseUrl() {
-    return String(process.env.AI_ALLOW_CLIENT_BASE_URL).toLowerCase() === 'true';
+    return allowAiClientOverride('baseUrl');
 }
 
 function allowClientProvider() {
-    return String(process.env.AI_ALLOW_CLIENT_PROVIDER).toLowerCase() === 'true';
+    return allowAiClientOverride('provider');
 }
 
 function allowPrivateBaseUrl() {
-    return String(process.env.AI_ALLOW_PRIVATE_BASE_URL).toLowerCase() === 'true';
+    return isPrivateAiBaseUrlAllowed();
 }
 
 function hasServerKey() {
@@ -120,7 +121,7 @@ function normalizeBaseUrl(input) {
 
     const isPrivate = isPrivateOrLocalAddress(parsed.hostname);
     if (isPrivate && !allowPrivateBaseUrl()) {
-        throw new Error('AI API 地址为内网/本地地址，当前未允许（可设置 AI_ALLOW_PRIVATE_BASE_URL=true 放开）');
+        throw new Error('AI API 地址为内网/本地地址，当前未允许（可设置 ALLOW_PRIVATE_NETWORK=true 放开）');
     }
 
     if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && isPrivate && allowPrivateBaseUrl())) {
@@ -142,7 +143,7 @@ function resolveProvider(body) {
     const providerOverride = String(requestBody.provider || '').trim().toLowerCase();
     if (!providerOverride) return getAiProvider();
     if (!allowClientProvider()) {
-        throw new Error('服务器未允许从前端覆盖 AI Provider（可设置 AI_ALLOW_CLIENT_PROVIDER=true 放开）');
+        throw new Error('服务器未允许从前端覆盖 AI Provider（可设置 AI_CLIENT_OVERRIDES=true 放开）');
     }
     if (!['openai', 'gemini', 'claude'].includes(providerOverride)) {
         throw new Error(`不支持的 provider: ${providerOverride}`);
@@ -168,7 +169,7 @@ function resolveRuntimeConfig(body) {
     const baseUrlOverride = String(requestBody.apiBaseUrl || '').trim();
     if (baseUrlOverride) {
         if (!allowClientBaseUrl()) {
-            throw new Error('服务器未允许从前端覆盖 AI API 地址（可设置 AI_ALLOW_CLIENT_BASE_URL=true 放开）');
+            throw new Error('服务器未允许从前端覆盖 AI API 地址（可设置 AI_CLIENT_OVERRIDES=true 放开）');
         }
         cfg.baseUrl = normalizeBaseUrl(baseUrlOverride);
     }
@@ -176,7 +177,7 @@ function resolveRuntimeConfig(body) {
     const keyOverride = String(requestBody.apiKey || '').trim();
     if (keyOverride) {
         if (!allowClientKey()) {
-            throw new Error('服务器未允许从前端传入 AI Key（可设置 AI_ALLOW_CLIENT_KEY=true 放开）');
+            throw new Error('服务器未允许从前端传入 AI Key（可设置 AI_CLIENT_OVERRIDES=true 放开）');
         }
         cfg.apiKey = keyOverride;
     }

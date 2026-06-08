@@ -1,35 +1,46 @@
 # 书签导航
 
-一个自用书签导航页，支持分类、搜索引擎、TODO、系统监控组件、图标库、AI 辅助描述/标签，以及 JSON / WebDAV 数据备份。
+一个面向个人自用的中文书签导航页。它把书签、分类、搜索引擎、待办、图标、壁纸、数据同步和 AI 摘要放在同一个页面里，适合部署在 NAS、家用服务器或个人 VPS 上。
 
-## 功能
+![预览图](./预览图.png)
 
-- 书签与分类管理：新增、编辑、删除、排序、折叠分类
-- 搜索：网页搜索引擎切换、书签过滤、快捷搜索浮层
-- 个性化：主题、Logo、壁纸、时钟、页脚、内容宽度
-- TODO：快速添加、编辑、完成、删除、拖拽排序
-- 系统监控：CPU、内存、磁盘组件
-- 图标库：自动获取 favicon、上传/复用图标
-- 数据备份：本地 JSON 导入导出、浏览器书签 HTML 导入、WebDAV 上传/下载
-- AI 辅助：为书签生成标签和摘要，支持 OpenAI / Gemini / Claude
-- 数据库：默认 SQLite，也支持远程 MySQL
+## 功能概览
 
-## 快速启动
+- 书签管理：支持分类、新增、编辑、删除、排序、访问计数和标签。
+- 搜索入口：可配置多个搜索引擎，也可以在浮层里快速过滤书签。
+- 个性化界面：支持主题、Logo、壁纸、时钟、页脚、内容宽度和组件显隐。
+- TODO 待办：支持快速添加、编辑、完成、删除和拖拽排序。
+- 图标库：可自动发现 favicon，也可上传、复用、批量获取或修复图标。
+- 数据同步：支持本地 JSON 导入导出、浏览器书签 HTML 导入和 WebDAV 上传/下载。
+- AI 辅助：可为书签生成摘要、标签和分类建议，支持 OpenAI、Gemini、Claude。
+- 数据库：默认使用 SQLite，配置 `DATABASE_URL` 后切换到 MySQL。
+- 系统监控：Docker 挂载宿主机 `/proc`、`/sys` 后可展示 CPU、内存、磁盘状态。
 
-### Docker Compose（SQLite 默认）
+## 快速部署
+
+### Docker Compose（SQLite）
+
+SQLite 是默认模式，适合单实例个人部署。
 
 ```bash
-mkdir bookmarks && cd bookmarks
+mkdir bookmarks
+cd bookmarks
 curl -O https://raw.githubusercontent.com/ZJ-zhangcn/bookmarks/main/docker-compose.yml
 touch .env
 docker compose up -d
 ```
 
-访问：`http://localhost:8080`
+启动后访问：
 
-数据默认保存在 Docker volume `bookmark-data`。
+```text
+http://localhost:8080
+```
 
-### Docker Compose（远程 MySQL）
+数据会持久化到 Docker volume `bookmark-data`，容器重建不会丢失。
+
+### Docker Compose（外部 MySQL）
+
+需要多实例共享数据，或希望把数据统一放到已有数据库时使用 MySQL 模式。
 
 ```bash
 curl -O https://raw.githubusercontent.com/ZJ-zhangcn/bookmarks/main/docker-compose.mysql.yml
@@ -41,74 +52,103 @@ docker compose -f docker-compose.mysql.yml up -d
 
 ### 本地开发
 
+项目要求 Node.js `>=20.19.0`。
+
 ```bash
 npm install
 npm run dev
 ```
 
-前端 Vite 开发服务：
+后端默认监听 `http://localhost:3000`，会直接服务 `dist/` 或 `frontend/`。
+
+如果只调前端，可另起 Vite：
 
 ```bash
 npm run dev:frontend
 ```
 
-## 环境变量
+## 配置说明
 
-| 变量 | 默认值 | 说明 |
-|---|---|---|
-| `PORT` | `3000` | 后端服务端口 |
-| `NODE_ENV` | `production` | 运行环境 |
-| `DATABASE_URL` | - | MySQL 连接字符串；不设置则使用 SQLite |
-| `HOST_PROC` | `/host/proc` | 宿主机 `/proc` 挂载路径，用于系统监控 |
-| `HOST_SYS` | `/host/sys` | 宿主机 `/sys` 挂载路径，用于系统监控 |
-| `ALLOW_ANONYMOUS_WRITE` | - | 允许匿名写入；个人内网使用可开启 |
-| `ADMIN_TOKEN` | - | 设置后写操作需要 `Authorization: Bearer <token>` |
-| `ALLOW_PRIVATE_FETCH` | - | 允许抓取内网地址，WebDAV 到 NAS 时可能需要 |
-| `CORS_ORIGIN` | - | 限制允许的跨域来源，多个用逗号分隔 |
+大多数个人部署不需要配置很多变量。SQLite 模式下可以直接启动；只有接入 MySQL、开放公网、WebDAV 内网地址或 AI 时才需要改 `.env`。
 
-### AI 相关
+### 常用变量
 
-| 变量 | 默认值 | 说明 |
-|---|---|---|
-| `AI_ENABLED` | `false` | 是否启用 AI |
-| `AI_PROVIDER` | `openai` | `openai` / `gemini` / `claude` |
-| `AI_MODEL` | - | 模型名 |
-| `AI_BASE_URL` | - | API 基础地址 |
-| `AI_TIMEOUT_MS` | `8000` | AI 请求超时 |
-| `AI_MAX_TOKENS` | `280` | 推荐兼容层输出 token 上限 |
-| `AI_TEMPERATURE` | `0` | 推荐兼容层采样温度；不兼容的模型会自动省略 |
-| `AI_TOP_P` | - | 推荐兼容层 top_p / topP；留空则不传 |
-| `AI_REASONING_EFFORT` | - | OpenAI 官方 reasoning/GPT-5 类模型的推理强度 |
-| `AI_CLAUDE_THINKING` | - | Claude thinking 开关：`adaptive` / `disabled`；不支持的旧模型会自动省略 |
-| `OPENAI_API_KEY` | - | OpenAI Key |
-| `GEMINI_API_KEY` / `GOOGLE_API_KEY` | - | Gemini Key |
-| `ANTHROPIC_API_KEY` | - | Claude Key |
-| `ANTHROPIC_VERSION` | `2023-06-01` | Claude API 版本头 |
-| `AI_ALLOW_CLIENT_KEY` | `false` | 是否允许前端临时传入 Key |
-| `AI_ALLOW_CLIENT_BASE_URL` | `false` | 是否允许前端覆盖 API 地址 |
-| `AI_ALLOW_CLIENT_PROVIDER` | `false` | 是否允许前端切换 Provider |
-| `AI_ALLOW_CLIENT_PARAMS` | `false` | 是否允许请求体覆盖推荐兼容层参数 |
-| `AI_ALLOW_PRIVATE_BASE_URL` | `false` | 是否允许 AI 网关使用内网地址 |
+| 场景 | 变量 | 说明 |
+| --- | --- | --- |
+| 修改端口 | `PORT` | 后端监听端口，默认 `3000`；Docker 默认映射到宿主机 `8080`。 |
+| 使用 MySQL | `DATABASE_URL` | 不填则使用 SQLite；填写后使用 MySQL，例如 `mysql://user:password@host:3306/bookmarks?ssl-mode=REQUIRED`。 |
+| 访问控制 | `AUTH_MODE` | `anonymous` 适合个人内网；`token` 适合公网；`off` 完全关闭鉴权。 |
+| 管理令牌 | `ADMIN_TOKEN` | `AUTH_MODE=token` 时，写接口需要 `Authorization: Bearer <token>`。 |
+| 内网访问 | `ALLOW_PRIVATE_NETWORK` | WebDAV、图标抓取或 AI 网关需要访问内网地址时开启。 |
+| 启用 AI | `AI_ENABLED` | 设置为 `true` 后，再配置下面的 provider 和 Key。 |
+| 前端 AI 覆盖 | `AI_CLIENT_OVERRIDES` | 允许页面临时传入 Key、Base URL、Provider 和生成参数；只建议自用开启。 |
 
-AI 生成参数采用推荐兼容层：后端只暴露书签生成所需的通用参数，并自动映射为 OpenAI、Gemini、Claude 各自支持的字段，不等同于三家 API 的全量高级参数。
+### AI 最小配置
 
-## 数据备份
+OpenAI 或兼容接口：
 
-### 本地 JSON
+```env
+AI_ENABLED=true
+AI_PROVIDER=openai
+AI_MODEL=gpt-4o-mini
+AI_BASE_URL=https://api.openai.com/v1
+OPENAI_API_KEY=your-key
+```
 
-设置 → 数据同步：
+Gemini：
 
-- 导出：下载当前配置 JSON
-- 导入：上传 JSON 恢复数据
-- 浏览器书签导入：导入 Netscape HTML 格式书签
+```env
+AI_ENABLED=true
+AI_PROVIDER=gemini
+AI_MODEL=gemini-1.5-flash
+GEMINI_API_KEY=your-key
+```
+
+Claude：
+
+```env
+AI_ENABLED=true
+AI_PROVIDER=claude
+AI_MODEL=claude-3-5-haiku-latest
+ANTHROPIC_API_KEY=your-key
+```
+
+高级 AI 参数、CORS 等开关见 `.env.example`。这些不是常规部署必需项，建议只在明确需要时开启。
+
+### 推荐组合
+
+- 个人内网：SQLite 默认部署，保留 compose 中的免鉴权配置即可。
+- 公网访问：设置 `AUTH_MODE=token` 和 `ADMIN_TOKEN`。
+- WebDAV 同步 NAS：在 WebDAV 配置正确的基础上，增加 `ALLOW_PRIVATE_NETWORK=true`。
+- 外部数据库：只增加 `DATABASE_URL`，其余保持默认。
+
+旧版变量仍兼容，包括 `ALLOW_ANONYMOUS_WRITE`、`DISABLE_ADMIN_AUTH`、`ALLOW_PRIVATE_FETCH`、`AI_ALLOW_CLIENT_KEY`、`AI_ALLOW_CLIENT_BASE_URL`、`AI_ALLOW_CLIENT_PROVIDER`、`AI_ALLOW_CLIENT_PARAMS` 和 `AI_ALLOW_PRIVATE_BASE_URL`。新部署建议优先使用上表里的合并变量。
+
+## 数据备份与同步
+
+### 本地导入导出
+
+在页面右上角打开设置，进入“数据同步”：
+
+- 导出配置：下载当前分类、书签、搜索引擎、设置、TODO 和图标数据。
+- 导入配置：上传 JSON 恢复数据。
+- 导入浏览器书签：支持 Chrome、Firefox、Edge 导出的 Netscape HTML 书签文件。
+
+导出时可以选择是否包含图标。包含图标更完整，但文件会更大。
 
 ### WebDAV
 
-设置 → 数据同步中填写 WebDAV 地址、账号、密码和保存路径，然后使用上传/下载按钮同步。
+在“数据同步”里填写 WebDAV 地址、账号、密码和保存路径，然后执行上传或下载。
+
+如果 WebDAV 服务在 NAS、路由器或其他内网地址上，需要同时开启：
+
+```env
+ALLOW_PRIVATE_NETWORK=true
+```
 
 ## 系统监控
 
-系统监控组件依赖宿主机挂载：
+系统监控依赖宿主机只读挂载：
 
 ```yaml
 volumes:
@@ -119,7 +159,7 @@ environment:
   - HOST_SYS=/host/sys
 ```
 
-如不使用系统监控组件，可删除 compose 中对应挂载。
+不需要系统监控时，可以从 compose 文件中删除这两个挂载和对应环境变量。
 
 ## 常用脚本
 
@@ -127,34 +167,47 @@ environment:
 npm run dev             # 启动后端，直接服务 frontend 或 dist
 npm run dev:frontend    # 启动 Vite 前端开发服务
 npm run build:frontend  # 构建前端到 dist
+npm run preview         # 预览前端构建产物
 npm run lint            # 运行 ESLint
 npm run lint:fix        # 自动修复 ESLint 可修复问题
+npm test                # 运行 node:test 测试
+npm run audit:high      # 检查高危依赖问题
 npm run db:init         # 初始化 MySQL 表
-npm run db:migrate      # SQLite 迁移到 MySQL
+npm run db:migrate      # 从 SQLite 迁移到 MySQL
 ```
 
 ## 项目结构
 
 ```text
 bookmarks/
-├── backend/              # Express 后端
+├── backend/              # Express 后端、API 路由、数据库入口
 │   ├── server.js         # 服务入口
 │   ├── db.js             # SQLite / MySQL 数据库层
-│   ├── ai.js             # AI API
+│   ├── ai.js             # AI 路由注册
 │   ├── bootstrap-v2.js   # 首屏聚合接口
-│   └── routes/           # API 路由
+│   ├── middleware/       # 鉴权和安全校验
+│   └── routes/           # 分类、书签、图标、WebDAV、数据同步等 API
 ├── frontend/             # 原生 HTML/CSS/JS 前端
 │   ├── index.html
 │   ├── index.css
 │   ├── main.js
-│   └── modules/
-├── shared/services/      # 后端复用服务层
-├── scripts/              # MySQL 初始化与迁移脚本
+│   └── modules/          # 前端功能模块
+├── shared/services/      # 前后端复用的业务服务
+├── scripts/              # MySQL 初始化与 SQLite 迁移脚本
+├── tests/                # node:test 测试
 ├── Dockerfile
 ├── docker-compose.yml
 └── docker-compose.mysql.yml
 ```
 
-## 说明
+## 排障提示
 
-项目当前保留 MySQL、AI、WebDAV、TODO、系统监控、图标库和 Docker 部署；已移除 Docker 容器管理和多语言切换，界面固定为中文。
+- 页面能打开但保存失败：检查 `AUTH_MODE` 和 `ADMIN_TOKEN`。
+- WebDAV 到 NAS 失败：确认 URL、账号、路径正确，并开启 `ALLOW_PRIVATE_NETWORK=true`。
+- AI 按钮提示未启用：确认 `AI_ENABLED=true`，并配置当前 provider 对应的 Key。
+- 系统监控没有数据：确认 Docker 已挂载 `/proc` 和 `/sys`，并且 `HOST_PROC`、`HOST_SYS` 指向挂载路径。
+- MySQL 启动失败：确认 `DATABASE_URL` 以 `mysql://` 开头，账号有建表和读写权限。
+
+## 许可证
+
+本项目使用 [MIT License](./LICENSE)。
