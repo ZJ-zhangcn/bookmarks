@@ -53,21 +53,43 @@ function localIconSourceLabel(url) {
     return { label: '本地直连', class: 'source-site' };
 }
 
+function localIconPreviewImage(icon, source) {
+    const hideOnError = String(icon || '').includes('google.com/s2/favicons') || String(icon || '').includes('favicon.im')
+        ? ' data-hide-on-error="true"'
+        : '';
+    const hideSolidPlaceholder = String(icon || '').includes('google.com/s2/favicons')
+        ? ' data-hide-solid-placeholder="true"'
+        : '';
+    return `<img src="${escapeHtmlAttribute(icon)}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true"${hideOnError}${hideSolidPlaceholder} data-fallback-icon="${escapeHtmlAttribute(source.label)}">`;
+}
+
+function getVisibleLocalIconOptions(icons, limit = 6) {
+    const shouldHideGoogleService = icons.some(icon => {
+        const url = String(icon || '');
+        return url.includes('favicon.im') || url.includes('icon.horse');
+    });
+    const displayIcons = shouldHideGoogleService
+        ? icons.filter(icon => !String(icon || '').includes('google.com/s2/favicons'))
+        : icons;
+    return displayIcons.slice(0, limit);
+}
+
 function renderLocalIconSelection(localIcons) {
     const icons = Array.isArray(localIcons) ? localIcons : [];
-    state.setAvailableIcons(icons);
+    const visibleIcons = getVisibleLocalIconOptions(icons);
+    state.setAvailableIcons(visibleIcons);
 
-    if (icons.length === 0) {
+    if (visibleIcons.length === 0) {
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
         delete DOM.iconPreviewAuto.dataset.hasCandidates;
         return;
     }
 
     DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
-        ${icons.slice(0, 6).map((icon, idx) => {
+        ${visibleIcons.map((icon, idx) => {
         const source = localIconSourceLabel(icon);
         return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlAttribute(icon)}" title="${escapeHtmlAttribute(source.label)}">
-                <img src="${escapeHtmlAttribute(icon)}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true">
+                ${localIconPreviewImage(icon, source)}
                 <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
             </div>`;
     }).join('')}

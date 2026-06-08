@@ -242,17 +242,19 @@ function isSolidPlaceholderImage(img) {
         ctx.drawImage(img, 0, 0, size, size);
         const data = ctx.getImageData(0, 0, size, size).data;
         let samples = 0;
-        let same = 0;
-        const base = [data[0], data[1], data[2], data[3]];
+        const buckets = new Map();
         for (let i = 0; i < data.length; i += 4) {
             samples += 1;
-            const delta = Math.abs(data[i] - base[0])
-                + Math.abs(data[i + 1] - base[1])
-                + Math.abs(data[i + 2] - base[2])
-                + Math.abs(data[i + 3] - base[3]);
-            if (delta <= 18) same += 1;
+            const key = [
+                Math.round(data[i] / 16),
+                Math.round(data[i + 1] / 16),
+                Math.round(data[i + 2] / 16),
+                Math.round(data[i + 3] / 16)
+            ].join(':');
+            buckets.set(key, (buckets.get(key) || 0) + 1);
         }
-        return same / samples > 0.98;
+        const dominant = Math.max(...buckets.values());
+        return dominant / samples > 0.9;
     } catch {
         return false;
     }
@@ -260,11 +262,13 @@ function isSolidPlaceholderImage(img) {
 
 export function bindImageFallbacks(root = document) {
     root.querySelectorAll('img[data-fallback-icon], img[data-remove-on-error]').forEach(img => {
-        img.addEventListener('load', () => {
+        const hideIfSolidPlaceholder = () => {
             if (isSolidPlaceholderImage(img)) {
                 hideIconOption(img.parentElement);
             }
-        }, { once: true });
+        };
+        img.addEventListener('load', hideIfSolidPlaceholder, { once: true });
+        if (img.complete) setTimeout(hideIfSolidPlaceholder, 0);
         img.addEventListener('error', () => {
             if (img.dataset.removeOnError) {
                 const parent = img.parentElement;

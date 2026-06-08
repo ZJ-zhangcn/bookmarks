@@ -289,6 +289,15 @@ function isSameIconSourceFamily(a, b) {
     return getIconSourceFamily(a) === getIconSourceFamily(b);
 }
 
+function isGoogleFaviconService(icon) {
+    return String(icon || '').includes('google.com/s2/favicons');
+}
+
+function hasNonGoogleFallback(icon) {
+    const url = String(icon || '');
+    return url.includes('favicon.im') || url.includes('icon.horse');
+}
+
 function getLetterFallbackText(icon) {
     try {
         const hostname = new URL(String(icon || '')).pathname.split('/').filter(Boolean).at(-1) || '';
@@ -319,15 +328,19 @@ function renderIconPreviewImage(icon, source) {
 }
 
 function getVisibleIconOptions(icons, limit = 6) {
+    const shouldHideGoogleService = icons.some(hasNonGoogleFallback);
+    const displayIcons = shouldHideGoogleService
+        ? icons.filter(icon => !isGoogleFaviconService(icon))
+        : icons;
     const deduped = [];
-    for (const icon of icons) {
+    for (const icon of displayIcons) {
         if (!deduped.some(existing => isSameIconSourceFamily(existing, icon))) {
             deduped.push(icon);
         }
     }
     const visible = deduped.slice(0, limit);
-    const letterFallback = icons.find(icon => String(icon || '').includes('icon.horse'));
-    if (!letterFallback || visible.includes(letterFallback) || icons.length <= limit) return visible;
+    const letterFallback = displayIcons.find(icon => String(icon || '').includes('icon.horse'));
+    if (!letterFallback || visible.includes(letterFallback) || displayIcons.length <= limit) return visible;
     return [...visible.slice(0, Math.max(0, limit - 1)), letterFallback];
 }
 

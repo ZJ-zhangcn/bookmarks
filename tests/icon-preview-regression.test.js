@@ -56,11 +56,26 @@ test('auto icon renderer hides failed favicon service candidates', () => {
 
 test('auto icon renderer hides solid google favicon placeholders', () => {
     const renderSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/render.js'), 'utf8');
+    const faviconSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/favicon.js'), 'utf8');
     const utilsSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/utils.js'), 'utf8');
 
     assert.match(renderSource, /function shouldHideSolidPlaceholder/);
     assert.match(renderSource, /data-hide-solid-placeholder="true"/);
+    assert.match(faviconSource, /function localIconPreviewImage/);
+    assert.match(faviconSource, /data-hide-solid-placeholder="true"/);
     assert.match(utilsSource, /function isSolidPlaceholderImage/);
     assert.match(utilsSource, /getImageData/);
     assert.match(utilsSource, /function selectNextVisibleIconOption/);
+    assert.match(utilsSource, /img\.complete/);
+});
+
+test('auto icon renderer keeps google as a non-visible service fallback when later providers exist', () => {
+    const renderSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/render.js'), 'utf8');
+    const faviconSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/favicon.js'), 'utf8');
+
+    assert.match(renderSource, /function isGoogleFaviconService/);
+    assert.match(renderSource, /function hasNonGoogleFallback/);
+    assert.match(renderSource, /filter\(icon => !isGoogleFaviconService\(icon\)\)/);
+    assert.match(faviconSource, /function getVisibleLocalIconOptions/);
+    assert.match(faviconSource, /filter\(icon => !String\(icon \|\| ''\)\.includes\('google\.com\/s2\/favicons'\)\)/);
 });
