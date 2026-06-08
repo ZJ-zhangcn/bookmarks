@@ -84,6 +84,11 @@ function fallbackSource(url) {
     return 'discovered';
 }
 
+function getPublicLetterFallback(hostname, deps) {
+    if (deps.isPrivateOrLocalAddress(hostname)) return null;
+    return `https://icon.horse/icon/${hostname}`;
+}
+
 function fallbackResult(parsedUrl, reason, rejected, deps) {
     const fallbackIcons = getFallbackIcons(parsedUrl.host, parsedUrl.protocol, {
         hostname: parsedUrl.hostname,
@@ -214,9 +219,12 @@ function createIconDiscoveryService(overrides = {}) {
                 hostname: parsedUrl.hostname,
                 isPrivateOrLocalAddressFn: deps.isPrivateOrLocalAddress
             });
+            const publicLetterFallback = getPublicLetterFallback(parsedUrl.hostname, deps);
             const candidateUrls = uniqueCandidates([
                 ...discoveredIcons,
-                ...fallbackIcons.map((url, index) => ({ url, source: fallbackSource(url), score: Math.max(1, 20 - index) }))
+                ...fallbackIcons
+                    .filter(url => url !== publicLetterFallback)
+                    .map((url, index) => ({ url, source: fallbackSource(url), score: Math.max(1, 20 - index) }))
             ]);
             const validationResults = await Promise.all(
                 candidateUrls.slice(0, MAX_VALIDATION_CANDIDATES).map(iconCandidate => validateIconCandidate(iconCandidate, parsedUrl, deps))
@@ -235,8 +243,17 @@ function createIconDiscoveryService(overrides = {}) {
                 cache: 'miss',
                 target: parsedUrl.href,
                 origin: cacheKey,
-                icons: candidates.map(candidate => candidate.url),
-                candidates,
+                icons: uniqueUrls([...candidates.map(candidate => candidate.url), publicLetterFallback].filter(Boolean)),
+                candidates: [
+                    ...candidates,
+                    ...(publicLetterFallback ? [{
+                        url: publicLetterFallback,
+                        source: 'public-fallback',
+                        score: 1,
+                        usable: true,
+                        validation: 'skipped'
+                    }] : [])
+                ],
                 rejected
             };
             setCached(cacheKey, result, SUCCESS_TTL_MS);

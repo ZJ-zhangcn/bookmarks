@@ -271,9 +271,17 @@ export function updateEngineDisplay() {
 
 function getIconSource(url) {
     url = String(url || '');
+    if (url.includes('icon.horse')) return { label: '字母', class: 'source-site' };
     if (url.includes('apple-touch-icon')) return { label: 'Apple', class: 'source-apple' };
     if (url.includes('/favicon.ico')) return { label: '站点', class: 'source-site' };
     return { label: '网站', class: 'source-site' };
+}
+
+function getVisibleIconOptions(icons, limit = 6) {
+    const visible = icons.slice(0, limit);
+    const letterFallback = icons.find(icon => String(icon || '').includes('icon.horse'));
+    if (!letterFallback || visible.includes(letterFallback) || icons.length <= limit) return visible;
+    return [...visible.slice(0, Math.max(0, limit - 1)), letterFallback];
 }
 
 export function renderIconSelection(availableIcons) {
@@ -292,8 +300,9 @@ export function renderIconSelection(availableIcons) {
             <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
         </div>`;
     } else {
+        const visibleIcons = getVisibleIconOptions(icons);
         DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
-            ${icons.slice(0, 6).map((icon, idx) => {
+            ${visibleIcons.map((icon, idx) => {
         const source = getIconSource(icon);
         const displayIcon = toSafeImageUrl(icon);
         return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlAttribute(icon)}" title="${escapeHtmlAttribute(source.label)}">

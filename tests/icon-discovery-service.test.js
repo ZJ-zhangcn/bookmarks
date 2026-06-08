@@ -67,7 +67,10 @@ test('icon discovery validates candidates and rejects non-image URLs', async () 
 
     const result = await service.discoverIcons(pageUrl);
 
-    assert.deepEqual(result.icons, ['https://example.com/good.png']);
+    assert.deepEqual(result.icons, [
+        'https://example.com/good.png',
+        'https://icon.horse/icon/example.com'
+    ]);
     assert.equal(result.status, 'ok');
     assert.equal(result.candidates[0].url, 'https://example.com/good.png');
     assert.equal(result.candidates[0].usable, true);
@@ -75,6 +78,23 @@ test('icon discovery validates candidates and rejects non-image URLs', async () 
     assert.equal(result.candidates[0].score > 0, true);
     assert.equal(result.rejected.some(candidate => candidate.url === 'https://example.com/bad.png'), true);
     assert.equal(calls.includes('https://example.com/bad.png'), true);
+});
+
+test('icon discovery keeps public letter fallback when site icons are usable', async () => {
+    const pageUrl = 'https://letters.example/page';
+    const html = '<link rel="icon" sizes="32x32" href="/favicon.png">';
+    const service = createFakeService({
+        [pageUrl]: response({ body: html }),
+        'https://letters.example/favicon.png': response({ contentType: 'image/png', body: 'png-bytes' })
+    });
+
+    const result = await service.discoverIcons(pageUrl);
+
+    assert.deepEqual(result.icons, [
+        'https://letters.example/favicon.png',
+        'https://icon.horse/icon/letters.example'
+    ]);
+    assert.equal(result.candidates.at(-1).source, 'public-fallback');
 });
 
 test('icon discovery caches successful results by normalized origin', async () => {
@@ -89,8 +109,14 @@ test('icon discovery caches successful results by normalized origin', async () =
     const first = await service.discoverIcons(pageUrl);
     const second = await service.discoverIcons('https://example.com/other/page');
 
-    assert.deepEqual(first.icons, ['https://example.com/favicon.png']);
-    assert.deepEqual(second.icons, ['https://example.com/favicon.png']);
+    assert.deepEqual(first.icons, [
+        'https://example.com/favicon.png',
+        'https://icon.horse/icon/example.com'
+    ]);
+    assert.deepEqual(second.icons, [
+        'https://example.com/favicon.png',
+        'https://icon.horse/icon/example.com'
+    ]);
     assert.equal(second.cache, 'hit');
     assert.equal(calls.filter(url => url === pageUrl).length, 1);
 });

@@ -24,3 +24,11 @@ test('auto icon renderer marks and clears candidate state explicitly', () => {
     assert.match(faviconSource, /dataset\.hasCandidates\s*=\s*'true'/);
     assert.match(faviconSource, /delete DOM\.iconPreviewAuto\.dataset\.hasCandidates/);
 });
+
+test('auto icon renderer preserves public letter fallback in visible candidates', () => {
+    const renderSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/render.js'), 'utf8');
+
+    assert.match(renderSource, /function getVisibleIconOptions/);
+    assert.match(renderSource, /icon\.horse/);
+    assert.doesNotMatch(renderSource, /icons\.slice\(0,\s*6\)\.map/);
+});
