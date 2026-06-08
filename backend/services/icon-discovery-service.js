@@ -50,15 +50,16 @@ function getFallbackIcons(host, protocol = 'https:', {
     isPrivateOrLocalAddressFn = isPrivateOrLocalAddress
 } = {}) {
     const origin = `${protocol}//${host}`;
+    const publicProviderFallbacks = getPublicProviderFallbacks(hostname, {
+        isPrivateOrLocalAddress: isPrivateOrLocalAddressFn
+    });
     const fallbacks = [
         `${origin}/favicon.ico`,
         `${origin}/favicon.png`,
         `${origin}/apple-touch-icon.png`,
-        `${origin}/apple-touch-icon-precomposed.png`
+        `${origin}/apple-touch-icon-precomposed.png`,
+        ...publicProviderFallbacks.filter(url => includePublicLetterFallback || !url.includes('icon.horse'))
     ];
-    if (includePublicLetterFallback && !isPrivateOrLocalAddressFn(hostname)) {
-        fallbacks.push(`https://icon.horse/icon/${hostname}`);
-    }
     return uniqueUrls(fallbacks);
 }
 
@@ -78,15 +79,21 @@ function cloneResult(result, cacheState = result.cache) {
 
 function fallbackSource(url) {
     const value = String(url || '').toLowerCase();
+    if (value.includes('google.com/s2/favicons')) return 'google-fallback';
+    if (value.includes('favicon.im')) return 'faviconim-fallback';
     if (value.includes('icon.horse')) return 'public-fallback';
     if (value.includes('apple-touch-icon')) return 'apple-fallback';
     if (value.endsWith('/favicon.ico') || value.endsWith('/favicon.png')) return 'site-fallback';
     return 'discovered';
 }
 
-function getPublicLetterFallback(hostname, deps) {
-    if (deps.isPrivateOrLocalAddress(hostname)) return null;
-    return `https://icon.horse/icon/${hostname}`;
+function getPublicProviderFallbacks(hostname, deps) {
+    if (deps.isPrivateOrLocalAddress(hostname)) return [];
+    return [
+        `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
+        `https://favicon.im/${hostname}`,
+        `https://icon.horse/icon/${hostname}`
+    ];
 }
 
 function fallbackResult(parsedUrl, reason, rejected, deps) {
@@ -219,11 +226,11 @@ function createIconDiscoveryService(overrides = {}) {
                 hostname: parsedUrl.hostname,
                 isPrivateOrLocalAddressFn: deps.isPrivateOrLocalAddress
             });
-            const publicLetterFallback = getPublicLetterFallback(parsedUrl.hostname, deps);
+            const publicProviderFallbacks = getPublicProviderFallbacks(parsedUrl.hostname, deps);
             const candidateUrls = uniqueCandidates([
                 ...discoveredIcons,
                 ...fallbackIcons
-                    .filter(url => url !== publicLetterFallback)
+                    .filter(url => !publicProviderFallbacks.includes(url))
                     .map((url, index) => ({ url, source: fallbackSource(url), score: Math.max(1, 20 - index) }))
             ]);
             const validationResults = await Promise.all(
@@ -244,16 +251,16 @@ function createIconDiscoveryService(overrides = {}) {
                 cache: 'miss',
                 target: parsedUrl.href,
                 origin: cacheKey,
-                icons: uniqueUrls([bestSiteIcon.url, publicLetterFallback].filter(Boolean)),
+                icons: uniqueUrls([bestSiteIcon.url, ...publicProviderFallbacks].filter(Boolean)),
                 candidates: [
                     bestSiteIcon,
-                    ...(publicLetterFallback ? [{
-                        url: publicLetterFallback,
-                        source: 'public-fallback',
+                    ...publicProviderFallbacks.map(url => ({
+                        url,
+                        source: fallbackSource(url),
                         score: 1,
                         usable: true,
                         validation: 'skipped'
-                    }] : [])
+                    }))
                 ],
                 rejected
             };

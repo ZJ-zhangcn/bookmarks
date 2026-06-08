@@ -156,13 +156,19 @@ function buildLocalFaviconCandidates(rawUrl, fallbackSources = []) {
 
     const origin = parsed.origin;
     const domain = parsed.hostname;
-    const publicLetterFallback = isPrivateOrLocalAddress(domain) ? [] : [`https://icon.horse/icon/${domain}`];
+    const publicProviderFallbacks = isPrivateOrLocalAddress(domain)
+        ? []
+        : [
+            `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+            `https://favicon.im/${domain}`,
+            `https://icon.horse/icon/${domain}`
+        ];
     return uniqueUrls([
         `${origin}/favicon.ico`,
         `${origin}/favicon.png`,
         `${origin}/apple-touch-icon.png`,
         `${origin}/apple-touch-icon-precomposed.png`,
-        ...publicLetterFallback,
+        ...publicProviderFallbacks,
         ...fallbackSources.map(getUrl => {
             try { return getUrl(domain); } catch { return ''; }
         })

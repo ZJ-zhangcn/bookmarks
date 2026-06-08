@@ -69,6 +69,8 @@ test('icon discovery validates candidates and rejects non-image URLs', async () 
 
     assert.deepEqual(result.icons, [
         'https://example.com/good.png',
+        'https://www.google.com/s2/favicons?domain=example.com&sz=64',
+        'https://favicon.im/example.com',
         'https://icon.horse/icon/example.com'
     ]);
     assert.equal(result.status, 'ok');
@@ -92,6 +94,8 @@ test('icon discovery keeps public letter fallback when site icons are usable', a
 
     assert.deepEqual(result.icons, [
         'https://letters.example/favicon.png',
+        'https://www.google.com/s2/favicons?domain=letters.example&sz=64',
+        'https://favicon.im/letters.example',
         'https://icon.horse/icon/letters.example'
     ]);
     assert.equal(result.candidates.at(-1).source, 'public-fallback');
@@ -114,10 +118,12 @@ test('icon discovery returns only the highest-quality site icon plus public lett
 
     assert.deepEqual(result.icons, [
         'https://multi.example/icon-256.png',
+        'https://www.google.com/s2/favicons?domain=multi.example&sz=64',
+        'https://favicon.im/multi.example',
         'https://icon.horse/icon/multi.example'
     ]);
     assert.deepEqual(
-        result.candidates.filter(candidate => candidate.source !== 'public-fallback').map(candidate => candidate.url),
+        result.candidates.filter(candidate => candidate.source === 'link').map(candidate => candidate.url),
         ['https://multi.example/icon-256.png']
     );
 });
@@ -136,10 +142,14 @@ test('icon discovery caches successful results by normalized origin', async () =
 
     assert.deepEqual(first.icons, [
         'https://example.com/favicon.png',
+        'https://www.google.com/s2/favicons?domain=example.com&sz=64',
+        'https://favicon.im/example.com',
         'https://icon.horse/icon/example.com'
     ]);
     assert.deepEqual(second.icons, [
         'https://example.com/favicon.png',
+        'https://www.google.com/s2/favicons?domain=example.com&sz=64',
+        'https://favicon.im/example.com',
         'https://icon.horse/icon/example.com'
     ]);
     assert.equal(second.cache, 'hit');

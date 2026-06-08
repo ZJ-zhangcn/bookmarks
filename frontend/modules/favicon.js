@@ -46,6 +46,9 @@ async function findLoadableIcons(candidates, timeout = 3000) {
 
 function localIconSourceLabel(url) {
     const s = String(url || '');
+    if (s.includes('google.com/s2/favicons')) return { label: 'Google', class: 'source-google' };
+    if (s.includes('favicon.im')) return { label: 'Favicon.im', class: 'source-faviconim' };
+    if (s.includes('icon.horse')) return { label: '字母', class: 'source-site' };
     if (s.includes('apple-touch-icon')) return { label: '本地 Apple', class: 'source-apple' };
     return { label: '本地直连', class: 'source-site' };
 }
