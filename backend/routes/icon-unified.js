@@ -16,6 +16,8 @@ const IMAGE_HEADERS = {
     'Accept': 'image/*,*/*;q=0.8'
 };
 
+const DEFAULT_MAX_BYTES = 2 * 1024 * 1024; // 2MB
+
 /**
  * 获取公共图片资源
  */
@@ -37,11 +39,37 @@ async function fetchPublicImage(url) {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    if (buffer.length > 2 * 1024 * 1024) { // 2MB limit
+    if (buffer.length > DEFAULT_MAX_BYTES) {
         throw new AppError('图片过大', 413);
     }
 
     return { buffer, contentType, finalUrl: url };
+}
+
+/**
+ * 读取有限的 ArrayBuffer（兼容旧代码）
+ */
+async function readLimitedArrayBuffer(response, maxBytes = DEFAULT_MAX_BYTES) {
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    if (buffer.length > maxBytes) {
+        throw new AppError('响应内容过大', 413);
+    }
+
+    return buffer;
+}
+
+/**
+ * safeFetchPublicUrl 兼容包装（兼容旧代码）
+ */
+async function safeFetchPublicUrl(url, options = {}) {
+    const response = await safeFetch(url, {
+        timeout: options.timeoutMs || 10000,
+        headers: options.fetchOptions?.headers || {}
+    });
+
+    return { response, url };
 }
 
 module.exports = function(db) {
@@ -103,7 +131,7 @@ module.exports = function(db) {
 
     /**
      * POST /api/icon/fix-all
-     * 批量修复所有 URL 类型图标为 base64
+     * 批量修复所有 URL 类型的图标为 base64
      */
     router.post('/icon/fix-all', requireStrictAdmin, asyncHandler(async (req, res) => {
         const bookmarks = await db.queryAll(`
@@ -139,7 +167,7 @@ module.exports = function(db) {
 
     /**
      * POST /api/icon/fetch-all
-     * 批量获取所有缺失图标的书签图标
+     * 批量获取所有书签的图标
      */
     router.post('/icon/fetch-all', requireStrictAdmin, asyncHandler(async (req, res) => {
         const bookmarks = await db.queryAll(`
@@ -194,12 +222,7 @@ module.exports = function(db) {
 
     /**
      * POST /api/icons
-     * 图标库操作（支持多种 action）
-     * - 默认：上传新图标
-     * - action=batch-delete：批量删除
-     * - action=from-url：从 URL 上传
-     * - action=clear-from-bookmarks：从书签清除图标引用
-     * - action=batch-clear-from-bookmarks：批量清除书签图标引用
+     * 上传或管理图标（支持多种 action）
      */
     router.post('/icons', requireAdmin, asyncHandler(async (req, res) => {
         const action = req.query.action;
@@ -240,7 +263,6 @@ module.exports = function(db) {
             return res.json(success());
         }
 
-        // 默认操作：上传图标
         const { name, data, type } = req.body;
         if (!data) {
             throw new AppError('缺少图标数据', 400);
@@ -251,7 +273,7 @@ module.exports = function(db) {
 
     /**
      * DELETE /api/icons
-     * 删除单个图标库图标
+     * 删除图标
      */
     router.delete('/icons', requireAdmin, asyncHandler(async (req, res) => {
         const { id } = req.query;
