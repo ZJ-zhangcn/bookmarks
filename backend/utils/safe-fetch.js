@@ -3,8 +3,6 @@
  * Node.js 20+ 原生支持 fetch，无需 undici
  */
 
-const dns = require('dns').promises;
-
 /**
  * 检查 URL 是否允许访问（简化版，仅检查明显的内网地址）
  */
