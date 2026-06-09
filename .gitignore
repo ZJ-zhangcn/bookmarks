@@ -58,25 +58,9 @@ docs/virtual-scroll.md
 # 保留 README.md
 !README.md
 
-# ========== 优化报告和文档（仅本地保留）==========
-*报告.md
-*总结.md
-*修复*.md
-*验证*.md
-*说明.md
-*策略*.md
-优化*.md
-第*轮*.md
-GitHub-Action*.md
-icon-unified-验证*.md
-
-# 保留 README.md
-!README.md
-
 # txt 报告文件
 *.txt
 !.env.example
 
 # tests 目录（仅用于开发）
 tests/
-
