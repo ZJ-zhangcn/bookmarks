@@ -72,3 +72,7 @@ icon-unified-验证*.md
 
 # 保留 README.md
 !README.md
+
+# txt 报告文件
+*.txt
+!.env.example
