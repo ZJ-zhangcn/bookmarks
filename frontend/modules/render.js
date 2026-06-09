@@ -370,7 +370,8 @@ function shouldHideIconOnError(icon) {
 }
 
 function shouldHideSolidPlaceholder(icon) {
-    return String(icon || '').includes('google.com/s2/favicons');
+    const url = String(icon || '');
+    return url.includes('google.com/s2/favicons') || url.includes('favicon.im');
 }
 
 function renderIconPreviewImage(icon, source) {

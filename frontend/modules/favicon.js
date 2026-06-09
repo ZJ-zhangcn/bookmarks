@@ -57,7 +57,7 @@ function localIconPreviewImage(icon, source) {
     const hideOnError = String(icon || '').includes('google.com/s2/favicons') || String(icon || '').includes('favicon.im')
         ? ' data-hide-on-error="true"'
         : '';
-    const hideSolidPlaceholder = String(icon || '').includes('google.com/s2/favicons')
+    const hideSolidPlaceholder = String(icon || '').includes('google.com/s2/favicons') || String(icon || '').includes('favicon.im')
         ? ' data-hide-solid-placeholder="true"'
         : '';
     return `<img src="${escapeHtmlAttribute(icon)}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true"${hideOnError}${hideSolidPlaceholder} data-fallback-icon="${escapeHtmlAttribute(source.label)}">`;
