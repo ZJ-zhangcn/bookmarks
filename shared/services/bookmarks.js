@@ -91,12 +91,31 @@ async function getBatchIcons(db, ids) {
 
     const placeholders = ids.map(() => '?').join(',');
     const bookmarks = await db.queryAll(
-        `SELECT id, icon_data, icon_type FROM bookmarks WHERE id IN (${placeholders}) AND COALESCE(item_type, 'bookmark') <> 'component'`,
+        `SELECT id, url, icon_data, icon_type FROM bookmarks WHERE id IN (${placeholders}) AND COALESCE(item_type, 'bookmark') <> 'component'`,
         ids
     );
 
     return Object.fromEntries(
-        bookmarks.filter(b => b.icon_data).map(b => [b.id, { icon_data: b.icon_data, icon_type: b.icon_type }])
+        bookmarks
+            .filter(b => b.icon_data || (b.icon_type === 'auto' && b.url))
+            .map(b => {
+                // 如果有 icon_data，直接返回
+                if (b.icon_data) {
+                    return [b.id, { icon_data: b.icon_data, icon_type: b.icon_type }];
+                }
+                // 如果是 auto 类型且有 URL，生成 favicon URL
+                if (b.icon_type === 'auto' && b.url) {
+                    try {
+                        const parsedUrl = new URL(b.url);
+                        const faviconUrl = `${parsedUrl.protocol}//${parsedUrl.hostname}/favicon.ico`;
+                        return [b.id, { icon_data: faviconUrl, icon_type: 'url' }];
+                    } catch (e) {
+                        return null;
+                    }
+                }
+                return null;
+            })
+            .filter(Boolean)
     );
 }
 

@@ -126,7 +126,8 @@ export function initIconObserver() {
 
                 if (id && !state.iconCache.has(id)) {
                     const bookmark = state.bookmarks.find(b => b.id === id);
-                    if (bookmark && bookmark.icon_type === 'base64' && !bookmark.icon_data) {
+                    // 支持 'auto' 和 'base64' 类型的图标自动获取
+                    if (bookmark && (bookmark.icon_type === 'base64' || bookmark.icon_type === 'auto') && !bookmark.icon_data) {
                         visibleBookmarkIds.push(id);
                     }
                 }
