@@ -139,7 +139,7 @@ export function initIconObserver() {
             loadIconsBatch(visibleBookmarkIds);
         }
     }, {
-        rootMargin: '200px'
+        rootMargin: '400px' // 提前加载（从 200px 增加到 400px）
     });
 }
 
@@ -150,7 +150,17 @@ export function observeBookmarkIcons() {
     }
 
     const bookmarkElements = document.querySelectorAll('.bookmark-card[data-id]');
-    bookmarkElements.forEach(el => {
+
+    // 按元素距离视口的距离排序（优先加载可见的）
+    const sorted = Array.from(bookmarkElements).sort((a, b) => {
+        const rectA = a.getBoundingClientRect();
+        const rectB = b.getBoundingClientRect();
+        const distA = Math.abs(rectA.top);
+        const distB = Math.abs(rectB.top);
+        return distA - distB;
+    });
+
+    sorted.forEach(el => {
         if (!observedElements.has(el)) {
             iconObserver.observe(el);
             observedElements.add(el);

@@ -261,36 +261,10 @@ app.get('*', (req, res) => {
 function validateEnv() {
     const warnings = [];
 
-    // MySQL 连接字符串格式校验
-    const dbUrl = process.env.DATABASE_URL;
-    if (dbUrl) {
-        if (!dbUrl.startsWith('mysql://')) {
-            warnings.push('DATABASE_URL 必须以 mysql:// 开头');
-        }
-        try {
-            new URL(dbUrl);
-        } catch {
-            warnings.push('DATABASE_URL 格式无效，请检查连接字符串');
-        }
-    }
-
     // AI 配置校验
     if (String(process.env.AI_ENABLED || '').toLowerCase() === 'true') {
-        const provider = (process.env.AI_PROVIDER || 'openai').toLowerCase();
-        const validProviders = ['openai', 'gemini', 'claude'];
-        if (provider && !validProviders.includes(provider)) {
-            warnings.push(`AI_PROVIDER "${provider}" 无效，支持: ${validProviders.join(', ')}`);
-        }
-        if (provider === 'gemini') {
-            if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
-                warnings.push('AI 已启用但 GEMINI_API_KEY/GOOGLE_API_KEY 未配置');
-            }
-        } else {
-            const keyMap = { openai: 'OPENAI_API_KEY', claude: 'ANTHROPIC_API_KEY' };
-            const keyName = keyMap[provider];
-            if (keyName && !process.env[keyName]) {
-                warnings.push(`AI 已启用但 ${keyName} 未配置`);
-            }
+        if (!process.env.OPENAI_API_KEY) {
+            warnings.push('AI 已启用但 OPENAI_API_KEY 未配置');
         }
     }
 
@@ -316,7 +290,7 @@ async function start() {
 
         app.listen(PORT, () => {
             console.log(`🚀 书签导航服务已启动: http://localhost:${PORT}`);
-            console.log(`📦 数据库模式: ${db.getDatabaseType().toUpperCase()}`);
+            console.log(`📦 数据库: SQLite (WAL 模式)`);
         });
     } catch (err) {
         console.error('❌ 启动失败:', err.message);

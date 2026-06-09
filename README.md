@@ -12,8 +12,8 @@
 - TODO 待办：支持快速添加、编辑、完成、删除和拖拽排序。
 - 图标库：可自动发现 favicon，也可上传、复用、批量获取或修复图标。
 - 数据同步：支持本地 JSON 导入导出、浏览器书签 HTML 导入和 WebDAV 上传/下载。
-- AI 辅助：可为书签生成摘要、标签和分类建议，支持 OpenAI、Gemini、Claude。
-- 数据库：默认使用 SQLite，配置 `DATABASE_URL` 后切换到 MySQL。
+- AI 辅助：可为书签生成摘要、标签和分类建议，支持 OpenAI 兼容接口。
+- 数据库：使用 SQLite（WAL 模式），性能优秀，适合个人部署。
 - 系统监控：Docker 挂载宿主机 `/proc`、`/sys` 后可展示 CPU、内存、磁盘状态。
 
 ## 快速部署
@@ -37,18 +37,6 @@ http://localhost:8080
 ```
 
 数据会持久化到 Docker volume `bookmark-data`，容器重建不会丢失。
-
-### Docker Compose（外部 MySQL）
-
-需要多实例共享数据，或希望把数据统一放到已有数据库时使用 MySQL 模式。
-
-```bash
-curl -O https://raw.githubusercontent.com/ZJ-zhangcn/bookmarks/main/docker-compose.mysql.yml
-cat > .env <<'EOF'
-DATABASE_URL=mysql://user:password@host:3306/bookmarks?ssl-mode=REQUIRED
-EOF
-docker compose -f docker-compose.mysql.yml up -d
-```
 
 ### 本地开发
 
@@ -76,28 +64,25 @@ npm run dev:frontend
 | 场景 | 变量 | 说明 |
 | --- | --- | --- |
 | 修改端口 | `PORT` | 后端监听端口，默认 `3000`；Docker 默认映射到宿主机 `8080`。 |
-| 使用 MySQL | `DATABASE_URL` | 不填则使用 SQLite；填写后使用 MySQL，例如 `mysql://user:password@host:3306/bookmarks?ssl-mode=REQUIRED`。 |
 | 访问控制 | `AUTH_MODE` | `anonymous` 适合个人内网；`token` 适合公网；`off` 完全关闭鉴权。 |
 | 管理令牌 | `ADMIN_TOKEN` | `AUTH_MODE=token` 时，写接口需要 `Authorization: Bearer <token>`。 |
 | 内网访问 | `ALLOW_PRIVATE_NETWORK` | WebDAV、图标抓取或 AI 网关需要访问内网地址时开启。 |
-| 启用 AI | `AI_ENABLED` | 设置为 `true` 后，再配置下面的 provider 和 Key。 |
-| 前端 AI 覆盖 | `AI_CLIENT_OVERRIDES` | 允许页面临时传入 Key、Base URL、Provider 和生成参数；只建议自用开启。 |
+| 启用 AI | `AI_ENABLED` | 设置为 `true` 后，配置 OpenAI Key 即可。 |
 
-### AI 最小配置
+### AI 配置
 
-OpenAI 或兼容接口：
+仅支持 OpenAI 兼容接口（可用于 OpenAI、DeepSeek、OneAPI 等）：
 
 ```env
 AI_ENABLED=true
-AI_PROVIDER=openai
 AI_MODEL=gpt-4o-mini
 AI_BASE_URL=https://api.openai.com/v1
 OPENAI_API_KEY=your-key
 ```
 
-Gemini：
+前端默认允许临时传入自定义 Key 和 Base URL，自用部署无需额外配置。
 
-```env
+更多配置选项请参考 `.env.example`。
 AI_ENABLED=true
 AI_PROVIDER=gemini
 AI_MODEL=gemini-1.5-flash

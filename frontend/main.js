@@ -1,16 +1,15 @@
 /**
  * 书签导航网站 - 前端 JavaScript
- * 模块化入口文件
+ * 模块化入口文件 - 首屏优化版本
  */
 
 import { cacheDOMElements } from './modules/dom.js';
-import { loadCoreData, loadAiStatus, loadCollapsedState } from './modules/api.js';
+import { loadCoreData, loadCollapsedState } from './modules/api.js';
 
 import { renderAll } from './modules/render.js';
 import { bindAllEvents } from './modules/events.js';
 import { hideLoadingOverlay } from './modules/utils.js';
-import { loadAiClientSettingsToUi, updateAiSettingsServerHint, updateAiUiVisibility } from './modules/ai.js';
-import { loadPersonalization, initTheme } from './modules/settings.js';
+import { initTheme } from './modules/settings.js';
 
 async function init() {
     if ('scrollRestoration' in history) {
@@ -20,25 +19,36 @@ async function init() {
 
     cacheDOMElements();
     initTheme();
-    loadAiClientSettingsToUi();
     loadCollapsedState();
 
-    // 完全不闪：首屏等待个性化（壁纸）和核心数据就绪后再揭开遮罩
+    // 首屏核心：只加载书签数据
     await loadCoreData();
-    await loadPersonalization({ waitForWallpaper: true, avoidLateWallpaperSwap: true });
 
     renderAll();
     bindAllEvents();
     hideLoadingOverlay();
 
-    // 后台加载次要功能（不阻塞用户）
-    Promise.all([
-        loadAiStatus().then(() => {
-            updateAiUiVisibility();
-            updateAiSettingsServerHint();
-        }),
-        loadPersonalization()
-    ]).catch(e => console.error('后台加载失败:', e));
+    // 延迟加载：设置相关功能（壁纸、AI 状态）
+    setTimeout(async () => {
+        try {
+            const [settings, ai, api] = await Promise.all([
+                import('./modules/settings.js'),
+                import('./modules/ai.js'),
+                import('./modules/api.js')
+            ]);
+
+            ai.loadAiClientSettingsToUi();
+            await Promise.all([
+                settings.loadPersonalization(),
+                api.loadAiStatus()
+            ]);
+
+            ai.updateAiUiVisibility();
+            ai.updateAiSettingsServerHint();
+        } catch (e) {
+            console.error('延迟加载失败:', e);
+        }
+    }, 100);
 }
 
 document.addEventListener('DOMContentLoaded', init);
