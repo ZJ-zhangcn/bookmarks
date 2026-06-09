@@ -38,3 +38,4 @@ Thumbs.db
 
 # spec workflow
 .spec-workflow/
+.omx/
