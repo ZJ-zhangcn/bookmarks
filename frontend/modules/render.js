@@ -354,15 +354,6 @@ function isSameIconSourceFamily(a, b) {
     return getIconSourceFamily(a) === getIconSourceFamily(b);
 }
 
-function isGoogleFaviconService(icon) {
-    return String(icon || '').includes('google.com/s2/favicons');
-}
-
-function hasNonGoogleFallback(icon) {
-    const url = String(icon || '');
-    return url.includes('favicon.im') || url.includes('icon.horse');
-}
-
 function getLetterFallbackText(icon) {
     try {
         const hostname = new URL(String(icon || '')).pathname.split('/').filter(Boolean).at(-1) || '';
