@@ -76,3 +76,5 @@ icon-unified-验证*.md
 # txt 报告文件
 *.txt
 !.env.example
+# tests 目录
+tests/
