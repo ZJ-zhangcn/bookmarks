@@ -168,9 +168,7 @@ const routes = require('./routes')(db);
 app.use('/api/categories', routes.categories);
 app.use('/api/bookmarks', routes.bookmarks);
 app.use('/api/engines', routes.engines);
-app.use('/api/icons', routes.icons);
-app.use('/api/icon', routes.icon);
-app.use('/api/favicon', routes.favicon);
+app.use('/api', routes.iconUnified);  // 统一图标服务（合并了 /icons, /icon, /favicon）
 app.use('/api/metadata', routes.metadata);
 app.use('/api/config', routes.config);
 app.use('/api/webdav', routes.webdav);

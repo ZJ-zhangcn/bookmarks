@@ -4448,3 +4448,43 @@ select:focus {
     }
 }
 
+
+/* ========================================
+   虚拟滚动样式
+   ======================================== */
+.virtual-scroll-wrapper {
+    position: relative;
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* 优化滚动性能 */
+    -webkit-overflow-scrolling: touch;
+    will-change: scroll-position;
+}
+
+.virtual-scroll-content {
+    position: relative;
+    width: 100%;
+}
+
+.virtual-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    /* Grid 布局由 JS 动态设置 */
+}
+
+/* 虚拟滚动性能优化 */
+.virtual-scroll-wrapper .bookmark-card {
+    /* 启用硬件加速 */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    /* 避免重绘 */
+    contain: layout style paint;
+}
+
+/* 确保虚拟滚动容器有最小高度 */
+.bookmarks-grid[data-render-mode="virtual"] {
+    min-height: 400px;
+}

@@ -47,6 +47,9 @@ export let clockInterval = null;
 
 export let dataVersion = 0;
 
+// 滚动位置记忆（按分类ID存储）
+export const scrollPositions = new Map();
+
 // 状态更新函数
 export function setCategories(val) { categories = val; dataVersion++; }
 export function setBookmarks(val) { bookmarks = val; dataVersion++; }

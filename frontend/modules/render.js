@@ -8,6 +8,11 @@ import { highlightText, toSafeImageUrl, toPreferredIconImageUrl, escapeHtml, esc
 import { observeBookmarkIcons } from './api.js';
 import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { buildCategorySheetItems, buildCategoryFabLabel } from './ux.js';
+import { createVirtualScroll } from './virtual-scroll.js';
+
+// 虚拟滚动实例映射（按分类ID）
+const virtualScrollInstances = new Map();
+const VIRTUAL_SCROLL_THRESHOLD = 50; // 书签数量超过此值时启用虚拟滚动
 
 export function renderAll() {
     renderCategoryNav();
@@ -44,9 +49,6 @@ export function renderBookmarks() {
     const isSearchMode = !!searchTerm;
     let hasResults = false;
 
-    // 不再清空整个容器：DOM.bookmarksContainer.innerHTML = '';
-    // 而是复用已有的 DOM 结构，通过 CSS 控制显示隐藏
-
     const bookmarksByCategory = new Map();
     state.bookmarks.forEach(bookmark => {
         const categoryId = bookmark.category_id;
@@ -55,10 +57,8 @@ export function renderBookmarks() {
     });
 
     state.categories.forEach((category, idx) => {
-        // 1. 判断该分类是否应该显示
-        // 如果当前选中了特定分类，且不是当前分类，则不显示（隐藏）
         const isCurrentCategoryActive = state.currentCategory === 'all' || state.currentCategory === category.id;
-        
+
         const catBookmarks = bookmarksByCategory.get(category.id) || [];
         const filteredItems = catBookmarks.filter(item => {
             if (!searchTerm) return true;
@@ -69,65 +69,123 @@ export function renderBookmarks() {
                 (tagsText && tagsText.toLowerCase().includes(searchTerm));
         });
 
-        // 如果是全部分类模式且该分类无内容，通常不显示（除非是当前选中的特定分类，可能显示空状态）
         const shouldShow = isCurrentCategoryActive && (filteredItems.length > 0 || state.currentCategory !== 'all');
 
-        // 2. 获取或创建 DOM 节点
         let section = DOM.bookmarksContainer.querySelector(`.category-section[data-category-id="${CSS.escape(String(category.id))}"]`);
-        
+
         if (!shouldShow) {
-            if (section) section.style.display = 'none';
+            if (section) {
+                section.style.display = 'none';
+                // 销毁虚拟滚动实例
+                const vsInstance = virtualScrollInstances.get(category.id);
+                if (vsInstance) {
+                    vsInstance.unmount();
+                    virtualScrollInstances.delete(category.id);
+                }
+            }
             return;
         }
 
         hasResults = true;
 
         const isCollapsed = state.collapsedCategories.has(category.id);
-        
+
         if (!section) {
             section = createCategorySection(category, isCollapsed, idx);
             DOM.bookmarksContainer.appendChild(section);
         } else {
             section.style.display = 'block';
-            // 更新折叠状态
             if (isCollapsed) section.classList.add('collapsed');
             else section.classList.remove('collapsed');
-            // 更新折叠按钮 title
             const collapseBtn = section.querySelector('.collapse-btn');
             if (collapseBtn) collapseBtn.title = isCollapsed ? '展开' : '折叠';
-            
-            // 更新 Grid 可见性
+
             const grid = section.querySelector('.bookmarks-grid');
-            if (grid) grid.style.display = isCollapsed ? 'none' : ''; 
+            if (grid) grid.style.display = isCollapsed ? 'none' : '';
         }
 
-        // 3. 更新内容 (增量更新核心)
         const grid = section.querySelector('.bookmarks-grid');
         const countSpan = section.querySelector('.category-count');
 
-        // 判定是否需要重绘 Grid 内容
-        // 重新渲染条件：
-        // a. 处于搜索模式 (内容随关键词变动)
-        // b. Grid 之前处于搜索模式渲染结果 (现在切回普通模式，需要恢复全量)
-        // c. 数据版本变动 (有新增/删除/修改)
-        // d. Grid 为空 (新创建)
-        
         const currentRenderMode = grid.dataset.renderMode || 'none';
         const targetRenderMode = isSearchMode ? 'search' : 'full';
         const currentDataVersion = grid.dataset.version || '-1';
-        
-        const needsUpdate = 
-            isSearchMode || 
-            currentRenderMode === 'search' || 
+
+        const needsUpdate =
+            isSearchMode ||
+            currentRenderMode === 'search' ||
             currentDataVersion !== String(state.dataVersion) ||
             grid.childElementCount === 0;
 
+        // 决定是否使用虚拟滚动
+        const useVirtualScroll = filteredItems.length >= VIRTUAL_SCROLL_THRESHOLD && !isSearchMode && !state.sortingCategory;
+
         if (needsUpdate) {
-            grid.innerHTML = filteredItems.map((item, i) => createBookmarkCard(item, searchTerm, i)).join('');
-            bindImageFallbacks(grid);
-            grid.dataset.renderMode = targetRenderMode;
+            if (useVirtualScroll) {
+                // 使用虚拟滚动
+                let vsInstance = virtualScrollInstances.get(category.id);
+
+                if (!vsInstance) {
+                    // 创建虚拟滚动实例
+                    grid.innerHTML = ''; // 清空普通渲染
+                    grid.style.minHeight = '400px'; // 设置最小高度
+
+                    vsInstance = createVirtualScroll({
+                        container: grid,
+                        itemHeight: 140, // 卡片预估高度
+                        bufferSize: 2,
+                        renderItem: (item, index) => {
+                            const div = document.createElement('div');
+                            div.innerHTML = createBookmarkCard(item, searchTerm, index);
+                            return div.firstElementChild;
+                        }
+                    });
+
+                    vsInstance.mount(grid);
+                    virtualScrollInstances.set(category.id, vsInstance);
+
+                    // 恢复滚动位置
+                    const savedScrollTop = state.scrollPositions.get(category.id);
+                    if (savedScrollTop) {
+                        requestAnimationFrame(() => {
+                            vsInstance.restoreScrollPosition(savedScrollTop);
+                        });
+                    }
+                } else {
+                    // 保存当前滚动位置
+                    const scrollPos = vsInstance.getScrollPosition();
+                    state.scrollPositions.set(category.id, scrollPos.scrollTop);
+                }
+
+                vsInstance.setItems(filteredItems);
+                grid.dataset.renderMode = 'virtual';
+            } else {
+                // 使用普通渲染
+                const vsInstance = virtualScrollInstances.get(category.id);
+                if (vsInstance) {
+                    // 保存滚动位置
+                    const scrollPos = vsInstance.getScrollPosition();
+                    state.scrollPositions.set(category.id, scrollPos.scrollTop);
+
+                    vsInstance.unmount();
+                    virtualScrollInstances.delete(category.id);
+                }
+
+                grid.style.minHeight = '';
+                grid.innerHTML = filteredItems.map((item, i) => createBookmarkCard(item, searchTerm, i)).join('');
+                bindImageFallbacks(grid);
+                grid.dataset.renderMode = targetRenderMode;
+
+                // 恢复滚动位置（普通渲染）
+                const savedScrollTop = state.scrollPositions.get(category.id);
+                if (savedScrollTop && section.scrollTop === 0) {
+                    requestAnimationFrame(() => {
+                        section.scrollTop = savedScrollTop;
+                    });
+                }
+            }
+
             grid.dataset.version = state.dataVersion;
-            
             if (countSpan) countSpan.textContent = `${filteredItems.length} 个`;
         }
     });
@@ -135,10 +193,17 @@ export function renderBookmarks() {
     DOM.emptyState.style.display = hasResults ? 'none' : 'block';
     DOM.bookmarksContainer.style.display = hasResults ? 'flex' : 'none';
 
-    // 使用IntersectionObserver替代scroll监听（性能优化）
     requestAnimationFrame(() => {
         setTimeout(observeBookmarkIcons, 50);
     });
+}
+
+/**
+ * 清理所有虚拟滚动实例（用于页面卸载）
+ */
+export function cleanupVirtualScrolls() {
+    virtualScrollInstances.forEach(vs => vs.unmount());
+    virtualScrollInstances.clear();
 }
 
 function createCategorySection(category, isCollapsed, idx) {
