@@ -102,10 +102,11 @@ module.exports = function(db) {
     // ========================================
 
     /**
-     * GET /api/icon/proxy
+     * GET /api/proxy-icon
      * 代理外部图标请求（解决被墙问题）
+     * 前端使用: /api/proxy-icon?url=...
      */
-    router.get('/icon/proxy', asyncHandler(async (req, res) => {
+    router.get('/proxy-icon', asyncHandler(async (req, res) => {
         await proxyIconRequest(req, res, {
             safeFetchPublicUrl,
             readLimitedArrayBuffer,
