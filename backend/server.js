@@ -14,9 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./db');
 const { registerAiRoutes } = require('./ai');
-const { errorHandler, asyncHandler } = require('./utils');
-const { proxyIconRequest } = require('./utils/icon-proxy');
-const { safeFetchPublicUrl, readLimitedArrayBuffer } = require('./utils/safe-fetch');
+const { errorHandler } = require('./utils');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -168,24 +166,13 @@ const routes = require('./routes')(db);
 app.use('/api/categories', routes.categories);
 app.use('/api/bookmarks', routes.bookmarks);
 app.use('/api/engines', routes.engines);
-app.use('/api', routes.iconUnified);  // 统一图标服务（合并了 /icons, /icon, /favicon）
+app.use('/api', routes.iconUnified);  // 统一图标服务（包含 /proxy-icon 路由）
 app.use('/api/metadata', routes.metadata);
 app.use('/api/config', routes.config);
 app.use('/api/webdav', routes.webdav);
 app.use('/api/data', routes.data);
 app.use('/api/todos', routes.todos);
 app.use('/api/suggest', routes.suggest);
-
-// 图标代理（解决被墙图标无法显示问题）
-app.get('/api/proxy-icon', asyncHandler(async (req, res) => {
-    await proxyIconRequest(req, res, {
-        safeFetchPublicUrl,
-        readLimitedArrayBuffer,
-        maxBytes: 1024 * 1024,
-        timeoutMs: 15000,
-        transparentOnFailure: true
-    });
-}));
 
 // ========================================
 // 初始化默认数据
