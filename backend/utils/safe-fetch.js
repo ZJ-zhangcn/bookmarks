@@ -6,7 +6,7 @@
 const dns = require('dns').promises;
 
 /**
- * 检查 URL 是否允许访问
+ * 检查 URL 是否允许访问（简化版，仅检查明显的内网地址）
  */
 async function isUrlAllowed(url) {
     const allowPrivate = String(process.env.ALLOW_PRIVATE_NETWORK || '').toLowerCase() === 'true';
@@ -21,18 +21,11 @@ async function isUrlAllowed(url) {
         }
 
         // 内网保留地址直接拒绝
-        if (/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/.test(hostname)) {
+        if (/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.)/.test(hostname)) {
             return false;
         }
 
-        // DNS 解析检查
-        const addresses = await dns.resolve4(hostname).catch(() => []);
-        for (const ip of addresses) {
-            if (/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.)/.test(ip)) {
-                return false;
-            }
-        }
-
+        // 跳过 DNS 解析检查以提升性能
         return true;
     } catch {
         return true; // 解析失败时允许（避免误杀）
@@ -48,8 +41,8 @@ async function safeFetch(url, options = {}) {
         throw new Error('不允许访问内网或本地地址');
     }
 
-    // 默认 10 秒超时
-    const timeoutMs = options.timeout || 10000;
+    // 默认 15 秒超时（增加超时时间以应对网络延迟）
+    const timeoutMs = options.timeout || 15000;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 

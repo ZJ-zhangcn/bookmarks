@@ -66,7 +66,15 @@ async function proxyIconRequest(req, res, {
         const buffer = await readLimitedArrayBuffer(response, maxBytes);
         res.setHeader('Content-Type', contentType);
         res.setHeader('Cache-Control', 'public, max-age=604800');
-        res.setHeader('X-Proxy-Source', finalUrl.hostname);
+        // finalUrl 是字符串，需要解析为 URL 对象
+        if (finalUrl) {
+            try {
+                const finalUrlObj = new URL(finalUrl);
+                res.setHeader('X-Proxy-Source', finalUrlObj.hostname);
+            } catch (e) {
+                // URL 解析失败，跳过该 header
+            }
+        }
         return res.send(buffer);
     } catch (e) {
         if (transparentOnFailure) return sendTransparentPng(res, 3600);
