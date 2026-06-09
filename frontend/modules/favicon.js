@@ -64,14 +64,9 @@ function localIconPreviewImage(icon, source) {
 }
 
 function getVisibleLocalIconOptions(icons, limit = 6) {
-    const shouldHideGoogleService = icons.some(icon => {
-        const url = String(icon || '');
-        return url.includes('favicon.im') || url.includes('icon.horse');
-    });
-    const displayIcons = shouldHideGoogleService
-        ? icons.filter(icon => !String(icon || '').includes('google.com/s2/favicons'))
-        : icons;
-    return displayIcons.slice(0, limit);
+    // 显示所有图标选项，不隐藏任何服务
+    // 用户可以自己选择最适合的图标
+    return icons.slice(0, limit);
 }
 
 function renderLocalIconSelection(localIcons) {

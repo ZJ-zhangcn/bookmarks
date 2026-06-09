@@ -393,19 +393,17 @@ function renderIconPreviewImage(icon, source) {
 }
 
 function getVisibleIconOptions(icons, limit = 6) {
-    const shouldHideGoogleService = icons.some(hasNonGoogleFallback);
-    const displayIcons = shouldHideGoogleService
-        ? icons.filter(icon => !isGoogleFaviconService(icon))
-        : icons;
+    // 显示所有图标选项（包括 Google、favicon.im、icon.horse）
+    // 让用户自己选择最合适的图标
     const deduped = [];
-    for (const icon of displayIcons) {
+    for (const icon of icons) {
         if (!deduped.some(existing => isSameIconSourceFamily(existing, icon))) {
             deduped.push(icon);
         }
     }
     const visible = deduped.slice(0, limit);
-    const letterFallback = displayIcons.find(icon => String(icon || '').includes('icon.horse'));
-    if (!letterFallback || visible.includes(letterFallback) || displayIcons.length <= limit) return visible;
+    const letterFallback = icons.find(icon => String(icon || '').includes('icon.horse'));
+    if (!letterFallback || visible.includes(letterFallback) || icons.length <= limit) return visible;
     return [...visible.slice(0, Math.max(0, limit - 1)), letterFallback];
 }
 
