@@ -1785,6 +1785,7 @@ body {
     color: var(--text-primary);
     transition: all var(--transition-normal);
     overflow: hidden;
+    min-height: 140px; /* 防止图标加载时跳动 */
 }
 
 .bookmark-card::before {
