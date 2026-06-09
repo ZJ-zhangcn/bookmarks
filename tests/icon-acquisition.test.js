@@ -53,9 +53,9 @@ test('favicon acquisition source includes ordered public provider fallbacks', ()
     const fs = require('node:fs');
     const path = require('node:path');
     const frontendFavicon = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/favicon.js'), 'utf8');
-    const backendFavicon = fs.readFileSync(path.resolve(__dirname, '../backend/routes/favicon.js'), 'utf8');
+    const iconUnified = fs.readFileSync(path.resolve(__dirname, '../backend/routes/icon-unified.js'), 'utf8');
     const discoveryService = fs.readFileSync(path.resolve(__dirname, '../backend/services/icon-discovery-service.js'), 'utf8');
-    const source = `${frontendFavicon}\n${backendFavicon}\n${discoveryService}`;
+    const source = `${frontendFavicon}\n${iconUnified}\n${discoveryService}`;
     assert.equal(source.includes('google.com/s2/favicons'), true);
     assert.equal(source.includes('favicon.im'), true);
     assert.equal(source.includes('icon.horse'), true);
