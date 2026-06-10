@@ -98,13 +98,19 @@ function shouldUseProxyUrlForIcon(url, pageProtocol = 'https:') {
 function normalizeFaviconResponse(result) {
     if (!result || result.success !== true) return [];
     if (Array.isArray(result.data)) return result.data;
-    if (Array.isArray(result.data?.icons)) return result.data.icons;
+
+    // 优先使用 candidates（验证过的图标）
     if (Array.isArray(result.data?.candidates)) {
-        return result.data.candidates
+        const usableIcons = result.data.candidates
             .filter(candidate => candidate?.usable !== false)
             .map(candidate => candidate?.url)
             .filter(Boolean);
+        // 如果有可用的图标，返回它们；否则返回空数组（不回退到未验证的 icons）
+        return usableIcons;
     }
+
+    // 回退到未验证的 icons 列表（仅在没有 candidates 时）
+    if (Array.isArray(result.data?.icons)) return result.data.icons;
     if (Array.isArray(result.icons)) return result.icons;
     return [];
 }

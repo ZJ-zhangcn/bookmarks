@@ -59,4 +59,29 @@ async function safeFetch(url, options = {}) {
     }
 }
 
-module.exports = { safeFetch, isUrlAllowed };
+/**
+ * safeFetchPublicUrl 兼容包装
+ */
+async function safeFetchPublicUrl(url, options = {}) {
+    const response = await safeFetch(url, {
+        timeout: options.timeoutMs || 10000,
+        headers: options.fetchOptions?.headers || {}
+    });
+    return { response, url };
+}
+
+/**
+ * 读取有限大小的响应内容
+ */
+async function readLimitedArrayBuffer(response, maxBytes = 1024 * 1024) {
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    if (buffer.length > maxBytes) {
+        throw new Error('响应内容过大');
+    }
+
+    return buffer;
+}
+
+module.exports = { safeFetch, isUrlAllowed, safeFetchPublicUrl, readLimitedArrayBuffer };
