@@ -102,35 +102,25 @@ function normalizeFaviconResponse(result) {
     // 优先使用 candidates（验证过的图标）
     if (Array.isArray(result.data?.candidates)) {
         const usableIcons = result.data.candidates
-            .filter(candidate => candidate?.usable !== false)
+            .filter(candidate => candidate?.usable === true)
             .map(candidate => candidate?.url)
             .filter(Boolean);
-        // 如果有可用的图标，返回它们
+        // 如果有验证通过的图标，只返回它们
         if (usableIcons.length > 0) {
             return usableIcons;
         }
-        // 如果所有 candidates 都不可用，回退到 icons，但过滤掉 Google 和 Favicon.im
+        // 如果所有验证都失败，只保留 icon.horse（兜底服务）
         if (Array.isArray(result.data?.icons)) {
             return result.data.icons.filter(url => {
                 const urlStr = String(url || '');
-                return !urlStr.includes('google.com/s2/favicons') && !urlStr.includes('favicon.im');
+                return urlStr.includes('icon.horse');
             });
         }
     }
 
-    // 回退到未验证的 icons 列表（仅在没有 candidates 时），同样过滤掉 Google 和 Favicon.im
-    if (Array.isArray(result.data?.icons)) {
-        return result.data.icons.filter(url => {
-            const urlStr = String(url || '');
-            return !urlStr.includes('google.com/s2/favicons') && !urlStr.includes('favicon.im');
-        });
-    }
-    if (Array.isArray(result.icons)) {
-        return result.icons.filter(url => {
-            const urlStr = String(url || '');
-            return !urlStr.includes('google.com/s2/favicons') && !urlStr.includes('favicon.im');
-        });
-    }
+    // 回退到未验证的 icons 列表（仅在没有 candidates 时）
+    if (Array.isArray(result.data?.icons)) return result.data.icons;
+    if (Array.isArray(result.icons)) return result.icons;
     return [];
 }
 
