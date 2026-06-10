@@ -109,15 +109,28 @@ function normalizeFaviconResponse(result) {
         if (usableIcons.length > 0) {
             return usableIcons;
         }
-        // 如果所有 candidates 都不可用，回退到 icons（包含兜底服务）
+        // 如果所有 candidates 都不可用，回退到 icons，但过滤掉 Google 和 Favicon.im
         if (Array.isArray(result.data?.icons)) {
-            return result.data.icons;
+            return result.data.icons.filter(url => {
+                const urlStr = String(url || '');
+                return !urlStr.includes('google.com/s2/favicons') && !urlStr.includes('favicon.im');
+            });
         }
     }
 
-    // 回退到未验证的 icons 列表（仅在没有 candidates 时）
-    if (Array.isArray(result.data?.icons)) return result.data.icons;
-    if (Array.isArray(result.icons)) return result.icons;
+    // 回退到未验证的 icons 列表（仅在没有 candidates 时），同样过滤掉 Google 和 Favicon.im
+    if (Array.isArray(result.data?.icons)) {
+        return result.data.icons.filter(url => {
+            const urlStr = String(url || '');
+            return !urlStr.includes('google.com/s2/favicons') && !urlStr.includes('favicon.im');
+        });
+    }
+    if (Array.isArray(result.icons)) {
+        return result.icons.filter(url => {
+            const urlStr = String(url || '');
+            return !urlStr.includes('google.com/s2/favicons') && !urlStr.includes('favicon.im');
+        });
+    }
     return [];
 }
 
