@@ -259,16 +259,7 @@ function createIconDiscoveryService(overrides = {}) {
                 target: parsedUrl.href,
                 origin: cacheKey,
                 icons: uniqueUrls([bestSiteIcon.url, ...publicProviderFallbacks].filter(Boolean)),
-                candidates: [
-                    bestSiteIcon,
-                    ...publicProviderFallbacks.map(url => ({
-                        url,
-                        source: fallbackSource(url),
-                        score: 1,
-                        usable: true,
-                        validation: 'skipped'
-                    }))
-                ],
+                candidates: [bestSiteIcon],
                 rejected
             };
             setCached(cacheKey, result, SUCCESS_TTL_MS);
