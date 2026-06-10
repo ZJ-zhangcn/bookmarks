@@ -105,8 +105,14 @@ function normalizeFaviconResponse(result) {
             .filter(candidate => candidate?.usable !== false)
             .map(candidate => candidate?.url)
             .filter(Boolean);
-        // 如果有可用的图标，返回它们；否则返回空数组（不回退到未验证的 icons）
-        return usableIcons;
+        // 如果有可用的图标，返回它们
+        if (usableIcons.length > 0) {
+            return usableIcons;
+        }
+        // 如果所有 candidates 都不可用，回退到 icons（包含兜底服务）
+        if (Array.isArray(result.data?.icons)) {
+            return result.data.icons;
+        }
     }
 
     // 回退到未验证的 icons 列表（仅在没有 candidates 时）
