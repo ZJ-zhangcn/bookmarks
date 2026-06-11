@@ -16,7 +16,6 @@
 - 数据同步：支持本地 JSON 导入导出、浏览器书签 HTML 导入和 WebDAV 上传/下载。
 - AI 辅助：可为书签生成摘要、标签和分类建议，支持 OpenAI 兼容接口。
 - 数据库：使用 SQLite（WAL 模式），性能优秀，适合个人部署。
-- 系统监控：Docker 挂载宿主机 `/proc`、`/sys` 后可展示 CPU、内存、磁盘状态。
 
 ## 快速部署
 
@@ -149,22 +148,6 @@ OPENAI_API_KEY=your-key
 ```env
 ALLOW_PRIVATE_NETWORK=true
 ```
-
-## 系统监控
-
-系统监控依赖宿主机只读挂载：
-
-```yaml
-volumes:
-  - /proc:/host/proc:ro
-  - /sys:/host/sys:ro
-environment:
-  - HOST_PROC=/host/proc
-  - HOST_SYS=/host/sys
-```
-
-不需要系统监控时，可以从 compose 文件中删除这两个挂载和对应环境变量。
-
 ## 常用脚本
 
 ```bash
@@ -208,7 +191,6 @@ bookmarks/
 - 页面能打开但保存失败：检查 `AUTH_MODE` 和 `ADMIN_TOKEN`。
 - WebDAV 到 NAS 失败：确认 URL、账号、路径正确，并开启 `ALLOW_PRIVATE_NETWORK=true`。
 - AI 按钮提示未启用：确认 `AI_ENABLED=true`，并配置当前 provider 对应的 Key。
-- 系统监控没有数据：确认 Docker 已挂载 `/proc` 和 `/sys`，并且 `HOST_PROC`、`HOST_SYS` 指向挂载路径。
 
 ## 许可证
 

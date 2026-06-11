@@ -12,7 +12,6 @@ module.exports = function(db) {
         config: require('./config')(db),
         webdav: require('./webdav')(db),
         data: require('./data')(db),
-        serviceStatus: require('./service-status')(db),
         suggest: require('./suggest')(db)
     };
 };

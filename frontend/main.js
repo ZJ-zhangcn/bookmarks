@@ -11,7 +11,6 @@ import { bindAllEvents } from './modules/events.js';
 import { hideLoadingOverlay } from './modules/utils.js';
 import { initTheme } from './modules/theme.js';
 import { registerServiceWorker } from './modules/pwa.js';
-import { initServiceStatusUi } from './modules/service-status.js';
 
 async function init() {
     if ('scrollRestoration' in history) {
@@ -28,7 +27,6 @@ async function init() {
 
     renderAll();
     bindAllEvents();
-    initServiceStatusUi();
     hideLoadingOverlay();
     registerServiceWorker();
 

@@ -67,3 +67,38 @@ test('backend monitor agent route and script are removed', () => {
     assert.equal(routes.includes('./system'), false);
     assert.equal(routes.includes('system:'), false);
 });
+
+test('service status monitoring feature is not present', () => {
+    const html = read('frontend/index.html');
+    const server = read('backend/server.js');
+    const routes = read('backend/routes/index.js');
+    const db = read('backend/db.js');
+    const main = read('frontend/main.js');
+    const events = read('frontend/modules/events.js');
+    const state = read('frontend/modules/state.js');
+    const dom = read('frontend/modules/dom.js');
+
+    assert.equal(fs.existsSync(path.join(root, 'backend/routes/service-status.js')), false);
+    assert.equal(fs.existsSync(path.join(root, 'backend/services/service-checker.js')), false);
+    assert.equal(fs.existsSync(path.join(root, 'shared/services/service-status.js')), false);
+    assert.equal(fs.existsSync(path.join(root, 'frontend/modules/service-status.js')), false);
+
+    assert.equal(server.includes('/api/service-status'), false);
+    assert.equal(server.includes('service-checker'), false);
+    assert.equal(server.includes('startServiceStatusScheduler'), false);
+    assert.equal(routes.includes('serviceStatus'), false);
+    assert.equal(routes.includes('./service-status'), false);
+    assert.equal(db.includes('monitored_services'), false);
+    assert.equal(db.includes('service_status_results'), false);
+
+    assert.equal(html.includes('serviceStatus'), false);
+    assert.equal(html.includes('data-panel="service-status"'), false);
+    assert.equal(html.includes('添加监控服务'), false);
+    assert.equal(html.includes('服务状态'), false);
+    assert.equal(main.includes('service-status'), false);
+    assert.equal(events.includes('ServiceStatus'), false);
+    assert.equal(events.includes('serviceStatus'), false);
+    assert.equal(state.includes('serviceStatus'), false);
+    assert.equal(dom.includes('serviceStatus'), false);
+});
+

@@ -14,7 +14,6 @@ import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from '.
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
 import { initSearchSuggestions } from './suggest.js';
 import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
-import { saveServiceStatusFromUi, handleServiceStatusSettingsClick, checkServiceStatuses } from './service-status.js';
 import { initUxFeedback, renderCategorySheet } from './ux.js';
 import { initCommandPalette } from './command-palette.js';
 
@@ -238,16 +237,6 @@ export function bindAllEvents() {
     DOM.webdavSaveBtn.addEventListener('click', saveWebdavSettings);
     DOM.webdavUploadBtn.addEventListener('click', webdavUpload);
     DOM.webdavDownloadBtn.addEventListener('click', webdavDownload);
-
-    if (DOM.serviceStatusSaveBtn) {
-        DOM.serviceStatusSaveBtn.addEventListener('click', saveServiceStatusFromUi);
-    }
-    if (DOM.serviceStatusList) {
-        DOM.serviceStatusList.addEventListener('click', handleServiceStatusSettingsClick);
-    }
-    if (DOM.serviceStatusRefresh) {
-        DOM.serviceStatusRefresh.addEventListener('click', () => checkServiceStatuses());
-    }
 
     if (DOM.aiSaveSettingsBtn) DOM.aiSaveSettingsBtn.addEventListener('click', saveAiClientSettingsFromUi);
     if (DOM.aiClearSettingsBtn) DOM.aiClearSettingsBtn.addEventListener('click', clearAiClientSettings);
