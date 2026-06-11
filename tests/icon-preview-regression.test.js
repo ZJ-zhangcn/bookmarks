@@ -29,17 +29,28 @@ test('auto icon renderer preserves public letter fallback in visible candidates'
     const renderSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/render.js'), 'utf8');
 
     assert.match(renderSource, /function getVisibleIconOptions/);
-    assert.match(renderSource, /icon\.horse/);
+    assert.match(renderSource, /iconPolicy\.getIconSource/);
+    assert.match(renderSource, /icon-horse/);
     assert.doesNotMatch(renderSource, /icons\.slice\(0,\s*6\)\.map/);
+});
+
+test('auto icon renderer and local favicon previews reuse shared icon policy', () => {
+    const renderSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/render.js'), 'utf8');
+    const faviconSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/favicon.js'), 'utf8');
+
+    assert.match(renderSource, /shared\/icon-policy\.cjs/);
+    assert.match(faviconSource, /shared\/icon-policy\.cjs/);
 });
 
 test('auto icon renderer uses clear labels and local letter fallback previews', () => {
     const renderSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/render.js'), 'utf8');
+    const policySource = fs.readFileSync(path.resolve(__dirname, '../shared/icon-policy.cjs'), 'utf8');
+    const source = `${renderSource}\n${policySource}`;
 
     assert.match(renderSource, /function getLetterFallbackText/);
     assert.match(renderSource, /function isSameIconSourceFamily/);
-    assert.match(renderSource, /页面图标/);
-    assert.match(renderSource, /默认图标/);
+    assert.match(source, /页面图标/);
+    assert.match(source, /默认图标/);
     assert.match(renderSource, /class="icon-option-fallback icon-letter-fallback"/);
     assert.doesNotMatch(renderSource, /label: '网站'/);
 });
@@ -74,7 +85,7 @@ test('auto icon renderer keeps service fallbacks visible but marks weak provider
     const faviconSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/favicon.js'), 'utf8');
 
     assert.match(renderSource, /function getVisibleIconOptions/);
-    assert.match(renderSource, /包括 Google、favicon\.im、icon\.horse/);
+    assert.match(renderSource, /iconPolicy\.shouldHideIconOnError/);
     assert.match(renderSource, /function shouldHideIconOnError/);
     assert.match(renderSource, /data-hide-on-error="true"/);
     assert.match(renderSource, /data-hide-solid-placeholder="true"/);

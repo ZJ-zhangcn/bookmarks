@@ -55,10 +55,21 @@ test('favicon acquisition source includes ordered public provider fallbacks', ()
     const frontendFavicon = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/favicon.js'), 'utf8');
     const iconUnified = fs.readFileSync(path.resolve(__dirname, '../backend/routes/icon-unified.js'), 'utf8');
     const discoveryService = fs.readFileSync(path.resolve(__dirname, '../backend/services/icon-discovery-service.js'), 'utf8');
-    const source = `${frontendFavicon}\n${iconUnified}\n${discoveryService}`;
+    const sharedPolicy = fs.readFileSync(path.resolve(__dirname, '../shared/icon-policy.cjs'), 'utf8');
+    const source = `${frontendFavicon}\n${iconUnified}\n${discoveryService}\n${sharedPolicy}`;
     assert.equal(source.includes('google.com/s2/favicons'), true);
     assert.equal(source.includes('favicon.im'), true);
     assert.equal(source.includes('icon.horse'), true);
+});
+
+test('frontend favicon helpers reuse shared icon policy', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const helpersSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/favicon-helpers.cjs'), 'utf8');
+    const utilsSource = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/utils.js'), 'utf8');
+
+    assert.match(helpersSource, /shared\/icon-policy\.cjs/);
+    assert.match(utilsSource, /shared\/icon-policy\.cjs/);
 });
 
 test('browser fallback candidates include public providers in quality fallback order', () => {

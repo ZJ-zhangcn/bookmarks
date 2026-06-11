@@ -9,6 +9,7 @@ import { observeBookmarkIcons } from './api.js';
 import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { buildCategorySheetItems, buildCategoryFabLabel } from './ux.js';
 import { createVirtualScroll } from './virtual-scroll.js';
+import iconPolicy from '../../shared/icon-policy.cjs';
 
 // 虚拟滚动实例映射（按分类ID）
 const virtualScrollInstances = new Map();
@@ -336,19 +337,23 @@ export function updateEngineDisplay() {
 }
 
 function getIconSource(url) {
-    url = String(url || '');
-    if (url.includes('google.com/s2/favicons')) return { label: 'Google', class: 'source-google' };
-    if (url.includes('favicon.im')) return { label: 'Favicon.im', class: 'source-faviconim' };
-    if (url.includes('icon.horse')) return { label: '字母', class: 'source-site' };
-    if (url.includes('apple-touch-icon')) return { label: 'Apple', class: 'source-apple' };
-    if (url.includes('/favicon.ico') || url.includes('/favicon.png')) return { label: '默认图标', class: 'source-site' };
-    return { label: '页面图标', class: 'source-site' };
+    const source = iconPolicy.getIconSource(url);
+    const className = {
+        google: 'source-google',
+        faviconim: 'source-faviconim',
+        apple: 'source-apple',
+        'icon-horse': 'source-site',
+        favicon: 'source-site',
+        manifest: 'source-site',
+        og: 'source-site',
+        'site-fallback': 'source-site',
+        unknown: 'source-site'
+    }[source] || 'source-site';
+    return { label: iconPolicy.getIconLabel(source), class: className, source };
 }
 
 function getIconSourceFamily(icon) {
-    const url = String(icon || '');
-    if (url.includes('apple-touch-icon')) return 'apple';
-    return url;
+    return iconPolicy.getIconSourceFamily(icon);
 }
 
 function isSameIconSourceFamily(a, b) {
@@ -366,17 +371,15 @@ function getLetterFallbackText(icon) {
 }
 
 function shouldHideIconOnError(icon) {
-    const url = String(icon || '');
-    return url.includes('google.com/s2/favicons') || url.includes('favicon.im');
+    return iconPolicy.shouldHideIconOnError(icon);
 }
 
 function shouldHideSolidPlaceholder(icon) {
-    const url = String(icon || '');
-    return url.includes('google.com/s2/favicons') || url.includes('favicon.im');
+    return iconPolicy.shouldHideSolidPlaceholder(icon);
 }
 
 function renderIconPreviewImage(icon, source) {
-    if (String(icon || '').includes('icon.horse')) {
+    if (iconPolicy.getIconSource(icon) === 'icon-horse') {
         return `<span class="icon-option-fallback icon-letter-fallback">${escapeHtml(getLetterFallbackText(icon))}</span>`;
     }
     const displayIcon = toSafeImageUrl(icon);
@@ -395,7 +398,7 @@ function getVisibleIconOptions(icons, limit = 6) {
         }
     }
     const visible = deduped.slice(0, limit);
-    const letterFallback = icons.find(icon => String(icon || '').includes('icon.horse'));
+    const letterFallback = icons.find(icon => iconPolicy.getIconSource(icon) === 'icon-horse');
     if (!letterFallback || visible.includes(letterFallback) || icons.length <= limit) return visible;
     return [...visible.slice(0, Math.max(0, limit - 1)), letterFallback];
 }

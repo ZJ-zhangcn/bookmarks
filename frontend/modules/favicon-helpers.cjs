@@ -1,4 +1,6 @@
 /* global URL */
+const iconPolicy = require('../../shared/icon-policy.cjs');
+
 function toSafeExternalUrl(url) {
     const src = String(url || '').trim();
     try {
@@ -9,77 +11,8 @@ function toSafeExternalUrl(url) {
     }
 }
 
-function parseIpv6Hextets(ip) {
-    if (!String(ip || '').includes(':')) return null;
-    let normalized = String(ip || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
-    const zoneIndex = normalized.indexOf('%');
-    if (zoneIndex !== -1) normalized = normalized.slice(0, zoneIndex);
-    if (normalized.includes('.')) {
-        const lastColon = normalized.lastIndexOf(':');
-        const dotted = normalized.slice(lastColon + 1);
-        const octets = dotted.split('.').map(Number);
-        if (octets.length !== 4 || octets.some(n => !Number.isInteger(n) || n < 0 || n > 255)) return null;
-        normalized = `${normalized.slice(0, lastColon)}:${((octets[0] << 8) | octets[1]).toString(16)}:${((octets[2] << 8) | octets[3]).toString(16)}`;
-    }
-    const parts = normalized.split('::');
-    if (parts.length > 2) return null;
-    const left = parts[0] ? parts[0].split(':') : [];
-    const right = parts.length === 2 && parts[1] ? parts[1].split(':') : [];
-    const missing = parts.length === 2 ? 8 - left.length - right.length : 0;
-    const hextets = [...left, ...Array(missing).fill('0'), ...right];
-    if (hextets.length !== 8) return null;
-    const parsed = hextets.map(part => /^[0-9a-f]{1,4}$/i.test(part) ? parseInt(part, 16) : NaN);
-    return parsed.some(Number.isNaN) ? null : parsed;
-}
-
-function ipv4FromMappedIpv6(host) {
-    const hextets = parseIpv6Hextets(host);
-    if (!hextets) return null;
-    const isMapped = hextets.slice(0, 5).every(part => part === 0) && hextets[5] === 0xffff;
-    if (!isMapped) return null;
-    return `${(hextets[6] >> 8) & 255}.${hextets[6] & 255}.${(hextets[7] >> 8) & 255}.${hextets[7] & 255}`;
-}
-
-function isPrivateIpv4(ip) {
-    return [
-        /^127\./,
-        /^10\./,
-        /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-        /^192\.168\./,
-        /^169\.254\./,
-        /^0\./,
-        /^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./
-    ].some(p => p.test(ip));
-}
-
 function isPrivateOrLocalAddress(hostname) {
-    const host = String(hostname || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
-    if (!host) return false;
-    if (host === 'localhost' || host.endsWith('.local') || host === '::1' || host === '::') return true;
-    const mappedIpv4 = ipv4FromMappedIpv6(host);
-    if (mappedIpv4) return isPrivateIpv4(mappedIpv4);
-    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return isPrivateIpv4(host);
-    const hextets = parseIpv6Hextets(host);
-    if (!hextets) return false;
-    const first = hextets[0];
-    return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80;
-}
-
-const PREFER_PROXY_HOSTS = [
-    'grok.com',
-    'github.com',
-    'githubusercontent.com',
-    'google.com',
-    'huggingface.co',
-    'zhihu.com',
-    'tool.lu',
-    'leaflow.net',
-    'the-x.cn'
-];
-
-function shouldPreferProxyHost(hostname) {
-    const host = String(hostname || '').toLowerCase();
-    return PREFER_PROXY_HOSTS.some(domain => host === domain || host.endsWith('.' + domain));
+    return iconPolicy.isPrivateOrLocalAddress(hostname);
 }
 
 function shouldUseProxyUrlForIcon(url, pageProtocol = 'https:') {
@@ -89,7 +22,7 @@ function shouldUseProxyUrlForIcon(url, pageProtocol = 'https:') {
         const parsed = new URL(safeUrl);
         if (isPrivateOrLocalAddress(parsed.hostname)) return false;
         if (pageProtocol === 'https:' && parsed.protocol === 'http:') return true;
-        return shouldPreferProxyHost(parsed.hostname);
+        return iconPolicy.shouldPreferProxyHost(parsed.hostname);
     } catch {
         return false;
     }
@@ -142,16 +75,8 @@ function isHttpUrl(raw) {
     }
 }
 
-function uniqueUrls(urls) {
-    const seen = new Set();
-    const out = [];
-    for (const raw of urls || []) {
-        const s = String(raw || '').trim();
-        if (!s || seen.has(s) || !isHttpUrl(s)) continue;
-        seen.add(s);
-        out.push(s);
-    }
-    return out;
+function uniqueHttpUrls(urls) {
+    return iconPolicy.uniqueUrls(urls).filter(isHttpUrl);
 }
 
 function buildLocalFaviconCandidates(rawUrl, fallbackSources = []) {
@@ -163,20 +88,12 @@ function buildLocalFaviconCandidates(rawUrl, fallbackSources = []) {
     }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return [];
 
-    const origin = parsed.origin;
     const domain = parsed.hostname;
-    const publicProviderFallbacks = isPrivateOrLocalAddress(domain)
-        ? []
-        : [
-            `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-            `https://favicon.im/${domain}`,
-            `https://icon.horse/icon/${domain}`
-        ];
-    return uniqueUrls([
-        `${origin}/favicon.ico`,
-        `${origin}/favicon.png`,
-        `${origin}/apple-touch-icon.png`,
-        `${origin}/apple-touch-icon-precomposed.png`,
+    const publicProviderFallbacks = iconPolicy.buildProviderFallbacks(domain, {
+        isPrivateOrLocalAddress
+    });
+    return uniqueHttpUrls([
+        ...iconPolicy.buildSiteFallbacks(parsed.origin),
         ...publicProviderFallbacks,
         ...fallbackSources.map(getUrl => {
             try { return getUrl(domain); } catch { return ''; }
@@ -196,7 +113,7 @@ function shouldProbeBrowserFallbacks(rawUrl) {
 }
 
 function mergeIconsWithLocalFallback(siteIcons, localIcons) {
-    return uniqueUrls([...(siteIcons || []), ...(localIcons || [])]);
+    return uniqueHttpUrls([...(siteIcons || []), ...(localIcons || [])]);
 }
 
 if (typeof module !== 'undefined') {
