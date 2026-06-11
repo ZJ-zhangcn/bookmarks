@@ -14,6 +14,7 @@ COPY package*.json ./
 RUN npm ci
 
 COPY frontend/ ./frontend/
+COPY shared/ ./shared/
 RUN npm run build:frontend
 
 # ============ 阶段二：运行时镜像 ============
