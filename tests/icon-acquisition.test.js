@@ -164,8 +164,8 @@ test('engine auto icon fetch uses backend favicon discovery for public URLs', ()
     const end = source.indexOf('export function updateEngineIconPreviewUrl()');
     const fetchEngineIconSource = source.slice(start, end);
 
-    assert.match(fetchEngineIconSource, /\/api\/favicon/);
-    assert.match(fetchEngineIconSource, /normalizeFaviconResponse/);
+    assert.match(source, /from '\.\/icon-client\.js'/);
+    assert.match(fetchEngineIconSource, /discoverIcons\(url\)/);
     assert.match(fetchEngineIconSource, /if \(isPrivateOrLocalAddress\(domain\)\)/);
-    assert.match(fetchEngineIconSource, /const res = await fetch\(`\$\{state\.API_BASE\}\/api\/favicon`/);
+    assert.doesNotMatch(fetchEngineIconSource, /fetch\(`\$\{state\.API_BASE\}\/api\/favicon`/);
 });

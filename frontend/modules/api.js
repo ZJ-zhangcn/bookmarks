@@ -3,7 +3,7 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { toPreferredIconImageUrl, escapeHtmlAttribute, toSafeDataImageUrl } from './utils.js';
+import { toIconDisplayUrl, iconImageHtml } from './icon-display.js';
 
 export async function loadCoreData() {
     let payload = null;
@@ -174,9 +174,7 @@ function updateBookmarkIcon(bookmarkId, iconInfo) {
     if (!card || !iconInfo || !iconInfo.icon_data) return;
 
     const iconContainer = card.querySelector('.bookmark-icon');
-    const iconUrl = iconInfo.icon_type === 'base64'
-        ? toSafeDataImageUrl(iconInfo.icon_data)
-        : toPreferredIconImageUrl(iconInfo.icon_data);
+    const iconUrl = toIconDisplayUrl(iconInfo.icon_data, iconInfo.icon_type);
     if (iconContainer && iconUrl) {
         const existingImg = iconContainer.querySelector('img');
         if (existingImg) {
@@ -184,7 +182,13 @@ function updateBookmarkIcon(bookmarkId, iconInfo) {
             existingImg.dataset.originalSrc = iconInfo.icon_data;
             if (!existingImg.dataset.fallbackIcon) existingImg.dataset.fallbackIcon = '🌐';
         } else {
-            iconContainer.innerHTML = `<img src="${escapeHtmlAttribute(iconUrl)}" data-original-src="${escapeHtmlAttribute(iconInfo.icon_data)}" alt="图标" loading="lazy" data-fallback-icon="🌐">`;
+            iconContainer.innerHTML = iconImageHtml({
+                iconData: iconInfo.icon_data,
+                iconType: iconInfo.icon_type,
+                fallbackIcon: '🌐',
+                alt: '图标',
+                loading: 'lazy'
+            });
         }
     }
 }

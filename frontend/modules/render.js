@@ -4,12 +4,13 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 
-import { highlightText, toSafeImageUrl, toPreferredIconImageUrl, escapeHtml, escapeHtmlAttribute, toSafeExternalUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
+import { highlightText, toSafeImageUrl, escapeHtml, escapeHtmlAttribute, toSafeExternalUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
+import { iconImageHtml } from './icon-display.js';
+export { renderIconSelection } from './icon-picker.js';
 import { observeBookmarkIcons } from './api.js';
 import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { buildCategorySheetItems, buildCategoryFabLabel } from './ux.js';
 import { createVirtualScroll } from './virtual-scroll.js';
-import iconPolicy from '../../shared/icon-policy.cjs';
 
 // 虚拟滚动实例映射（按分类ID）
 const virtualScrollInstances = new Map();
@@ -239,9 +240,13 @@ function createCategorySection(category, isCollapsed, idx) {
 }
 
 function renderBookmarkIconImage(src, name, fallbackIcon = '🌐') {
-    const displayUrl = toPreferredIconImageUrl(src);
-    if (!displayUrl) return `<span>${escapeHtml(fallbackIcon || '🌐')}</span>`;
-    return `<img src="${escapeHtmlAttribute(displayUrl)}" data-original-src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(name)}" loading="lazy" data-fallback-icon="${escapeHtmlAttribute(fallbackIcon || '🌐')}">`;
+    return iconImageHtml({
+        iconData: src,
+        iconType: 'url',
+        fallbackIcon,
+        alt: name,
+        loading: 'lazy'
+    });
 }
 
 export function createBookmarkCard(item, searchTerm) {
@@ -261,14 +266,26 @@ export function createBookmarkCard(item, searchTerm) {
     const cachedIcon = state.iconCache.get(item.id);
     if (cachedIcon && cachedIcon.icon_data) {
         if (cachedIcon.icon_type === 'base64') {
-            iconHtml = `<img src="${toSafeDataImageUrl(cachedIcon.icon_data)}" alt="${escapeHtmlAttribute(item.name)}" loading="lazy" data-fallback-icon="${escapeHtmlAttribute(item.icon || '🌐')}">`;
+            iconHtml = iconImageHtml({
+                iconData: cachedIcon.icon_data,
+                iconType: 'base64',
+                fallbackIcon: item.icon || '🌐',
+                alt: item.name,
+                loading: 'lazy'
+            });
         } else {
             iconHtml = renderBookmarkIconImage(cachedIcon.icon_data, item.name, item.icon || '🌐');
         }
     } else if (item.icon_type === 'url' && item.icon_data) {
         iconHtml = renderBookmarkIconImage(item.icon_data, item.name, item.icon || '🌐');
     } else if (item.icon_type === 'base64' && item.icon_data) {
-        iconHtml = `<img src="${toSafeDataImageUrl(item.icon_data)}" alt="${escapeHtmlAttribute(item.name)}" loading="lazy" data-fallback-icon="${escapeHtmlAttribute(item.icon || '🌐')}">`;
+        iconHtml = iconImageHtml({
+            iconData: item.icon_data,
+            iconType: 'base64',
+            fallbackIcon: item.icon || '🌐',
+            alt: item.name,
+            loading: 'lazy'
+        });
     } else if (item.icon_type === 'base64') {
         iconHtml = `<span class="icon-placeholder">${escapeHtml(item.icon || '🌐')}</span>`;
     } else {
@@ -334,111 +351,6 @@ export function updateEngineDisplay() {
         DOM.engineIcon.textContent = icon || '🌐';
     }
     DOM.engineName.textContent = state.currentEngine.name;
-}
-
-function getIconSource(url) {
-    const source = iconPolicy.getIconSource(url);
-    const className = {
-        google: 'source-google',
-        faviconim: 'source-faviconim',
-        apple: 'source-apple',
-        'icon-horse': 'source-site',
-        favicon: 'source-site',
-        manifest: 'source-site',
-        og: 'source-site',
-        'site-fallback': 'source-site',
-        unknown: 'source-site'
-    }[source] || 'source-site';
-    return { label: iconPolicy.getIconLabel(source), class: className, source };
-}
-
-function getIconSourceFamily(icon) {
-    return iconPolicy.getIconSourceFamily(icon);
-}
-
-function isSameIconSourceFamily(a, b) {
-    return getIconSourceFamily(a) === getIconSourceFamily(b);
-}
-
-function getLetterFallbackText(icon) {
-    try {
-        const hostname = new URL(String(icon || '')).pathname.split('/').filter(Boolean).at(-1) || '';
-        const first = hostname.replace(/^www\./i, '').charAt(0);
-        return first ? first.toUpperCase() : 'A';
-    } catch {
-        return 'A';
-    }
-}
-
-function shouldHideIconOnError(icon) {
-    return iconPolicy.shouldHideIconOnError(icon);
-}
-
-function shouldHideSolidPlaceholder(icon) {
-    return iconPolicy.shouldHideSolidPlaceholder(icon);
-}
-
-function renderIconPreviewImage(icon, source) {
-    if (iconPolicy.getIconSource(icon) === 'icon-horse') {
-        return `<span class="icon-option-fallback icon-letter-fallback">${escapeHtml(getLetterFallbackText(icon))}</span>`;
-    }
-    const displayIcon = toSafeImageUrl(icon);
-    const hideOnError = shouldHideIconOnError(icon) ? ' data-hide-on-error="true"' : '';
-    const hideSolidPlaceholder = shouldHideSolidPlaceholder(icon) ? ' data-hide-solid-placeholder="true"' : '';
-    return `<img src="${displayIcon}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true"${hideOnError}${hideSolidPlaceholder} data-fallback-icon="${escapeHtmlAttribute(source.label)}">`;
-}
-
-function getVisibleIconOptions(icons, limit = 6) {
-    // 显示所有图标选项（包括 Google、favicon.im、icon.horse）
-    // 让用户自己选择最合适的图标
-    const deduped = [];
-    for (const icon of icons) {
-        if (!deduped.some(existing => isSameIconSourceFamily(existing, icon))) {
-            deduped.push(icon);
-        }
-    }
-    const visible = deduped.slice(0, limit);
-    const letterFallback = icons.find(icon => iconPolicy.getIconSource(icon) === 'icon-horse');
-    if (!letterFallback || visible.includes(letterFallback) || icons.length <= limit) return visible;
-    return [...visible.slice(0, Math.max(0, limit - 1)), letterFallback];
-}
-
-export function renderIconSelection(availableIcons) {
-    const icons = Array.isArray(availableIcons) ? availableIcons.filter(Boolean) : [];
-    if (icons.length === 0) {
-        DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
-        delete DOM.iconPreviewAuto.dataset.hasCandidates;
-        return;
-    }
-    if (icons.length === 1) {
-        const icon = icons[0];
-        const source = getIconSource(icon);
-        DOM.iconPreviewAuto.innerHTML = `<div class="icon-single">
-            ${renderIconPreviewImage(icon, source)}
-            <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
-        </div>`;
-    } else {
-        const visibleIcons = getVisibleIconOptions(icons);
-        DOM.iconPreviewAuto.innerHTML = `<div class="icon-selection">
-            ${visibleIcons.map((icon, idx) => {
-        const source = getIconSource(icon);
-        return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlAttribute(icon)}" title="${escapeHtmlAttribute(source.label)}">
-                    ${renderIconPreviewImage(icon, source)}
-                    <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
-                </div>`;
-    }).join('')}
-        </div>`;
-        bindImageFallbacks(DOM.iconPreviewAuto);
-        DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(wrap => {
-            wrap.onclick = (e) => {
-                e.stopPropagation();
-                DOM.iconPreviewAuto.querySelectorAll('.icon-option-wrap').forEach(w => w.classList.remove('selected'));
-                wrap.classList.add('selected');
-            };
-        });
-    }
-    DOM.iconPreviewAuto.dataset.hasCandidates = 'true';
-    bindImageFallbacks(DOM.iconPreviewAuto);
 }
 
 export function renderTodos() {

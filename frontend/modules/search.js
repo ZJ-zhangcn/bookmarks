@@ -3,7 +3,8 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { highlightText, escapeHtml, escapeHtmlAttribute, toSafeDataImageUrl, toSafeExternalUrl, toPreferredIconImageUrl, bindImageFallbacks } from './utils.js';
+import { highlightText, escapeHtml, escapeHtmlAttribute, toSafeExternalUrl, bindImageFallbacks } from './utils.js';
+import { iconImageHtml } from './icon-display.js';
 import searchHelpers from './search-helpers.cjs';
 import { openBookmarkModal } from './bookmark.js';
 
@@ -74,20 +75,19 @@ export function handleBookmarkSearch() {
 
         let iconHtml;
         const cachedIcon = state.iconCache.get(item.id);
-        if (cachedIcon && cachedIcon.icon_data) {
-            const iconUrl = cachedIcon.icon_type === 'base64'
-                ? toSafeDataImageUrl(cachedIcon.icon_data)
-                : toPreferredIconImageUrl(cachedIcon.icon_data);
-            iconHtml = iconUrl
-                ? `<img src="${escapeHtmlAttribute(iconUrl)}" alt="${escapeHtmlAttribute(item.name)}" data-fallback-icon="${escapeHtmlAttribute(item.icon || '🌐')}">`
-                : escapeHtml(item.icon || '🌐');
-        } else if (item.icon_type === 'url' && item.icon_data) {
-            const iconUrl = toPreferredIconImageUrl(item.icon_data);
-            iconHtml = iconUrl
-                ? `<img src="${escapeHtmlAttribute(iconUrl)}" alt="${escapeHtmlAttribute(item.name)}" data-fallback-icon="${escapeHtmlAttribute(item.icon || '🌐')}">`
-                : escapeHtml(item.icon || '🌐');
-        } else if (item.icon_type === 'base64' && item.icon_data) {
-            iconHtml = `<img src="${toSafeDataImageUrl(item.icon_data)}" alt="${escapeHtmlAttribute(item.name)}">`;
+        const iconInfo = cachedIcon?.icon_data
+            ? cachedIcon
+            : item.icon_data
+                ? { icon_data: item.icon_data, icon_type: item.icon_type }
+                : null;
+        if (iconInfo?.icon_data) {
+            iconHtml = iconImageHtml({
+                iconData: iconInfo.icon_data,
+                iconType: iconInfo.icon_type,
+                fallbackIcon: item.icon || '🌐',
+                alt: item.name,
+                loading: ''
+            });
         } else {
             iconHtml = escapeHtml(item.icon || '🌐');
         }
