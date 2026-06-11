@@ -174,6 +174,14 @@ app.use('/api/data', routes.data);
 app.use('/api/todos', routes.todos);
 app.use('/api/suggest', routes.suggest);
 
+// API 未命中时返回 JSON 404，避免被 SPA fallback 兜成首页 HTML
+app.use('/api', (req, res) => {
+    res.status(404).json({
+        success: false,
+        error: '接口不存在'
+    });
+});
+
 // ========================================
 // 初始化默认数据
 // ========================================

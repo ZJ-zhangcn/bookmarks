@@ -102,3 +102,14 @@ test('service status monitoring feature is not present', () => {
     assert.equal(dom.includes('serviceStatus'), false);
 });
 
+test('unknown API paths return JSON 404 before SPA fallback', () => {
+    const server = read('backend/server.js');
+    const apiFallbackIndex = server.indexOf("app.use('/api', (req, res) =>");
+    const spaFallbackIndex = server.indexOf("app.get('*', (req, res) =>");
+
+    assert.notEqual(apiFallbackIndex, -1);
+    assert.notEqual(spaFallbackIndex, -1);
+    assert.equal(apiFallbackIndex < spaFallbackIndex, true);
+    assert.match(server, /res\.status\(404\)\.json\(\{/);
+});
+
