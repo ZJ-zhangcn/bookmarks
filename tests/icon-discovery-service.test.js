@@ -199,3 +199,34 @@ test('icon discovery keeps same-origin fallbacks for private page fetch failures
     }));
     assert.equal(result.candidates.every(candidate => candidate.usable === false), true);
 });
+
+test('icon discovery reads from optional persistent cache before network fetches', async () => {
+    const calls = [];
+    const origin = 'https://cached.example';
+    const service = createFakeService({}, calls, {
+        persistentCache: {
+            async get(cacheKey) {
+                assert.equal(cacheKey, origin);
+                return {
+                    status: 'ok',
+                    cache: 'miss',
+                    target: `${origin}/cached`,
+                    origin,
+                    icons: [`${origin}/favicon.ico`],
+                    candidates: [],
+                    fallbacks: [],
+                    rejected: []
+                };
+            },
+            async set() {
+                throw new Error('should not write when persistent cache hits');
+            }
+        }
+    });
+
+    const result = await service.discoverIcons(`${origin}/page`);
+
+    assert.equal(result.cache, 'hit');
+    assert.deepEqual(result.icons, [`${origin}/favicon.ico`]);
+    assert.equal(calls.length, 0);
+});

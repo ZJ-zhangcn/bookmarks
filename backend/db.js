@@ -89,6 +89,15 @@ async function createTables() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
+        -- 图标发现持久缓存表（默认通过 ICON_DISCOVERY_PERSISTENT_CACHE=true 启用）
+        CREATE TABLE IF NOT EXISTS icon_discovery_cache (
+            origin TEXT PRIMARY KEY,
+            result_json TEXT NOT NULL,
+            status TEXT,
+            expires_at DATETIME NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
         -- AI 标签/摘要表
         CREATE TABLE IF NOT EXISTS bookmark_ai (
             bookmark_id TEXT PRIMARY KEY,
@@ -119,6 +128,7 @@ async function createTables() {
         CREATE INDEX IF NOT EXISTS idx_engines_sort ON search_engines(sort_order);
         CREATE INDEX IF NOT EXISTS idx_todos_list ON todos(is_done, sort_order, created_at);
         CREATE INDEX IF NOT EXISTS idx_bookmark_ai_lookup ON bookmark_ai(bookmark_id);
+        CREATE INDEX IF NOT EXISTS idx_icon_discovery_cache_expires ON icon_discovery_cache(expires_at);
     `);
 
     console.log('✅ SQLite 数据表和索引创建完成');

@@ -15,10 +15,17 @@ const {
 } = require('../services/icons/fetch-image');
 const { createIconLibraryService } = require('../services/icons/library-service');
 const { createBookmarkIconService } = require('../services/icons/bookmark-icon-service');
+const { createIconDiscoveryCache } = require('../services/icons/discovery-cache');
+
+function isPersistentDiscoveryCacheEnabled() {
+    return String(process.env.ICON_DISCOVERY_PERSISTENT_CACHE || '').toLowerCase() === 'true';
+}
 
 module.exports = function(db) {
     const router = express.Router();
-    const iconDiscovery = createIconDiscoveryService();
+    const iconDiscovery = createIconDiscoveryService({
+        persistentCache: isPersistentDiscoveryCacheEnabled() ? createIconDiscoveryCache(db) : null
+    });
     const iconLibrary = createIconLibraryService(db);
     const bookmarkIconService = createBookmarkIconService(db, { iconDiscovery });
 

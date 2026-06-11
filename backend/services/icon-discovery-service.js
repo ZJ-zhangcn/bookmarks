@@ -164,16 +164,25 @@ function createIconDiscoveryService(overrides = {}) {
         ...overrides
     };
 
-    function getCached(cacheKey) {
+    async function getCached(cacheKey) {
         const entry = deps.cache.get(cacheKey);
-        if (!entry || Date.now() > entry.expiresAt) {
-            if (entry) deps.cache.delete(cacheKey);
-            return null;
+        if (entry && Date.now() <= entry.expiresAt) {
+            return cloneResult(entry.result, 'hit');
         }
-        return cloneResult(entry.result, 'hit');
+        if (entry) deps.cache.delete(cacheKey);
+
+        if (deps.persistentCache) {
+            try {
+                const persistentResult = await deps.persistentCache.get(cacheKey);
+                if (persistentResult) return cloneResult(persistentResult, 'hit');
+            } catch {
+                // Persistent cache is optional; fall back to network discovery on any DB/cache error.
+            }
+        }
+        return null;
     }
 
-    function setCached(cacheKey, result, ttlMs) {
+    async function setCached(cacheKey, result, ttlMs) {
         deps.cache.set(cacheKey, {
             expiresAt: Date.now() + ttlMs,
             result: cloneResult(result, 'miss')
@@ -181,6 +190,13 @@ function createIconDiscoveryService(overrides = {}) {
         if (deps.cache.size > 500) {
             const oldest = deps.cache.keys().next().value;
             deps.cache.delete(oldest);
+        }
+        if (deps.persistentCache) {
+            try {
+                await deps.persistentCache.set(cacheKey, cloneResult(result, 'miss'), ttlMs);
+            } catch {
+                // Do not fail icon discovery when the optional persistent cache is unavailable.
+            }
         }
     }
 
@@ -198,7 +214,7 @@ function createIconDiscoveryService(overrides = {}) {
     async function discoverIcons(rawUrl) {
         const parsedUrl = await deps.assertPublicFetchUrl(rawUrl);
         const cacheKey = makeCacheKey(parsedUrl);
-        const cached = getCached(cacheKey);
+        const cached = await getCached(cacheKey);
         if (cached) return cached;
 
         let rejected = [];
@@ -239,7 +255,7 @@ function createIconDiscoveryService(overrides = {}) {
 
             if (candidates.length === 0) {
                 const result = fallbackResult(parsedUrl, 'no-validated-icons', rejected, deps);
-                setCached(cacheKey, result, FALLBACK_TTL_MS);
+                await setCached(cacheKey, result, FALLBACK_TTL_MS);
                 return result;
             }
 
@@ -260,11 +276,11 @@ function createIconDiscoveryService(overrides = {}) {
                 fallbacks: publicProviderFallbackCandidates,
                 rejected
             };
-            setCached(cacheKey, result, SUCCESS_TTL_MS);
+            await setCached(cacheKey, result, SUCCESS_TTL_MS);
             return result;
         } catch (e) {
             const result = fallbackResult(parsedUrl, e.message || 'page-fetch-failed', rejected, deps);
-            setCached(cacheKey, result, FALLBACK_TTL_MS);
+            await setCached(cacheKey, result, FALLBACK_TTL_MS);
             return result;
         }
     }
