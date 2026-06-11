@@ -4,12 +4,12 @@
  */
 
 import { cacheDOMElements } from './modules/dom.js';
-import { loadCoreData, loadCollapsedState } from './modules/api.js';
+import { loadCoreData, loadCollapsedState, loadAiStatus } from './modules/api.js';
 
 import { renderAll } from './modules/render.js';
 import { bindAllEvents } from './modules/events.js';
 import { hideLoadingOverlay } from './modules/utils.js';
-import { initTheme } from './modules/settings.js';
+import { initTheme } from './modules/theme.js';
 import { registerServiceWorker } from './modules/pwa.js';
 import { initServiceStatusUi } from './modules/service-status.js';
 
@@ -35,16 +35,15 @@ async function init() {
     // 延迟加载：设置相关功能（壁纸、AI 状态）
     setTimeout(async () => {
         try {
-            const [settings, ai, api] = await Promise.all([
+            const [settings, ai] = await Promise.all([
                 import('./modules/settings.js'),
-                import('./modules/ai.js'),
-                import('./modules/api.js')
+                import('./modules/ai.js')
             ]);
 
             ai.loadAiClientSettingsToUi();
             await Promise.all([
                 settings.loadPersonalization(),
-                api.loadAiStatus()
+                loadAiStatus()
             ]);
 
             ai.updateAiUiVisibility();

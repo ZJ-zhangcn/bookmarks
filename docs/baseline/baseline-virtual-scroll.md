@@ -1,6 +1,6 @@
 # 虚拟滚动基线验证
 
-日期：2026-06-11T09:56:00Z
+日期：2026-06-11T12:18:02Z
 
 ## 验证方法
 
@@ -11,25 +11,40 @@
 ```js
 document.querySelectorAll('.bookmark-card').length
 document.querySelector('.bookmarks-grid[data-category="bulk"]')?.dataset?.renderMode
+document.querySelector('.virtual-scroll-wrapper')?.clientHeight
 ```
 
-## 实测结果
+## Phase 4 修复后实测结果
 
 ```json
 {
-  "ready": "complete",
-  "title": "书签导航 | 我的常用网站",
-  "totalBookmarks": 500,
-  "renderedCards": 500,
-  "renderMode": "virtual",
-  "hasVirtualWrapper": true,
-  "wrapperClientHeight": 72000,
-  "wrapperScrollHeight": 80093,
-  "innerGridCards": 500,
-  "countText": "500 个",
-  "errorEvents": []
+  "ok": true,
+  "initial": {
+    "ready": "complete",
+    "title": "书签导航 | 我的常用网站",
+    "renderedCards": 6,
+    "renderMode": "virtual",
+    "hasVirtualWrapper": true,
+    "wrapperClientHeight": 585,
+    "wrapperScrollHeight": 70304,
+    "wrapperStyleHeight": "min(72vh, 720px)",
+    "contentStyleHeight": "70304px",
+    "countText": "500 个"
+  },
+  "afterScroll": {
+    "renderedCards": 7,
+    "renderMode": "virtual",
+    "hasVirtualWrapper": true,
+    "wrapperClientHeight": 585,
+    "wrapperScrollHeight": 70893,
+    "wrapperStyleHeight": "min(72vh, 720px)",
+    "contentStyleHeight": "70794px",
+    "countText": "500 个"
+  }
 }
 ```
+
+Headless Chrome 只记录到浏览器建议级 verbose 提示（密码输入框不在 form 内），没有阻塞性 JS exception。
 
 ## 结论
 
@@ -40,29 +55,18 @@ renderMode = virtual
 hasVirtualWrapper = true
 ```
 
-但实际 DOM 仍渲染了全部 500 张卡片：
+Phase 4 前的基线问题是：500 条书签会渲染 500 张 `.bookmark-card`，因为内部滚动容器使用 `height: 100%`，在页面布局中被撑成接近全量内容高度。
+
+Phase 4 后：
 
 ```text
-renderedCards = 500
+initial renderedCards = 6
+shown after scroll renderedCards = 7
+wrapperClientHeight = 585
+wrapperStyleHeight = min(72vh, 720px)
 ```
 
-因此当前虚拟滚动**没有实际减少 DOM 数量**。原因方向是虚拟滚动容器高度异常：
-
-```text
-wrapperClientHeight = 72000
-```
-
-视口高度被计算成接近全量内容高度，导致 `calculateVisibleRange()` 认为所有行都可见，从而一次性渲染全部卡片。
-
-## 处理建议
-
-这项不阻塞 Phase 2 质量门禁，但满足 Phase 4 的触发条件：
-
-```text
-500+ 书签时 DOM 数量 = 书签总数
-```
-
-后续 Phase 4 应专项修复虚拟滚动容器高度/滚动根节点，验收标准应为：
+验收标准达成：
 
 ```text
 500 条书签时 .bookmark-card DOM 数量 < 100

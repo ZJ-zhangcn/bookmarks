@@ -11,6 +11,7 @@ export class VirtualScroll {
         this.itemHeight = options.itemHeight || 140; // 预估卡片高度
         this.bufferSize = options.bufferSize || 3; // 缓冲区大小（上下各渲染N行）
         this.columnsCount = options.columnsCount || 4; // 列数
+        this.viewportHeightStyle = options.viewportHeight || 'min(72vh, 720px)'; // 内部滚动视口，避免 100% auto 高度撑满全量内容
 
         // 状态
         this.scrollTop = 0;
@@ -42,7 +43,8 @@ export class VirtualScroll {
         this.wrapper.className = 'virtual-scroll-wrapper';
         this.wrapper.style.position = 'relative';
         this.wrapper.style.overflow = 'auto';
-        this.wrapper.style.height = '100%';
+        this.wrapper.style.height = this.viewportHeightStyle;
+        this.wrapper.style.maxHeight = this.viewportHeightStyle;
 
         this.content = document.createElement('div');
         this.content.className = 'virtual-scroll-content';

@@ -133,6 +133,7 @@ export function renderBookmarks() {
                     vsInstance = createVirtualScroll({
                         container: grid,
                         itemHeight: 140, // 卡片预估高度
+                        viewportHeight: 'min(72vh, 720px)',
                         bufferSize: 2,
                         renderItem: (item, index) => {
                             const div = document.createElement('div');

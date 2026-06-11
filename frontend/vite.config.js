@@ -37,6 +37,13 @@ export default defineConfig({
           return 'assets/[name]-[hash][extname]';
         },
         manualChunks: (id) => {
+          const normalizedId = id.split(path.sep).join('/');
+          if (normalizedId.endsWith('/frontend/modules/settings.js')) {
+            return 'settings';
+          }
+          if (normalizedId.endsWith('/frontend/modules/ai.js')) {
+            return 'ai';
+          }
           // 将 node_modules 打包到 vendor chunk
           if (id.includes('node_modules')) {
             return 'vendor';

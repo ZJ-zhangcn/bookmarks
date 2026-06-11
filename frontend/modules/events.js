@@ -10,9 +10,7 @@ import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmar
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
 import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl, fetchBookmarkMetadata } from './favicon.js';
-import { openSettingsModal, closeSettingsModal, closeAllModals, saveWebdavSettings, webdavUpload, webdavDownload, savePersonalization, exportConfig, importConfig, importBrowserBookmarks, setTheme } from './settings.js';
 import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
-import { saveAiClientSettingsFromUi, clearAiClientSettings } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
 import { initSearchSuggestions } from './suggest.js';
 import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
@@ -70,6 +68,30 @@ function selectCategory(categoryId, { scroll = true } = {}) {
     updateCategoryFabLabel();
     if (scroll) requestAnimationFrame(() => scrollToCategory(state.currentCategory));
 }
+
+async function withSettings(action, ...args) {
+    const settings = await import('./settings.js');
+    return settings[action](...args);
+}
+
+async function withAi(action, ...args) {
+    const ai = await import('./ai.js');
+    return ai[action](...args);
+}
+
+const openSettingsModal = () => withSettings('openSettingsModal');
+const closeSettingsModal = () => withSettings('closeSettingsModal');
+const closeAllModals = () => withSettings('closeAllModals');
+const saveWebdavSettings = () => withSettings('saveWebdavSettings');
+const webdavUpload = () => withSettings('webdavUpload');
+const webdavDownload = () => withSettings('webdavDownload');
+const savePersonalization = () => withSettings('savePersonalization');
+const exportConfig = () => withSettings('exportConfig');
+const importConfig = event => withSettings('importConfig', event);
+const importBrowserBookmarks = event => withSettings('importBrowserBookmarks', event);
+const setTheme = theme => withSettings('setTheme', theme);
+const saveAiClientSettingsFromUi = () => withAi('saveAiClientSettingsFromUi');
+const clearAiClientSettings = () => withAi('clearAiClientSettings');
 
 function initCategoryQuickSwitcher() {
     updateCategoryFabLabel();

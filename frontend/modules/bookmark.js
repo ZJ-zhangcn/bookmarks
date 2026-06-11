@@ -5,7 +5,6 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderAll } from './render.js';
-import { updateAiUiVisibility, getAiClientSettings, setAiButtonsDisabled, buildLocalFallbackSummary } from './ai.js';
 import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
@@ -13,6 +12,16 @@ import { showToast, showConfirm, showPrompt } from './ux.js';
 import sortHelpers from './sort-helpers.cjs';
 
 const { moveItemInList } = sortHelpers;
+
+async function loadAiModule() {
+    return import('./ai.js');
+}
+
+function refreshAiUiVisibility() {
+    loadAiModule()
+        .then(ai => ai.updateAiUiVisibility())
+        .catch(() => {});
+}
 
 export function handleBookmarkClick(e) {
     const editBtn = e.target.closest('.bookmark-action-btn.edit');
@@ -122,7 +131,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
     hideCategoryRecommendations();
     DOM.bookmarkModal.classList.add('open');
     document.body.style.overflow = 'hidden';
-    updateAiUiVisibility();
+    refreshAiUiVisibility();
     if (DOM.bookmarkInputTags) {
         loadBookmarkAi(bookmarkId);
     }
@@ -455,12 +464,13 @@ export async function handleAiGenerate({ mode }) {
         return;
     }
 
+    const ai = await loadAiModule();
     state.setAiRequestInFlight(true);
     state.setAiLastActionAt(now);
-    setAiButtonsDisabled(true);
+    ai.setAiButtonsDisabled(true);
     if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = mode === 'refine' ? '精炼中...' : '生成中...';
     try {
-        const clientCfg = getAiClientSettings();
+        const clientCfg = ai.getAiClientSettings();
         const payload = { name, url, description };
         if (mode === 'refine') {
             payload.mode = 'refine';
@@ -510,7 +520,7 @@ export async function handleAiGenerate({ mode }) {
             }
         } else if (mode !== 'refine') {
             if (!DOM.bookmarkInputDesc.value && tags.length > 0) {
-                DOM.bookmarkInputDesc.value = buildLocalFallbackSummary({ name, url, tags });
+                DOM.bookmarkInputDesc.value = ai.buildLocalFallbackSummary({ name, url, tags });
             }
         }
 
@@ -536,8 +546,8 @@ export async function handleAiGenerate({ mode }) {
         showToast('AI 生成失败: ' + e.message, 'error');
     } finally {
         state.setAiRequestInFlight(false);
-        setAiButtonsDisabled(false);
-        updateAiUiVisibility();
+        ai.setAiButtonsDisabled(false);
+        ai.updateAiUiVisibility();
     }
 }
 
