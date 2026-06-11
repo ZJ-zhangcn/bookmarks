@@ -62,5 +62,4 @@ docs/virtual-scroll.md
 *.txt
 !.env.example
 
-# tests 目录（仅用于开发）
-tests/
+# 测试文件需要进入 CI，不再忽略 tests/ 目录

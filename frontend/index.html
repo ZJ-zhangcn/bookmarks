@@ -5,9 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="个人书签导航 - 快速访问常用网站的便捷入口">
+    <meta name="theme-color" content="#0b0f14">
     <title>书签导航 | 我的常用网站</title>
     <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
     <link rel="preconnect" href="https://raw.githubusercontent.com">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/assets/icon-192.png">
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔖</text></svg>">
@@ -146,6 +149,20 @@
         <!-- TODO 待办区域 -->
         <section class="todos-container" id="todosContainer">
             <!-- TODO 将通过 JavaScript 动态渲染 -->
+        </section>
+
+        <!-- 服务状态区域 -->
+        <section class="service-status-container" id="serviceStatusContainer" aria-label="服务状态">
+            <div class="service-status-header">
+                <div>
+                    <h2>服务状态</h2>
+                    <p id="serviceStatusUpdatedAt">尚未检查</p>
+                </div>
+                <button class="service-status-refresh" id="serviceStatusRefresh" type="button">刷新</button>
+            </div>
+            <div class="service-status-grid" id="serviceStatusGrid">
+                <!-- 服务状态卡片将通过 JavaScript 动态渲染 -->
+            </div>
         </section>
 
         <!-- 分类筛选 -->
@@ -640,6 +657,41 @@
                         <!-- 图标网格 -->
                         <div class="icon-library-grid icon-library-manage" id="settingsIconLibraryGrid">
                             <!-- 由 JavaScript 动态渲染 -->
+                        </div>
+                    </div>
+
+                    <!-- 服务状态 -->
+                    <div class="settings-panel" data-panel="service-status" data-setting-group="advanced">
+                        <h4 class="panel-title">服务状态</h4>
+                        <div class="info-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 12h4l3 8 4-16 3 8h4" />
+                            </svg>
+                            <span>添加常用服务的健康检查地址，前台会显示在线状态、HTTP 状态码和延迟。</span>
+                        </div>
+                        <div class="setting-card service-status-form-card">
+                            <h5 class="card-subtitle">添加监控服务</h5>
+                            <div class="form-group">
+                                <label for="serviceStatusName">服务名</label>
+                                <input type="text" id="serviceStatusName" placeholder="例如：NewAPI" autocomplete="off" data-form-type="other">
+                            </div>
+                            <div class="form-group">
+                                <label for="serviceStatusUrl">健康检查 URL</label>
+                                <input type="url" id="serviceStatusUrl" placeholder="https://example.com/health" autocomplete="off" data-form-type="other">
+                                <small class="setting-hint">仅允许 http/https；后端会拦截内网/本地地址，除非显式开启 ALLOW_PRIVATE_NETWORK=true。</small>
+                            </div>
+                            <label class="checkbox-label service-status-enabled-row">
+                                <input type="checkbox" id="serviceStatusEnabled" checked>
+                                <span>启用定时检查</span>
+                            </label>
+                            <div class="form-actions">
+                                <button class="btn btn-primary" id="serviceStatusSaveBtn">添加服务</button>
+                            </div>
+                            <div class="service-status-form-hint" id="serviceStatusFormHint"></div>
+                        </div>
+                        <div class="setting-card">
+                            <h5 class="card-subtitle">已配置服务</h5>
+                            <div class="service-status-settings-list" id="serviceStatusList"></div>
                         </div>
                     </div>
 

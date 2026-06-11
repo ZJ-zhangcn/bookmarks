@@ -10,6 +10,8 @@ import { renderAll } from './modules/render.js';
 import { bindAllEvents } from './modules/events.js';
 import { hideLoadingOverlay } from './modules/utils.js';
 import { initTheme } from './modules/settings.js';
+import { registerServiceWorker } from './modules/pwa.js';
+import { initServiceStatusUi } from './modules/service-status.js';
 
 async function init() {
     if ('scrollRestoration' in history) {
@@ -26,7 +28,9 @@ async function init() {
 
     renderAll();
     bindAllEvents();
+    initServiceStatusUi();
     hideLoadingOverlay();
+    registerServiceWorker();
 
     // 延迟加载：设置相关功能（壁纸、AI 状态）
     setTimeout(async () => {

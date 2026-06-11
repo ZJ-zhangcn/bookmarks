@@ -1,6 +1,6 @@
 # 书签导航
 
-一个面向个人自用的中文书签导航页。它把书签、分类、搜索引擎、待办、图标、壁纸、数据同步和 AI 摘要放在同一个页面里，适合部署在 NAS、家用服务器或个人 VPS 上。
+一个面向个人自用的中文书签导航 / 个人入口页。它把书签、分类、搜索引擎、待办、图标、壁纸、数据同步、AI 摘要、PWA 桌面入口和快捷命令面板放在同一个页面里，适合部署在 NAS、家用服务器或个人 VPS 上。
 
 ![预览图](./预览图.png)
 
@@ -8,6 +8,8 @@
 
 - 书签管理：支持分类、新增、编辑、删除、排序、访问计数和标签。
 - 搜索入口：可配置多个搜索引擎，也可以在浮层里快速过滤书签。
+- 命令面板：按 `Cmd/Ctrl+K` 或 `/` 快速搜索书签、分类、搜索引擎并执行新增书签、打开设置、查看 TODO 等操作。
+- PWA 入口：支持安装到手机/桌面主屏幕，提供离线应用壳。
 - 个性化界面：支持主题、Logo、壁纸、时钟、页脚、内容宽度和组件显隐。
 - TODO 待办：支持快速添加、编辑、完成、删除和拖拽排序。
 - 图标库：可自动发现 favicon，也可上传、复用、批量获取或修复图标。
@@ -49,6 +51,39 @@ npm run dev
 
 后端默认监听 `http://localhost:3000`，会直接服务 `dist/` 或 `frontend/`。
 
+## PWA 与快捷操作
+
+### 安装到桌面
+
+项目构建产物包含 `manifest.webmanifest`、`service-worker.js` 和 PWA 图标。部署后在支持 PWA 的浏览器中打开站点：
+
+- iOS Safari：分享按钮 → 添加到主屏幕。
+- Android Chrome / Edge：菜单 → 安装应用 或 添加到主屏幕。
+- 桌面 Chrome / Edge：地址栏右侧安装图标。
+
+离线或弱网时，Service Worker 会优先保证应用壳可打开，并对 `/api/bootstrap-v2` 使用 network-first 策略，避免写接口被缓存。
+
+### 命令面板
+
+快捷键：
+
+```text
+Cmd/Ctrl+K  打开命令面板
+/           在未输入状态下打开命令面板
+Esc         关闭命令面板
+↑ / ↓       切换选中项
+Enter       执行当前命令
+```
+
+命令面板支持：
+
+- 搜索并打开书签。
+- 跳转分类。
+- 切换搜索引擎。
+- 新增书签。
+- 打开设置。
+- 跳转 TODO。
+
 如果只调前端，可另起 Vite：
 
 ```bash
@@ -57,7 +92,7 @@ npm run dev:frontend
 
 ## 配置说明
 
-大多数个人部署不需要配置很多变量。SQLite 模式下可以直接启动；只有接入 MySQL、开放公网、WebDAV 内网地址或 AI 时才需要改 `.env`。
+大多数个人部署不需要配置很多变量。SQLite 模式下可以直接启动；只有开放公网、WebDAV 内网地址或 AI 时才需要改 `.env`。
 
 ### 常用变量
 
@@ -65,7 +100,7 @@ npm run dev:frontend
 | --- | --- | --- |
 | 修改端口 | `PORT` | 后端监听端口，默认 `3000`；Docker 默认映射到宿主机 `8080`。 |
 | 访问控制 | `AUTH_MODE` | `anonymous` 适合个人内网；`token` 适合公网；`off` 完全关闭鉴权。 |
-| 管理令牌 | `ADMIN_TOKEN` | `AUTH_MODE=token` 时，写接口需要 `Authorization: Bearer <token>`。 |
+| 管理令牌 | `ADMIN_TOKEN` | `AUTH_MODE=token` 时，写接口需要 `Authorization: Bearer ***`。 |
 | 内网访问 | `ALLOW_PRIVATE_NETWORK` | WebDAV、图标抓取或 AI 网关需要访问内网地址时开启。 |
 | 启用 AI | `AI_ENABLED` | 设置为 `true` 后，配置 OpenAI Key 即可。 |
 
@@ -81,22 +116,6 @@ OPENAI_API_KEY=your-key
 ```
 
 前端默认允许临时传入自定义 Key 和 Base URL，自用部署无需额外配置。
-
-更多配置选项请参考 `.env.example`。
-AI_ENABLED=true
-AI_PROVIDER=gemini
-AI_MODEL=gemini-1.5-flash
-GEMINI_API_KEY=your-key
-```
-
-Claude：
-
-```env
-AI_ENABLED=true
-AI_PROVIDER=claude
-AI_MODEL=claude-3-5-haiku-latest
-ANTHROPIC_API_KEY=your-key
-```
 
 高级 AI 参数、CORS 等开关见 `.env.example`。这些不是常规部署必需项，建议只在明确需要时开启。
 
@@ -157,8 +176,6 @@ npm run lint            # 运行 ESLint
 npm run lint:fix        # 自动修复 ESLint 可修复问题
 npm test                # 运行 node:test 测试
 npm run audit:high      # 检查高危依赖问题
-npm run db:init         # 初始化 MySQL 表
-npm run db:migrate      # 从 SQLite 迁移到 MySQL
 ```
 
 ## 项目结构
@@ -167,7 +184,7 @@ npm run db:migrate      # 从 SQLite 迁移到 MySQL
 bookmarks/
 ├── backend/              # Express 后端、API 路由、数据库入口
 │   ├── server.js         # 服务入口
-│   ├── db.js             # SQLite / MySQL 数据库层
+│   ├── db.js             # SQLite 数据库层
 │   ├── ai.js             # AI 路由注册
 │   ├── bootstrap-v2.js   # 首屏聚合接口
 │   ├── middleware/       # 鉴权和安全校验
@@ -176,13 +193,14 @@ bookmarks/
 │   ├── index.html
 │   ├── index.css
 │   ├── main.js
+│   ├── manifest.webmanifest
+│   ├── service-worker.js
+│   ├── assets/           # PWA 图标等静态资源
 │   └── modules/          # 前端功能模块
 ├── shared/services/      # 前后端复用的业务服务
-├── scripts/              # MySQL 初始化与 SQLite 迁移脚本
 ├── tests/                # node:test 测试
 ├── Dockerfile
-├── docker-compose.yml
-└── docker-compose.mysql.yml
+└── docker-compose.yml
 ```
 
 ## 排障提示
@@ -191,7 +209,6 @@ bookmarks/
 - WebDAV 到 NAS 失败：确认 URL、账号、路径正确，并开启 `ALLOW_PRIVATE_NETWORK=true`。
 - AI 按钮提示未启用：确认 `AI_ENABLED=true`，并配置当前 provider 对应的 Key。
 - 系统监控没有数据：确认 Docker 已挂载 `/proc` 和 `/sys`，并且 `HOST_PROC`、`HOST_SYS` 指向挂载路径。
-- MySQL 启动失败：确认 `DATABASE_URL` 以 `mysql://` 开头，账号有建表和读写权限。
 
 ## 许可证
 

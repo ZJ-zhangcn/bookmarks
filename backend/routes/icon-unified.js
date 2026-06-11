@@ -106,14 +106,17 @@ module.exports = function(db) {
      * 代理外部图标请求（解决被墙问题）
      * 前端使用: /api/proxy-icon?url=...
      */
-    router.get('/proxy-icon', asyncHandler(async (req, res) => {
+    const proxyIconHandler = asyncHandler(async (req, res) => {
         await proxyIconRequest(req, res, {
             safeFetchPublicUrl,
             readLimitedArrayBuffer,
             maxBytes: DEFAULT_MAX_BYTES,
             transparentOnFailure: false
         });
-    }));
+    });
+
+    router.get('/proxy-icon', proxyIconHandler);
+    router.get('/icon/proxy', proxyIconHandler);
 
     /**
      * POST /api/icon/convert

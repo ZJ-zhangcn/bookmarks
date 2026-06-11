@@ -16,7 +16,9 @@ import { saveAiClientSettingsFromUi, clearAiClientSettings } from './ai.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
 import { initSearchSuggestions } from './suggest.js';
 import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
+import { saveServiceStatusFromUi, handleServiceStatusSettingsClick, checkServiceStatuses } from './service-status.js';
 import { initUxFeedback, renderCategorySheet } from './ux.js';
+import { initCommandPalette } from './command-palette.js';
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -96,6 +98,7 @@ export function bindAllEvents() {
     initUxFeedback();
     initSearchSuggestions();
     initCategoryQuickSwitcher();
+    initCommandPalette({ openBookmarkModal, openSettingsModal });
     DOM.searchInput.addEventListener('input', e => debouncedSearch(e.target.value));
     DOM.searchClear.addEventListener('click', () => { DOM.searchInput.value = ''; state.setCurrentSearch(''); renderBookmarks(); });
 
@@ -214,6 +217,16 @@ export function bindAllEvents() {
     DOM.webdavUploadBtn.addEventListener('click', webdavUpload);
     DOM.webdavDownloadBtn.addEventListener('click', webdavDownload);
 
+    if (DOM.serviceStatusSaveBtn) {
+        DOM.serviceStatusSaveBtn.addEventListener('click', saveServiceStatusFromUi);
+    }
+    if (DOM.serviceStatusList) {
+        DOM.serviceStatusList.addEventListener('click', handleServiceStatusSettingsClick);
+    }
+    if (DOM.serviceStatusRefresh) {
+        DOM.serviceStatusRefresh.addEventListener('click', () => checkServiceStatuses());
+    }
+
     if (DOM.aiSaveSettingsBtn) DOM.aiSaveSettingsBtn.addEventListener('click', saveAiClientSettingsFromUi);
     if (DOM.aiClearSettingsBtn) DOM.aiClearSettingsBtn.addEventListener('click', clearAiClientSettings);
 
@@ -272,15 +285,6 @@ export function bindAllEvents() {
     bindTodoDragEvents();
 
     document.addEventListener('keydown', e => {
-        const isInputFocused = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
-
-        // Ctrl/Cmd + K: Focus search
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-            e.preventDefault();
-            DOM.searchInput.focus();
-            return;
-        }
-
         // Ctrl/Cmd + N: Add new bookmark
         if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'n') {
             e.preventDefault();
@@ -315,12 +319,6 @@ export function bindAllEvents() {
             return;
         }
 
-        // / : Quick search (when not in input)
-        if (e.key === '/' && !isInputFocused) {
-            e.preventDefault();
-            DOM.searchInput.focus();
-            return;
-        }
     });
 
     let scrollTimeout = null;

@@ -1,9 +1,25 @@
 import { defineConfig } from 'vite';
 import path from 'path';
+import fs from 'fs';
+
+function copyPwaAssets() {
+  return {
+    name: 'copy-pwa-assets',
+    closeBundle() {
+      const distDir = path.resolve(__dirname, '..', 'dist');
+      const distAssetsDir = path.join(distDir, 'assets');
+      fs.mkdirSync(distAssetsDir, { recursive: true });
+      fs.copyFileSync(path.resolve(__dirname, 'service-worker.js'), path.join(distDir, 'service-worker.js'));
+      fs.copyFileSync(path.resolve(__dirname, 'assets/icon-192.png'), path.join(distAssetsDir, 'icon-192.png'));
+      fs.copyFileSync(path.resolve(__dirname, 'assets/icon-512.png'), path.join(distAssetsDir, 'icon-512.png'));
+    }
+  };
+}
 
 export default defineConfig({
   root: '.',
   base: '/',
+  plugins: [copyPwaAssets()],
   build: {
     outDir: path.resolve(__dirname, '..', 'dist'),
     emptyOutDir: true,
@@ -14,7 +30,12 @@ export default defineConfig({
       output: {
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
+        assetFileNames: (assetInfo) => {
+          const name = assetInfo.names?.[0] || assetInfo.name || '';
+          if (name.endsWith('.webmanifest')) return '[name][extname]';
+          if (/icon-(192|512)\.png$/.test(name)) return 'assets/[name][extname]';
+          return 'assets/[name]-[hash][extname]';
+        },
         manualChunks: (id) => {
           // 将 node_modules 打包到 vendor chunk
           if (id.includes('node_modules')) {

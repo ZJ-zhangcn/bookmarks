@@ -111,12 +111,37 @@ async function createTables() {
             CHECK (is_done IN (0, 1))
         );
 
+        -- 服务状态监控表
+        CREATE TABLE IF NOT EXISTS monitored_services (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            enabled INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            CHECK (enabled IN (0, 1))
+        );
+
+        -- 服务状态检查结果表（每个服务保留最新一次结果）
+        CREATE TABLE IF NOT EXISTS service_status_results (
+            service_id TEXT PRIMARY KEY,
+            status TEXT NOT NULL,
+            http_status INTEGER,
+            latency_ms INTEGER,
+            error_message TEXT,
+            checked_at TEXT NOT NULL,
+            FOREIGN KEY (service_id) REFERENCES monitored_services(id) ON DELETE CASCADE,
+            CHECK (status IN ('ok', 'down', 'unchecked'))
+        );
+
         -- 性能优化索引
         CREATE INDEX IF NOT EXISTS idx_bookmarks_category_sort ON bookmarks(category_id, sort_order, created_at);
         CREATE INDEX IF NOT EXISTS idx_bookmarks_visits ON bookmarks(visit_count DESC, last_visited_at DESC);
         CREATE INDEX IF NOT EXISTS idx_categories_sort ON categories(sort_order);
         CREATE INDEX IF NOT EXISTS idx_engines_sort ON search_engines(sort_order);
         CREATE INDEX IF NOT EXISTS idx_todos_list ON todos(is_done, sort_order, created_at);
+        CREATE INDEX IF NOT EXISTS idx_monitored_services_sort ON monitored_services(enabled, sort_order, created_at);
         CREATE INDEX IF NOT EXISTS idx_bookmark_ai_lookup ON bookmark_ai(bookmark_id);
     `);
 

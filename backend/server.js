@@ -15,6 +15,7 @@ const fs = require('fs');
 const db = require('./db');
 const { registerAiRoutes } = require('./ai');
 const { errorHandler } = require('./utils');
+const { startServiceStatusScheduler } = require('./services/service-checker');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -60,7 +61,8 @@ app.use((req, res, next) => {
             '/api/todos',
             '/api/bootstrap-v2',
             '/api/categories',
-            '/api/config'
+            '/api/config',
+            '/api/service-status'
         ];
         const isDynamic = noStorePaths.some(p => req.path.startsWith(p));
         
@@ -171,6 +173,7 @@ app.use('/api/metadata', routes.metadata);
 app.use('/api/config', routes.config);
 app.use('/api/webdav', routes.webdav);
 app.use('/api/data', routes.data);
+app.use('/api/service-status', routes.serviceStatus);
 app.use('/api/todos', routes.todos);
 app.use('/api/suggest', routes.suggest);
 
@@ -272,6 +275,7 @@ async function start() {
         await db.initDatabase();
         await db.createTables();
         await initDefaultData();
+        startServiceStatusScheduler(db);
 
         app.listen(PORT, () => {
             console.log(`🚀 书签导航服务已启动: http://localhost:${PORT}`);

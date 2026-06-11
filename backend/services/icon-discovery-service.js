@@ -157,9 +157,10 @@ async function validateIconCandidate(candidate, parsedPageUrl, deps) {
         }
 
         const buffer = await deps.readLimitedArrayBuffer(response, ICON_MAX_BYTES);
+        const finalHref = finalUrl?.href || String(finalUrl || iconUrl.href);
         return {
             ...base,
-            url: finalUrl.href,
+            url: finalHref,
             contentType: contentType.split(';')[0],
             bytes: buffer.byteLength,
             usable: true
