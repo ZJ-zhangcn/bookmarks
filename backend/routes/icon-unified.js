@@ -3,77 +3,24 @@
  * 整合了 favicon.js, icon.js, icons.js 的所有功能
  */
 const express = require('express');
-const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
-const { requireAdmin, requireStrictAdmin, assertPublicFetchUrl } = require('../middleware/security');
-const { safeFetch } = require('../utils/safe-fetch');
+const { requireAdmin, requireStrictAdmin } = require('../middleware/security');
 const { proxyIconRequest } = require('../utils/icon-proxy');
 const { createIconDiscoveryService } = require('../services/icon-discovery-service');
-const iconsService = require('../../shared/services/icons');
-
-const IMAGE_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'Accept': 'image/*,*/*;q=0.8'
-};
-
-const DEFAULT_MAX_BYTES = 2 * 1024 * 1024; // 2MB
-
-/**
- * 获取公共图片资源
- */
-async function fetchPublicImage(url) {
-    const response = await safeFetch(url, {
-        timeout: 10000,
-        headers: IMAGE_HEADERS
-    });
-
-    if (!response.ok) {
-        throw new AppError(`上游返回 ${response.status}`, 502);
-    }
-
-    const contentType = response.headers.get('content-type') || 'image/png';
-    if (!contentType.startsWith('image/')) {
-        throw new AppError('上游不是图片内容', 502);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    if (buffer.length > DEFAULT_MAX_BYTES) {
-        throw new AppError('图片过大', 413);
-    }
-
-    return { buffer, contentType, finalUrl: url };
-}
-
-/**
- * 读取有限的 ArrayBuffer（兼容旧代码）
- */
-async function readLimitedArrayBuffer(response, maxBytes = DEFAULT_MAX_BYTES) {
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    if (buffer.length > maxBytes) {
-        throw new AppError('响应内容过大', 413);
-    }
-
-    return buffer;
-}
-
-/**
- * safeFetchPublicUrl 兼容包装（兼容旧代码）
- */
-async function safeFetchPublicUrl(url, options = {}) {
-    const response = await safeFetch(url, {
-        timeout: options.timeoutMs || 10000,
-        headers: options.fetchOptions?.headers || {}
-    });
-
-    return { response, url };
-}
+const {
+    fetchPublicImageAsDataUrl,
+    safeFetchPublicUrl,
+    readLimitedArrayBuffer,
+    DEFAULT_MAX_BYTES
+} = require('../services/icons/fetch-image');
+const { createIconLibraryService } = require('../services/icons/library-service');
+const { createBookmarkIconService } = require('../services/icons/bookmark-icon-service');
 
 module.exports = function(db) {
+    const router = express.Router();
     const iconDiscovery = createIconDiscoveryService();
+    const iconLibrary = createIconLibraryService(db);
+    const bookmarkIconService = createBookmarkIconService(db, { iconDiscovery });
 
     // ========================================
     // 图标发现服务 (原 favicon.js)
@@ -128,9 +75,7 @@ module.exports = function(db) {
             throw new AppError('缺少 URL', 400);
         }
 
-        const { buffer, contentType } = await fetchPublicImage(url);
-        const base64 = buffer.toString('base64');
-        res.json(success(`data:${contentType.split(';')[0]};base64,${base64}`));
+        res.json(success(await fetchPublicImageAsDataUrl(url)));
     }));
 
     /**
@@ -138,35 +83,7 @@ module.exports = function(db) {
      * 批量修复所有 URL 类型的图标为 base64
      */
     router.post('/icon/fix-all', requireStrictAdmin, asyncHandler(async (req, res) => {
-        const bookmarks = await db.queryAll(`
-            SELECT id, icon_data FROM bookmarks
-            WHERE icon_type = 'url' AND icon_data IS NOT NULL AND icon_data != ''
-        `);
-
-        let fixed = 0;
-        let failed = 0;
-        const failures = [];
-
-        for (const bm of bookmarks) {
-            try {
-                const { buffer, contentType } = await fetchPublicImage(bm.icon_data);
-                const base64 = buffer.toString('base64');
-                const dataUrl = `data:${contentType.split(';')[0]};base64,${base64}`;
-                await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['base64', dataUrl, bm.id]);
-                fixed++;
-            } catch (e) {
-                failures.push({ id: bm.id, reason: e.message || '转换失败' });
-                failed++;
-            }
-        }
-
-        res.json(success({
-            message: `修复完成：${fixed} 个成功，${failed} 个保留原图标`,
-            fixed,
-            failed,
-            total: bookmarks.length,
-            failures
-        }));
+        res.json(success(await bookmarkIconService.convertUrlIconsToBase64()));
     }));
 
     /**
@@ -174,41 +91,7 @@ module.exports = function(db) {
      * 批量获取所有书签的图标
      */
     router.post('/icon/fetch-all', requireStrictAdmin, asyncHandler(async (req, res) => {
-        const bookmarks = await db.queryAll(`
-            SELECT id, url FROM bookmarks
-            WHERE url IS NOT NULL AND url != ''
-            AND (icon_data IS NULL OR icon_data = '' OR icon_type = 'auto')
-        `);
-
-        let successCount = 0;
-        let failed = 0;
-
-        for (const bm of bookmarks) {
-            try {
-                const discovered = await iconDiscovery.discoverIcons(bm.url);
-                const iconUrl = discovered.icons[0];
-                if (!iconUrl) throw new AppError('未找到可用图标', 502);
-
-                const { buffer, contentType } = await fetchPublicImage(iconUrl);
-                if (buffer.byteLength > 0) {
-                    const base64 = buffer.toString('base64');
-                    const dataUrl = `data:${contentType.split(';')[0]};base64,${base64}`;
-                    await db.execute('UPDATE bookmarks SET icon_type = ?, icon_data = ? WHERE id = ?', ['base64', dataUrl, bm.id]);
-                    successCount++;
-                    continue;
-                }
-                failed++;
-            } catch {
-                failed++;
-            }
-        }
-
-        res.json(success({
-            message: `获取完成：${successCount} 个成功，${failed} 个失败`,
-            fetched: successCount,
-            failed,
-            total: bookmarks.length
-        }));
+        res.json(success(await bookmarkIconService.fetchMissingBookmarkIcons()));
     }));
 
     // ========================================
@@ -220,8 +103,7 @@ module.exports = function(db) {
      * 获取所有图标库图标
      */
     router.get('/icons', asyncHandler(async (req, res) => {
-        const icons = await iconsService.getAllIcons(db);
-        res.json(success(icons));
+        res.json(success(await iconLibrary.list()));
     }));
 
     /**
@@ -232,47 +114,25 @@ module.exports = function(db) {
         const action = req.query.action;
 
         if (action === 'batch-delete') {
-            const { ids } = req.body;
-            if (!Array.isArray(ids) || ids.length === 0) {
-                return res.json(success());
-            }
-            await iconsService.batchDeleteIcons(db, ids);
+            await iconLibrary.batchDelete(req.body.ids);
             return res.json(success());
         }
 
         if (action === 'from-url') {
-            const { url, name } = req.body;
-            if (!url) {
-                throw new AppError('缺少 URL', 400);
-            }
-            const result = await iconsService.uploadIconFromUrl(db, { url, name }, assertPublicFetchUrl);
-            return res.json(success(result));
+            return res.json(success(await iconLibrary.uploadFromUrl(req.body)));
         }
 
         if (action === 'clear-from-bookmarks') {
-            const { iconData } = req.body;
-            if (!iconData) {
-                throw new AppError('缺少图标数据', 400);
-            }
-            await iconsService.clearIconFromBookmarks(db, iconData);
+            await iconLibrary.clearFromBookmarks(req.body.iconData);
             return res.json(success());
         }
 
         if (action === 'batch-clear-from-bookmarks') {
-            const { iconDataList } = req.body;
-            if (!Array.isArray(iconDataList) || iconDataList.length === 0) {
-                return res.json(success());
-            }
-            await iconsService.batchClearIconsFromBookmarks(db, iconDataList);
+            await iconLibrary.batchClearFromBookmarks(req.body.iconDataList);
             return res.json(success());
         }
 
-        const { name, data, type } = req.body;
-        if (!data) {
-            throw new AppError('缺少图标数据', 400);
-        }
-        const result = await iconsService.uploadIcon(db, { name, data, type });
-        res.json(success(result));
+        res.json(success(await iconLibrary.upload(req.body)));
     }));
 
     /**
@@ -280,11 +140,7 @@ module.exports = function(db) {
      * 删除图标
      */
     router.delete('/icons', requireAdmin, asyncHandler(async (req, res) => {
-        const { id } = req.query;
-        if (!id) {
-            throw new AppError('缺少图标 ID', 400);
-        }
-        await iconsService.deleteIcon(db, id);
+        await iconLibrary.deleteById(req.query.id);
         res.json(success());
     }));
 
