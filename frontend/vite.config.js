@@ -23,6 +23,8 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, '..', 'dist'),
     emptyOutDir: true,
+    // 不预加载动态 import 的 settings / ai chunk，降低首屏请求和下载量
+    modulePreload: false,
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html')

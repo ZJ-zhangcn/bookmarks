@@ -6,6 +6,13 @@ node_modules
 **/node_modules
 backend/node_modules
 frontend/node_modules
+dist
+docs
+tests
+backend/data
+*.db
+*.db-wal
+*.db-shm
 *.log
 .env
 .DS_Store
