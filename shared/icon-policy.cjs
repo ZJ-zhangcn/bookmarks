@@ -1,3 +1,4 @@
+/* global URL */
 const PUBLIC_ICON_PROVIDERS = [
     {
         source: 'google',

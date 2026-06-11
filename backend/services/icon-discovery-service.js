@@ -1,6 +1,7 @@
 const { assertPublicFetchUrl, isPrivateOrLocalAddress } = require('../middleware/security');
 const { safeFetchPublicUrl, readLimitedArrayBuffer } = require('../utils/safe-fetch');
 const { discoverIconCandidates } = require('../utils/icon-discovery');
+const iconPolicy = require('../../shared/icon-policy.cjs');
 
 const PAGE_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -20,17 +21,7 @@ const SUCCESS_TTL_MS = 24 * 60 * 60 * 1000;
 const FALLBACK_TTL_MS = 15 * 60 * 1000;
 const MAX_VALIDATION_CANDIDATES = 8;
 
-function uniqueUrls(urls) {
-    const seen = new Set();
-    const out = [];
-    for (const raw of urls || []) {
-        const value = String(raw || '').trim();
-        if (!value || seen.has(value)) continue;
-        seen.add(value);
-        out.push(value);
-    }
-    return out;
-}
+const { uniqueUrls } = iconPolicy;
 
 function uniqueCandidates(candidates) {
     const seen = new Set();
@@ -53,14 +44,10 @@ function getFallbackIcons(host, protocol = 'https:', {
     const publicProviderFallbacks = getPublicProviderFallbacks(hostname, {
         isPrivateOrLocalAddress: isPrivateOrLocalAddressFn
     });
-    const fallbacks = [
-        `${origin}/favicon.ico`,
-        `${origin}/favicon.png`,
-        `${origin}/apple-touch-icon.png`,
-        `${origin}/apple-touch-icon-precomposed.png`,
+    return uniqueUrls([
+        ...iconPolicy.buildSiteFallbacks(origin),
         ...publicProviderFallbacks.filter(url => includePublicLetterFallback || !url.includes('icon.horse'))
-    ];
-    return uniqueUrls(fallbacks);
+    ]);
 }
 
 function makeCacheKey(parsedUrl) {
@@ -73,27 +60,20 @@ function cloneResult(result, cacheState = result.cache) {
         cache: cacheState,
         icons: [...(result.icons || [])],
         candidates: (result.candidates || []).map(candidate => ({ ...candidate })),
+        fallbacks: (result.fallbacks || []).map(candidate => ({ ...candidate })),
+        recommended: result.recommended ? { ...result.recommended } : undefined,
         rejected: (result.rejected || []).map(candidate => ({ ...candidate }))
     };
 }
 
 function fallbackSource(url) {
-    const value = String(url || '').toLowerCase();
-    if (value.includes('google.com/s2/favicons')) return 'google-fallback';
-    if (value.includes('favicon.im')) return 'faviconim-fallback';
-    if (value.includes('icon.horse')) return 'public-fallback';
-    if (value.includes('apple-touch-icon')) return 'apple-fallback';
-    if (value.endsWith('/favicon.ico') || value.endsWith('/favicon.png')) return 'site-fallback';
-    return 'discovered';
+    return iconPolicy.getIconSource(url);
 }
 
 function getPublicProviderFallbacks(hostname, deps) {
-    if (deps.isPrivateOrLocalAddress(hostname)) return [];
-    return [
-        `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
-        `https://favicon.im/${hostname}`,
-        `https://icon.horse/icon/${hostname}`
-    ];
+    return iconPolicy.buildProviderFallbacks(hostname, {
+        isPrivateOrLocalAddress: deps.isPrivateOrLocalAddress
+    });
 }
 
 function getResultFallbackIcons(parsedUrl, deps) {
@@ -108,28 +88,32 @@ function getResultFallbackIcons(parsedUrl, deps) {
 
 function fallbackResult(parsedUrl, reason, rejected, deps) {
     const fallbackIcons = getResultFallbackIcons(parsedUrl, deps);
+    const fallbackCandidates = fallbackIcons.map(url => ({
+        ...iconPolicy.getIconCandidateDefaults(url),
+        score: 0,
+        usable: false,
+        reason
+    }));
     return {
         status: 'fallback',
         cache: 'miss',
         target: parsedUrl.href,
         origin: makeCacheKey(parsedUrl),
         icons: fallbackIcons,
-        candidates: fallbackIcons.map(url => ({
-            url,
-            source: fallbackSource(url),
-            score: 0,
-            usable: false,
-            reason
-        })),
+        candidates: fallbackCandidates,
+        fallbacks: fallbackCandidates,
         rejected: rejected || []
     };
 }
 
 async function validateIconCandidate(candidate, parsedPageUrl, deps) {
     const url = String(candidate?.url || '');
+    const source = candidate?.source || fallbackSource(url);
+    const defaults = iconPolicy.getIconCandidateDefaults(url, { source });
     const base = {
+        ...defaults,
         url,
-        source: candidate?.source || fallbackSource(url),
+        source,
         score: Number(candidate?.score) || 0,
         usable: false
     };
@@ -235,6 +219,12 @@ function createIconDiscoveryService(overrides = {}) {
                 isPrivateOrLocalAddressFn: deps.isPrivateOrLocalAddress
             });
             const publicProviderFallbacks = getPublicProviderFallbacks(parsedUrl.hostname, deps);
+            const publicProviderFallbackCandidates = publicProviderFallbacks.map(url => ({
+                ...iconPolicy.getIconCandidateDefaults(url),
+                score: 0,
+                usable: false,
+                reason: 'provider-fallback'
+            }));
             const candidateUrls = uniqueCandidates([
                 ...discoveredIcons,
                 ...fallbackIcons
@@ -260,7 +250,14 @@ function createIconDiscoveryService(overrides = {}) {
                 target: parsedUrl.href,
                 origin: cacheKey,
                 icons: uniqueUrls([bestSiteIcon.url, ...publicProviderFallbacks].filter(Boolean)),
+                recommended: {
+                    url: bestSiteIcon.url,
+                    source: bestSiteIcon.source,
+                    label: bestSiteIcon.label,
+                    reason: 'highest-score-validated'
+                },
                 candidates: [bestSiteIcon],
+                fallbacks: publicProviderFallbackCandidates,
                 rejected
             };
             setCached(cacheKey, result, SUCCESS_TTL_MS);

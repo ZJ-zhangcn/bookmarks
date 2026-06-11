@@ -78,7 +78,12 @@ test('icon discovery validates candidates and rejects non-image URLs', async () 
     assert.equal(result.candidates[0].url, 'https://example.com/good.png');
     assert.equal(result.candidates[0].usable, true);
     assert.equal(result.candidates[0].source, 'link');
+    assert.equal(result.candidates[0].label, '页面图标');
+    assert.equal(result.candidates[0].type, 'site');
     assert.equal(result.candidates[0].score > 0, true);
+    assert.deepEqual(result.fallbacks.map(candidate => candidate.source), ['google', 'faviconim', 'icon-horse']);
+    assert.deepEqual(result.fallbacks.map(candidate => candidate.label), ['Google', 'Favicon.im', '字母']);
+    assert.equal(result.fallbacks.every(candidate => candidate.type === 'provider'), true);
     assert.equal(result.rejected.some(candidate => candidate.url === 'https://example.com/bad.png'), true);
     assert.equal(calls.includes('https://example.com/bad.png'), true);
 });
@@ -173,6 +178,8 @@ test('icon discovery returns public provider fallbacks when public page fetch fa
         'https://icon.horse/icon/example.com'
     ]);
     assert.equal(result.candidates.every(candidate => candidate.usable === false), true);
+    assert.deepEqual(result.candidates.map(candidate => candidate.source), ['google', 'faviconim', 'icon-horse']);
+    assert.deepEqual(result.candidates.map(candidate => candidate.label), ['Google', 'Favicon.im', '字母']);
 });
 
 test('icon discovery keeps same-origin fallbacks for private page fetch failures', async () => {
