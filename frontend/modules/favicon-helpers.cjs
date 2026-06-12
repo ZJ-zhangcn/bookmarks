@@ -28,12 +28,24 @@ function shouldUseProxyUrlForIcon(url, pageProtocol = 'https:') {
     }
 }
 
+function getIconHorseFallbackUrl(data, extraUrls = []) {
+    const candidates = [
+        ...(data?.candidates || []),
+        ...(data?.fallbacks || [])
+    ].map(candidate => typeof candidate === 'string' ? candidate : candidate?.url);
+    return [
+        ...candidates,
+        ...(data?.icons || []),
+        ...extraUrls
+    ].find(url => iconPolicy.getIconSource(url) === 'icon-horse') || '';
+}
+
 function normalizeFaviconResponse(result) {
     if (!result || result.success !== true) return [];
     if (Array.isArray(result.data)) return result.data;
 
     // 优先使用 candidates 中验证通过的真实站点图标。
-    // Provider fallback（Google/Favicon.im/icon.horse）是兜底候选，不应当当作“已获取到图标”。
+    // 如果没有任何真实站点图标可用，只使用 icon.horse 的首字母图标兜底。
     if (Array.isArray(result.data?.candidates)) {
         const usableIcons = result.data.candidates
             .filter(candidate => candidate?.usable === true && candidate?.type !== 'provider')
@@ -43,11 +55,15 @@ function normalizeFaviconResponse(result) {
             return usableIcons;
         }
         if (result.data.status === 'fallback' || result.data.candidates.length > 0) {
-            return [];
+            const letterFallback = getIconHorseFallbackUrl(result.data, result.icons || []);
+            return letterFallback ? [letterFallback] : [];
         }
     }
 
-    if (result.data?.status === 'fallback') return [];
+    if (result.data?.status === 'fallback') {
+        const letterFallback = getIconHorseFallbackUrl(result.data, result.icons || []);
+        return letterFallback ? [letterFallback] : [];
+    }
     if (Array.isArray(result.data?.icons)) return result.data.icons;
     if (Array.isArray(result.icons)) return result.icons;
     return [];

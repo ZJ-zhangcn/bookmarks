@@ -114,7 +114,7 @@ export function renderIconCandidates(container, icons, options = {}) {
     if (!local && visibleIcons.length === 1) {
         const icon = visibleIcons[0];
         const source = getIconSource(icon);
-        target.innerHTML = `<div class="icon-single">
+        target.innerHTML = `<div class="icon-single" data-url="${escapeHtmlAttribute(icon)}">
             ${renderIconPreviewImage(icon, source)}
             <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
         </div>`;
@@ -150,6 +150,8 @@ export function renderLocalIconSelection(localIcons) {
 export function getSelectedIconUrl(container = DOM.iconPreviewAuto) {
     const selected = container?.querySelector?.('.icon-option-wrap.selected');
     if (selected?.dataset?.url) return selected.dataset.url;
+    const singleWrap = container?.querySelector?.('.icon-single[data-url]');
+    if (singleWrap?.dataset?.url) return singleWrap.dataset.url;
     const single = container?.querySelector?.('.icon-single img[data-url]');
     return single?.dataset?.url || '';
 }

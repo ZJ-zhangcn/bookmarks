@@ -69,7 +69,7 @@ test('fetchMissingBookmarkIcons uses the first discovered icon and records missi
     assert.deepEqual(db.updates[0].params, ['base64', 'data:image/png;base64,aWNvbg==', 'ok']);
 });
 
-test('fetchMissingBookmarkIcons does not save provider fallback placeholders as real icons', async () => {
+test('fetchMissingBookmarkIcons uses icon.horse letter fallback when no site icon is valid', async () => {
     const db = createFakeDb({
         missingIcons: [
             { id: 'placeholder', url: 'https://placeholder.example/page' }
@@ -80,28 +80,49 @@ test('fetchMissingBookmarkIcons does not save provider fallback placeholders as 
         iconDiscovery: {
             discoverIcons: async () => ({
                 status: 'fallback',
-                icons: ['https://www.google.com/s2/favicons?domain=placeholder.example&sz=64'],
-                candidates: [{
-                    url: 'https://www.google.com/s2/favicons?domain=placeholder.example&sz=64',
-                    source: 'google',
-                    type: 'provider',
-                    usable: false,
-                    reason: 'no-validated-icons'
-                }]
+                icons: [
+                    'https://www.google.com/s2/favicons?domain=placeholder.example&sz=64',
+                    'https://favicon.im/placeholder.example',
+                    'https://icon.horse/icon/placeholder.example'
+                ],
+                candidates: [
+                    {
+                        url: 'https://www.google.com/s2/favicons?domain=placeholder.example&sz=64',
+                        source: 'google',
+                        type: 'provider',
+                        usable: false,
+                        reason: 'no-validated-icons'
+                    },
+                    {
+                        url: 'https://favicon.im/placeholder.example',
+                        source: 'faviconim',
+                        type: 'provider',
+                        usable: false,
+                        reason: 'no-validated-icons'
+                    },
+                    {
+                        url: 'https://icon.horse/icon/placeholder.example',
+                        source: 'icon-horse',
+                        type: 'provider',
+                        usable: false,
+                        reason: 'no-validated-icons'
+                    }
+                ]
             })
         },
-        fetchPublicImageAsDataUrl: async () => {
+        fetchPublicImageAsDataUrl: async url => {
             imageFetchCalls += 1;
-            return 'data:image/png;base64,cGxhY2Vob2xkZXI=';
+            assert.equal(url, 'https://icon.horse/icon/placeholder.example');
+            return 'data:image/png;base64,aWNvbi1ob3JzZQ==';
         }
     });
 
     const result = await service.fetchMissingBookmarkIcons();
 
-    assert.equal(result.fetched, 0);
-    assert.equal(result.failed, 1);
+    assert.equal(result.fetched, 1);
+    assert.equal(result.failed, 0);
     assert.equal(result.total, 1);
-    assert.equal(imageFetchCalls, 0);
-    assert.deepEqual(db.updates, []);
-    assert.deepEqual(result.failures, [{ id: 'placeholder', reason: '未找到可用图标' }]);
+    assert.equal(imageFetchCalls, 1);
+    assert.deepEqual(result.failures, []);
+    assert.deepEqual(db.updates[0].params, ['base64', 'data:image/png;base64,aWNvbi1ob3JzZQ==', 'placeholder']);
 });

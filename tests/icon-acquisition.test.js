@@ -30,7 +30,7 @@ test('normalizeFaviconResponse reads structured discovery result icons', () => {
     );
 });
 
-test('normalizeFaviconResponse ignores fallback-only provider placeholders', () => {
+test('normalizeFaviconResponse uses icon.horse when only provider fallbacks remain', () => {
     assert.deepEqual(
         normalizeFaviconResponse({
             success: true,
@@ -42,13 +42,13 @@ test('normalizeFaviconResponse ignores fallback-only provider placeholders', () 
                     'https://icon.horse/icon/placeholder.example'
                 ],
                 candidates: [
-                    { url: 'https://www.google.com/s2/favicons?domain=placeholder.example&sz=64', usable: false, type: 'provider' },
-                    { url: 'https://favicon.im/placeholder.example', usable: false, type: 'provider' },
-                    { url: 'https://icon.horse/icon/placeholder.example', usable: false, type: 'provider' }
+                    { url: 'https://www.google.com/s2/favicons?domain=placeholder.example&sz=64', usable: false, type: 'provider', source: 'google' },
+                    { url: 'https://favicon.im/placeholder.example', usable: false, type: 'provider', source: 'faviconim' },
+                    { url: 'https://icon.horse/icon/placeholder.example', usable: false, type: 'provider', source: 'icon-horse' }
                 ]
             }
         }),
-        []
+        ['https://icon.horse/icon/placeholder.example']
     );
 });
 

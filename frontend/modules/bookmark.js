@@ -7,6 +7,7 @@ import { loadData } from './api.js';
 import { renderAll } from './render.js';
 import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
+import { getSelectedIconUrl } from './icon-picker.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 import { showToast, showConfirm, showPrompt } from './ux.js';
 import sortHelpers from './sort-helpers.cjs';
@@ -232,16 +233,14 @@ export async function saveBookmark() {
             icon_data = state.editingBookmark.icon_data;
         }
     } else if (state.currentIconType === 'auto') {
-        const selectedWrap = DOM.iconPreviewAuto.querySelector('.icon-option-wrap.selected');
-        const selectedImg = selectedWrap ? selectedWrap.querySelector('img') : DOM.iconPreviewAuto.querySelector('img');
-        if (selectedImg && selectedImg.src) {
-            const originalUrl = selectedImg.dataset.url || selectedImg.src;
-            if (originalUrl.startsWith('data:')) {
+        const selectedIconUrl = getSelectedIconUrl(DOM.iconPreviewAuto);
+        if (selectedIconUrl) {
+            if (selectedIconUrl.startsWith('data:')) {
                 icon_type = 'base64';
-                icon_data = originalUrl;
+                icon_data = selectedIconUrl;
             } else {
                 icon_type = 'url';
-                icon_data = originalUrl;
+                icon_data = selectedIconUrl;
             }
         } else if (state.editingBookmark && state.editingBookmark.icon_data) {
             icon_type = state.editingBookmark.icon_type;

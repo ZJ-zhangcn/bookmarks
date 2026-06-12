@@ -1,9 +1,21 @@
 const { AppError } = require('../../utils');
 const { createIconDiscoveryService } = require('../icon-discovery-service');
 const { fetchPublicImageAsDataUrl } = require('./fetch-image');
+const iconPolicy = require('../../../shared/icon-policy.cjs');
 
 function getErrorReason(error, fallback) {
     return error?.message || fallback;
+}
+
+function getIconHorseFallbackUrl(discovered) {
+    const candidates = [
+        ...(discovered?.candidates || []),
+        ...(discovered?.fallbacks || [])
+    ].map(candidate => typeof candidate === 'string' ? candidate : candidate?.url);
+    return [
+        ...candidates,
+        ...(discovered?.icons || [])
+    ].find(url => iconPolicy.getIconSource(url) === 'icon-horse') || '';
 }
 
 function getActualDiscoveredIconUrl(discovered) {
@@ -11,8 +23,8 @@ function getActualDiscoveredIconUrl(discovered) {
         .find(candidate => candidate?.usable === true && candidate?.type !== 'provider' && candidate?.url);
     if (usableSiteCandidate) return usableSiteCandidate.url;
 
-    if (Array.isArray(discovered?.candidates) && discovered.candidates.length > 0) return '';
-    if (discovered?.status === 'fallback') return '';
+    if (Array.isArray(discovered?.candidates) && discovered.candidates.length > 0) return getIconHorseFallbackUrl(discovered);
+    if (discovered?.status === 'fallback') return getIconHorseFallbackUrl(discovered);
 
     const recommendedUrl = String(discovered?.recommended?.url || '').trim();
     if (recommendedUrl) return recommendedUrl;

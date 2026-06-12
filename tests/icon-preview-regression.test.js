@@ -95,3 +95,13 @@ test('auto icon renderer keeps service fallbacks visible but marks weak provider
     assert.match(pickerSource, /function getVisibleLocalIconOptions/);
     assert.match(pickerSource, /return icons\.slice\(0, limit\)/);
 });
+
+test('auto icon letter fallback remains selectable and saveable', () => {
+    const pickerSource = read('frontend/modules/icon-picker.js');
+    const bookmarkSource = read('frontend/modules/bookmark.js');
+
+    assert.match(pickerSource, /icon-single[\s\S]*data-url/);
+    assert.match(pickerSource, /'\.icon-single\[data-url\]'/);
+    assert.match(bookmarkSource, /getSelectedIconUrl/);
+    assert.match(bookmarkSource, /getSelectedIconUrl\(DOM\.iconPreviewAuto\)/);
+});
