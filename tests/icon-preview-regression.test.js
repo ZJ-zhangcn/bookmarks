@@ -59,37 +59,36 @@ test('auto icon renderer uses clear labels and local letter fallback previews', 
     assert.doesNotMatch(pickerSource, /label: '网站'/);
 });
 
-test('auto icon renderer hides failed favicon service candidates', () => {
+test('auto icon renderer keeps failed favicon service candidates visible', () => {
     const pickerSource = read('frontend/modules/icon-picker.js');
     const utilsSource = read('frontend/modules/utils.js');
 
-    assert.match(pickerSource, /function shouldHideIconOnError/);
-    assert.match(pickerSource, /data-hide-on-error="true"/);
-    assert.match(utilsSource, /dataset\.hideOnError/);
-    assert.match(utilsSource, /hideIconOption\(parent\)/);
+    assert.match(pickerSource, /function renderIconPreviewImage/);
+    assert.match(pickerSource, /data-remove-on-error="true"/);
+    assert.doesNotMatch(pickerSource, /data-hide-on-error="true"/);
+    assert.match(utilsSource, /icon-option-error/);
+    assert.match(utilsSource, /icon-option-fallback/);
 });
 
-test('auto icon renderer hides solid google favicon placeholders', () => {
+test('auto icon renderer does not hide solid provider placeholders', () => {
     const pickerSource = read('frontend/modules/icon-picker.js');
     const utilsSource = read('frontend/modules/utils.js');
 
-    assert.match(pickerSource, /function shouldHideSolidPlaceholder/);
-    assert.match(pickerSource, /data-hide-solid-placeholder="true"/);
     assert.match(pickerSource, /function renderIconPreviewImage/);
+    assert.doesNotMatch(pickerSource, /data-hide-solid-placeholder="true"/);
     assert.match(utilsSource, /function isSolidPlaceholderImage/);
     assert.match(utilsSource, /getImageData/);
-    assert.match(utilsSource, /function selectNextVisibleIconOption/);
     assert.match(utilsSource, /img\.complete/);
 });
 
-test('auto icon renderer keeps service fallbacks visible but marks weak providers for automatic hiding', () => {
+test('auto icon renderer keeps service fallbacks visible without automatic hiding markers', () => {
     const pickerSource = read('frontend/modules/icon-picker.js');
 
     assert.match(pickerSource, /function getVisibleIconOptions/);
-    assert.match(pickerSource, /iconPolicy\.shouldHideIconOnError/);
-    assert.match(pickerSource, /function shouldHideIconOnError/);
-    assert.match(pickerSource, /data-hide-on-error="true"/);
-    assert.match(pickerSource, /data-hide-solid-placeholder="true"/);
+    assert.doesNotMatch(pickerSource, /iconPolicy\.shouldHideIconOnError/);
+    assert.doesNotMatch(pickerSource, /function shouldHideIconOnError/);
+    assert.doesNotMatch(pickerSource, /data-hide-on-error="true"/);
+    assert.doesNotMatch(pickerSource, /data-hide-solid-placeholder="true"/);
     assert.doesNotMatch(pickerSource, /filter\(icon => !isGoogleFaviconService\(icon\)\)/);
 
     assert.match(pickerSource, /function getVisibleLocalIconOptions/);

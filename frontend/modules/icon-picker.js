@@ -42,22 +42,12 @@ function getLetterFallbackText(icon) {
     }
 }
 
-function shouldHideIconOnError(icon) {
-    return iconPolicy.shouldHideIconOnError(icon);
-}
-
-function shouldHideSolidPlaceholder(icon) {
-    return iconPolicy.shouldHideSolidPlaceholder(icon);
-}
-
 function renderIconPreviewImage(icon, source, { local = false } = {}) {
     if (iconPolicy.getIconSource(icon) === 'icon-horse') {
         return `<span class="icon-option-fallback icon-letter-fallback">${escapeHtml(getLetterFallbackText(icon))}</span>`;
     }
     const displayIcon = local ? String(icon || '') : toSafeImageUrl(icon);
-    const hideOnError = shouldHideIconOnError(icon) ? ' data-hide-on-error="true"' : '';
-    const hideSolidPlaceholder = shouldHideSolidPlaceholder(icon) ? ' data-hide-solid-placeholder="true"' : '';
-    return `<img src="${escapeHtmlAttribute(displayIcon)}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true"${hideOnError}${hideSolidPlaceholder} data-fallback-icon="${escapeHtmlAttribute(source.label)}">`;
+    return `<img src="${escapeHtmlAttribute(displayIcon)}" data-url="${escapeHtmlAttribute(icon)}" class="icon-option" data-remove-on-error="true" data-fallback-icon="${escapeHtmlAttribute(source.label)}">`;
 }
 
 function getVisibleIconOptions(icons, limit = 6) {

@@ -30,7 +30,7 @@ test('normalizeFaviconResponse reads structured discovery result icons', () => {
     );
 });
 
-test('normalizeFaviconResponse uses icon.horse when only provider fallbacks remain', () => {
+test('normalizeFaviconResponse keeps all returned icons when only provider fallbacks remain', () => {
     assert.deepEqual(
         normalizeFaviconResponse({
             success: true,
@@ -48,8 +48,21 @@ test('normalizeFaviconResponse uses icon.horse when only provider fallbacks rema
                 ]
             }
         }),
-        ['https://icon.horse/icon/placeholder.example']
+        [
+            'https://www.google.com/s2/favicons?domain=placeholder.example&sz=64',
+            'https://favicon.im/placeholder.example',
+            'https://icon.horse/icon/placeholder.example'
+        ]
     );
+});
+
+test('icon picker keeps returned provider options visible instead of hiding failed candidates', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const source = fs.readFileSync(path.resolve(__dirname, '../frontend/modules/icon-picker.js'), 'utf8');
+
+    assert.doesNotMatch(source, /data-hide-on-error/);
+    assert.doesNotMatch(source, /data-hide-solid-placeholder/);
 });
 
 test('favicon request guard ignores stale requests', () => {

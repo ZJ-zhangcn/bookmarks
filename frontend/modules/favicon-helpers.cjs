@@ -28,45 +28,26 @@ function shouldUseProxyUrlForIcon(url, pageProtocol = 'https:') {
     }
 }
 
-function getIconHorseFallbackUrl(data, extraUrls = []) {
-    const candidates = [
-        ...(data?.candidates || []),
-        ...(data?.fallbacks || [])
-    ].map(candidate => typeof candidate === 'string' ? candidate : candidate?.url);
-    return [
-        ...candidates,
-        ...(data?.icons || []),
-        ...extraUrls
-    ].find(url => iconPolicy.getIconSource(url) === 'icon-horse') || '';
-}
-
 function normalizeFaviconResponse(result) {
     if (!result || result.success !== true) return [];
     if (Array.isArray(result.data)) return result.data;
 
-    // 优先使用 candidates 中验证通过的真实站点图标。
-    // 如果没有任何真实站点图标可用，只使用 icon.horse 的首字母图标兜底。
-    if (Array.isArray(result.data?.candidates)) {
-        const usableIcons = result.data.candidates
-            .filter(candidate => candidate?.usable === true && candidate?.type !== 'provider')
-            .map(candidate => candidate?.url)
-            .filter(Boolean);
-        if (usableIcons.length > 0) {
-            return usableIcons;
-        }
-        if (result.data.status === 'fallback' || result.data.candidates.length > 0) {
-            const letterFallback = getIconHorseFallbackUrl(result.data, result.icons || []);
-            return letterFallback ? [letterFallback] : [];
-        }
-    }
+    const data = result.data || {};
+    const urls = [];
+    const addUrl = item => {
+        const url = typeof item === 'string' ? item : item?.url;
+        if (url) urls.push(url);
+    };
 
-    if (result.data?.status === 'fallback') {
-        const letterFallback = getIconHorseFallbackUrl(result.data, result.icons || []);
-        return letterFallback ? [letterFallback] : [];
-    }
-    if (Array.isArray(result.data?.icons)) return result.data.icons;
-    if (Array.isArray(result.icons)) return result.icons;
-    return [];
+    // 用户需要看到后端返回的所有候选：真实图标、公共 provider、未验证/验证失败的候选都保留展示。
+    (data.icons || []).forEach(addUrl);
+    addUrl(data.recommended);
+    (data.candidates || []).forEach(addUrl);
+    (data.fallbacks || []).forEach(addUrl);
+    (data.rejected || []).forEach(addUrl);
+    (result.icons || []).forEach(addUrl);
+
+    return uniqueHttpUrls(urls);
 }
 
 function createFaviconRequestGuard() {
