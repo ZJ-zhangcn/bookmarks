@@ -6,6 +6,20 @@ function getErrorReason(error, fallback) {
     return error?.message || fallback;
 }
 
+function getActualDiscoveredIconUrl(discovered) {
+    const usableSiteCandidate = (discovered?.candidates || [])
+        .find(candidate => candidate?.usable === true && candidate?.type !== 'provider' && candidate?.url);
+    if (usableSiteCandidate) return usableSiteCandidate.url;
+
+    if (Array.isArray(discovered?.candidates) && discovered.candidates.length > 0) return '';
+    if (discovered?.status === 'fallback') return '';
+
+    const recommendedUrl = String(discovered?.recommended?.url || '').trim();
+    if (recommendedUrl) return recommendedUrl;
+
+    return String(discovered?.icons?.[0] || '').trim();
+}
+
 function createBookmarkIconService(db, deps = {}) {
     const imageFetcher = deps.fetchPublicImageAsDataUrl || fetchPublicImageAsDataUrl;
     const iconDiscovery = deps.iconDiscovery || createIconDiscoveryService(deps.discoveryOptions || {});
@@ -54,7 +68,7 @@ function createBookmarkIconService(db, deps = {}) {
         for (const bm of bookmarks) {
             try {
                 const discovered = await iconDiscovery.discoverIcons(bm.url);
-                const iconUrl = discovered.icons?.[0];
+                const iconUrl = getActualDiscoveredIconUrl(discovered);
                 if (!iconUrl) throw new AppError('未找到可用图标', 502);
 
                 const dataUrl = await imageFetcher(iconUrl);

@@ -30,6 +30,28 @@ test('normalizeFaviconResponse reads structured discovery result icons', () => {
     );
 });
 
+test('normalizeFaviconResponse ignores fallback-only provider placeholders', () => {
+    assert.deepEqual(
+        normalizeFaviconResponse({
+            success: true,
+            data: {
+                status: 'fallback',
+                icons: [
+                    'https://www.google.com/s2/favicons?domain=placeholder.example&sz=64',
+                    'https://favicon.im/placeholder.example',
+                    'https://icon.horse/icon/placeholder.example'
+                ],
+                candidates: [
+                    { url: 'https://www.google.com/s2/favicons?domain=placeholder.example&sz=64', usable: false, type: 'provider' },
+                    { url: 'https://favicon.im/placeholder.example', usable: false, type: 'provider' },
+                    { url: 'https://icon.horse/icon/placeholder.example', usable: false, type: 'provider' }
+                ]
+            }
+        }),
+        []
+    );
+});
+
 test('favicon request guard ignores stale requests', () => {
     const guard = createFaviconRequestGuard();
     const first = guard.start('https://a.example');

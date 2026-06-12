@@ -32,20 +32,22 @@ function normalizeFaviconResponse(result) {
     if (!result || result.success !== true) return [];
     if (Array.isArray(result.data)) return result.data;
 
-    // 优先使用 candidates 中验证通过的图标
+    // 优先使用 candidates 中验证通过的真实站点图标。
+    // Provider fallback（Google/Favicon.im/icon.horse）是兜底候选，不应当当作“已获取到图标”。
     if (Array.isArray(result.data?.candidates)) {
         const usableIcons = result.data.candidates
-            .filter(candidate => candidate?.usable === true)
+            .filter(candidate => candidate?.usable === true && candidate?.type !== 'provider')
             .map(candidate => candidate?.url)
             .filter(Boolean);
-        // 如果有验证通过的图标，返回它们
         if (usableIcons.length > 0) {
             return usableIcons;
         }
+        if (result.data.status === 'fallback' || result.data.candidates.length > 0) {
+            return [];
+        }
     }
 
-    // 否则使用 icons 列表（后端验证可能因网络问题失败，所以不能完全依赖验证结果）
-    // 让前端的 isSolidPlaceholderImage 和 bindImageFallbacks 来处理占位图
+    if (result.data?.status === 'fallback') return [];
     if (Array.isArray(result.data?.icons)) return result.data.icons;
     if (Array.isArray(result.icons)) return result.icons;
     return [];

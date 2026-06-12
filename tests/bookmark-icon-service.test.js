@@ -68,3 +68,40 @@ test('fetchMissingBookmarkIcons uses the first discovered icon and records missi
     assert.deepEqual(result.failures, [{ id: 'empty', reason: '未找到可用图标' }]);
     assert.deepEqual(db.updates[0].params, ['base64', 'data:image/png;base64,aWNvbg==', 'ok']);
 });
+
+test('fetchMissingBookmarkIcons does not save provider fallback placeholders as real icons', async () => {
+    const db = createFakeDb({
+        missingIcons: [
+            { id: 'placeholder', url: 'https://placeholder.example/page' }
+        ]
+    });
+    let imageFetchCalls = 0;
+    const service = createBookmarkIconService(db, {
+        iconDiscovery: {
+            discoverIcons: async () => ({
+                status: 'fallback',
+                icons: ['https://www.google.com/s2/favicons?domain=placeholder.example&sz=64'],
+                candidates: [{
+                    url: 'https://www.google.com/s2/favicons?domain=placeholder.example&sz=64',
+                    source: 'google',
+                    type: 'provider',
+                    usable: false,
+                    reason: 'no-validated-icons'
+                }]
+            })
+        },
+        fetchPublicImageAsDataUrl: async () => {
+            imageFetchCalls += 1;
+            return 'data:image/png;base64,cGxhY2Vob2xkZXI=';
+        }
+    });
+
+    const result = await service.fetchMissingBookmarkIcons();
+
+    assert.equal(result.fetched, 0);
+    assert.equal(result.failed, 1);
+    assert.equal(result.total, 1);
+    assert.equal(imageFetchCalls, 0);
+    assert.deepEqual(db.updates, []);
+    assert.deepEqual(result.failures, [{ id: 'placeholder', reason: '未找到可用图标' }]);
+});
