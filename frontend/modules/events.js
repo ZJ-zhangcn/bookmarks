@@ -243,13 +243,13 @@ export function bindAllEvents() {
 
     DOM.settingsTabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            const activeGroup = tab.dataset.tab;
+            const activePanel = tab.dataset.tab;
             DOM.settingsTabs.forEach(t => t.classList.remove('active'));
             DOM.settingsPanels.forEach(panel => {
-                panel.classList.toggle('active', panel.dataset.settingGroup === activeGroup);
+                panel.classList.toggle('active', panel.dataset.panel === activePanel);
             });
             tab.classList.add('active');
-            if (activeGroup === 'advanced') {
+            if (activePanel === 'icons') {
                 renderIconLibrary();
                 bindIconLibraryManageEvents();
             }

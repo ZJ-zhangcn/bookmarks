@@ -451,11 +451,33 @@
             <div class="settings-container">
                 <!-- 左侧标签栏 -->
                 <div class="settings-sidebar">
-                    <button class="settings-tab active" data-tab="common">
+                    <button class="settings-tab active" data-tab="general">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 12h18M3 6h18M3 18h18" />
+                            <path d="M12 3v18M3 12h18" />
                         </svg>
-                        <span>常用</span>
+                        <span>常规</span>
+                    </button>
+                    <button class="settings-tab" data-tab="personalization">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                        <span>个性化</span>
+                    </button>
+                    <button class="settings-tab" data-tab="categories">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M3 12h18M3 18h18" />
+                        </svg>
+                        <span>分类管理</span>
+                    </button>
+                    <button class="settings-tab" data-tab="icons">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" />
+                        </svg>
+                        <span>图标库</span>
                     </button>
                     <button class="settings-tab" data-tab="sync">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -463,19 +485,27 @@
                         </svg>
                         <span>数据同步</span>
                     </button>
-                    <button class="settings-tab" data-tab="advanced">
+                    <button class="settings-tab" data-tab="ai">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z" />
-                            <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.8 1.8 0 0 0 15 19.4a1.8 1.8 0 0 0-1 .6 1.8 1.8 0 0 0-.5 1.27V21a2 2 0 1 1-4 0v-.09A1.8 1.8 0 0 0 8 19.4a1.8 1.8 0 0 0-1.98.36l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.8 1.8 0 0 0 4.6 15a1.8 1.8 0 0 0-.6-1 1.8 1.8 0 0 0-1.27-.5H2.6a2 2 0 1 1 0-4h.09A1.8 1.8 0 0 0 4.6 8a1.8 1.8 0 0 0-.36-1.98l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.8 1.8 0 0 0 9 4.6c.35-.14.69-.34 1-.6a1.8 1.8 0 0 0 .5-1.27V2.6a2 2 0 1 1 4 0v.09A1.8 1.8 0 0 0 16 4.6c.35.14.69.34 1 .6l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.8 1.8 0 0 0 19.4 9c.14.35.34.69.6 1a1.8 1.8 0 0 0 1.27.5h.13a2 2 0 1 1 0 4h-.09a1.8 1.8 0 0 0-1.91.5z" />
+                            <path d="M12 8V4H8" />
+                            <rect x="4" y="8" width="16" height="12" rx="2" />
+                            <path d="M2 14h2M20 14h2M9 13h.01M15 13h.01" />
                         </svg>
-                        <span>高级</span>
+                        <span>AI 设置</span>
+                    </button>
+                    <button class="settings-tab" data-tab="about">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 16v-4M12 8h.01" />
+                        </svg>
+                        <span>关于</span>
                     </button>
                 </div>
 
                 <!-- 右侧内容区 -->
                 <div class="settings-content">
                     <!-- 常规设置 -->
-                    <div class="settings-panel active" data-panel="general" data-setting-group="common">
+                    <div class="settings-panel active" data-panel="general">
                         <h4 class="panel-title">常规设置</h4>
                         <div class="setting-card">
                             <div class="setting-row">
@@ -492,7 +522,7 @@
                     </div>
 
                     <!-- 个性化 -->
-                    <div class="settings-panel active" data-panel="personalization" data-setting-group="common">
+                    <div class="settings-panel" data-panel="personalization">
                         <h4 class="panel-title">个性化设置</h4>
                         <div class="setting-card">
                             <h5 class="card-subtitle">LOGO</h5>
@@ -576,7 +606,7 @@
                     </div>
 
                     <!-- 分类管理 -->
-                    <div class="settings-panel active" data-panel="categories" data-setting-group="common">
+                    <div class="settings-panel" data-panel="categories">
                         <h4 class="panel-title">分类管理</h4>
                         <div class="panel-actions">
                             <button class="btn btn-primary" id="addCategoryBtn">+ 添加分类</button>
@@ -585,7 +615,7 @@
                     </div>
 
                     <!-- 图标库 -->
-                    <div class="settings-panel" data-panel="icons" data-setting-group="advanced">
+                    <div class="settings-panel" data-panel="icons">
                         <h4 class="panel-title">图标库</h4>
                         <div class="info-box">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -646,7 +676,7 @@
                     </div>
 
                     <!-- 数据同步 -->
-                    <div class="settings-panel" data-panel="sync" data-setting-group="sync">
+                    <div class="settings-panel" data-panel="sync">
                         <h4 class="panel-title">数据同步</h4>
                         <div class="setting-card">
                             <h5 class="card-subtitle">📦 本地导入导出</h5>
@@ -711,10 +741,15 @@
                                 <button class="btn btn-secondary" id="webdavUploadBtn">上传</button>
                                 <button class="btn btn-primary" id="webdavDownloadBtn">下载</button>
                             </div>
-	                            <div class="webdav-status" id="webdavStatus"></div>
-	                        </div>
-	                        <div class="setting-card">
-	                            <h5 class="card-subtitle">🤖 AI 设置（自用）</h5>
+                            <div class="webdav-status" id="webdavStatus"></div>
+                        </div>
+                    </div>
+
+                    <!-- AI 设置 -->
+                    <div class="settings-panel" data-panel="ai">
+                        <h4 class="panel-title">AI 设置</h4>
+                        <div class="setting-card">
+                            <h5 class="card-subtitle">🤖 AI 设置（自用）</h5>
 	                            <div class="setting-row">
 	                                <div class="setting-info">
 	                                    <div class="setting-label">状态</div>
@@ -754,7 +789,7 @@
 	                    </div>
 
                     <!-- 关于 -->
-                    <div class="settings-panel" data-panel="about" data-setting-group="advanced">
+                    <div class="settings-panel" data-panel="about">
                         <h4 class="panel-title">关于</h4>
                         <div class="about-card">
                             <div class="about-logo">🔖</div>
