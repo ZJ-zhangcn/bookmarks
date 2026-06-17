@@ -3154,11 +3154,15 @@ input:checked+.slider:before {
 }
 
 .icon-letter-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 50%;
     background: linear-gradient(135deg, #22c55e, #0ea5e9);
     color: white;
     font-size: 14px;
     font-weight: 700;
+    line-height: 1;
 }
 
 .icon-option-wrap.icon-option-error {
