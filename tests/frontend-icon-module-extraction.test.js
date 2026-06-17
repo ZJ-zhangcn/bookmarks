@@ -37,6 +37,8 @@ test('frontend icon display owns saved-icon URL conversion and image HTML', () =
 
     assert.match(display, /export function toIconDisplayUrl/);
     assert.match(display, /export function iconImageHtml/);
+    assert.match(display, /export function iconHorseLetterFallbackHtml/);
+    assert.match(display, /iconPolicy\.getIconSource\(data\) === 'icon-horse'/);
     assert.match(display, /export function bindIconImageFallbacks/);
     assert.match(render, /from '\.\/icon-display\.js'/);
     assert.match(search, /from '\.\/icon-display\.js'/);

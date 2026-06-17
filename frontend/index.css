@@ -1831,6 +1831,16 @@ body {
     border-radius: 4px;
 }
 
+.bookmark-icon .saved-icon-letter-fallback {
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
+}
+
+.bookmark-card:hover .bookmark-icon .saved-icon-letter-fallback {
+    background: rgba(255, 255, 255, 0.18);
+}
+
 .bookmark-card:hover .bookmark-icon {
     transform: scale(1.1);
     background: linear-gradient(135deg, var(--primary-dark), var(--primary));
