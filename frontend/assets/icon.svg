@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Bookmarks icon">
+  <defs>
+    <radialGradient id="bgGlow" cx="48%" cy="42%" r="72%">
+      <stop offset="0" stop-color="#203441"/>
+      <stop offset="0.48" stop-color="#111923"/>
+      <stop offset="1" stop-color="#0b0f14"/>
+    </radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.03"/>
+    </linearGradient>
+    <linearGradient id="bookmark" x1="0.16" y1="0.05" x2="0.88" y2="0.95">
+      <stop offset="0" stop-color="#a7f3d0"/>
+      <stop offset="0.38" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+    <filter id="softShadow" x="-35%" y="-35%" width="170%" height="170%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.42"/>
+    </filter>
+    <filter id="emeraldGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="36" y="36" width="440" height="440" rx="106" fill="url(#bgGlow)"/>
+  <rect x="39" y="39" width="434" height="434" rx="103" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="4"/>
+  <path d="M74 126c0-30 24-54 54-54h256c30 0 54 24 54 54v82H74z" fill="url(#glass)" opacity="0.82"/>
+  <circle cx="256" cy="281" r="166" fill="#22c55e" opacity="0.14" filter="url(#emeraldGlow)"/>
+
+  <g filter="url(#softShadow)">
+    <rect x="145" y="123" width="225" height="168" rx="36" fill="#263241" stroke="#94a3b8" stroke-opacity="0.26" stroke-width="3"/>
+    <rect x="124" y="153" width="225" height="168" rx="36" fill="#19212c" stroke="#94a3b8" stroke-opacity="0.22" stroke-width="3"/>
+    <rect x="168" y="103" width="158" height="46" rx="23" fill="#334155" stroke="#ffffff" stroke-opacity="0.16" stroke-width="2"/>
+    <rect x="191" y="118" width="70" height="10" rx="5" fill="#86efac" opacity="0.58"/>
+    <path d="M178 179h128M178 207h165M178 236h126" stroke="#94a3b8" stroke-opacity="0.36" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <path d="M184 128h144c10 0 18 8 18 18v266l-90-72-90 72V146c0-10 8-18 18-18z" fill="url(#bookmark)"/>
+    <path d="M205 156h102v197l-51-41-51 41z" fill="#06251e" opacity="0.28"/>
+    <path d="M184 146c0-10 8-18 18-18h126" fill="none" stroke="#d1fae5" stroke-opacity="0.55" stroke-width="7" stroke-linecap="round"/>
+    <path d="M184 149v239" stroke="#d1fae5" stroke-opacity="0.36" stroke-width="6" stroke-linecap="round"/>
+    <path d="M328 149v239" stroke="#064e3b" stroke-opacity="0.42" stroke-width="6" stroke-linecap="round"/>
+  </g>
+
+  <circle cx="360" cy="150" r="5" fill="#bbf7d0" opacity="0.82"/>
+  <circle cx="388" cy="184" r="3" fill="#86efac" opacity="0.72"/>
+  <circle cx="140" cy="326" r="4" fill="#86efac" opacity="0.58"/>
+</svg>

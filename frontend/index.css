@@ -279,7 +279,12 @@ body {
 }
 
 .logo-icon {
-    font-size: 3rem;
+    width: 3.2rem;
+    height: 3.2rem;
+    border-radius: 24%;
+    display: inline-block;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 24px rgba(16, 185, 129, 0.28));
     animation: bounce 2s ease-in-out infinite;
 }
 
@@ -2231,7 +2236,8 @@ body {
     }
 
     .logo-icon {
-        font-size: 2.2rem;
+        width: 2.4rem;
+        height: 2.4rem;
     }
 
     .tagline {
@@ -3802,7 +3808,8 @@ select:focus {
     }
 
     .logo-icon {
-        font-size: 1.6rem !important;
+        width: 1.8rem !important;
+        height: 1.8rem !important;
     }
 
     .bookmarks-grid {

@@ -14,12 +14,18 @@ test('frontend declares an installable PWA manifest', () => {
   assert.match(index, /<link\s+rel="manifest"\s+href="\/manifest\.webmanifest"/);
   assert.match(index, /<meta\s+name="theme-color"\s+content="#0b0f14"/);
 
+  assert.match(index, /<link\s+rel="icon"\s+type="image\/svg\+xml"\s+href="\/assets\/icon\.svg"/);
+  assert.match(index, /<img\s+class="logo-icon"\s+src="\/assets\/icon\.svg"/);
+  assert.doesNotMatch(index, /data:image\/svg\+xml/);
+  assert.doesNotMatch(index, /<span class="logo-icon">🔖<\/span>/);
+
   const manifest = JSON.parse(read('frontend/manifest.webmanifest'));
   assert.equal(manifest.name, '书签导航');
   assert.equal(manifest.short_name, '书签');
   assert.equal(manifest.start_url, '/');
   assert.equal(manifest.display, 'standalone');
   assert.equal(manifest.theme_color, '#0b0f14');
+  assert.ok(manifest.icons.some(icon => icon.src === '/assets/icon.svg' && icon.sizes === 'any'));
   assert.ok(manifest.icons.some(icon => icon.src === '/assets/icon-192.png' && icon.sizes === '192x192'));
   assert.ok(manifest.icons.some(icon => icon.src === '/assets/icon-512.png' && icon.sizes === '512x512'));
 });
