@@ -10,7 +10,6 @@ function copyPwaAssets() {
       const distAssetsDir = path.join(distDir, 'assets');
       fs.mkdirSync(distAssetsDir, { recursive: true });
       fs.copyFileSync(path.resolve(__dirname, 'service-worker.js'), path.join(distDir, 'service-worker.js'));
-      fs.copyFileSync(path.resolve(__dirname, 'assets/icon.svg'), path.join(distAssetsDir, 'icon.svg'));
       fs.copyFileSync(path.resolve(__dirname, 'assets/icon-192.png'), path.join(distAssetsDir, 'icon-192.png'));
       fs.copyFileSync(path.resolve(__dirname, 'assets/icon-512.png'), path.join(distAssetsDir, 'icon-512.png'));
     }
