@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bookmark-nav-pwa-v2';
+const CACHE_NAME = 'bookmark-nav-pwa-v3';
 const APP_SHELL = [
     '/',
     '/index.html',

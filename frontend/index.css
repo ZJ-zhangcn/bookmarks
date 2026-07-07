@@ -5017,21 +5017,23 @@ body {
 }
 
 [data-wallpaper-tone="light"] {
-    --adaptive-surface: hsla(0, 0%, 100%, 0.88);
-    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.96);
-    --adaptive-text: hsl(222, 34%, 12%);
-    --adaptive-muted: hsl(215, 16%, 38%);
-    --adaptive-border: hsla(152, 28%, 32%, 0.26);
-    --adaptive-shadow: 0 16px 40px hsla(215, 24%, 26%, 0.18);
+    /* 亮背景上用深色浮层，先保证控件轮廓能从壁纸里跳出来 */
+    --adaptive-surface: hsla(220, 18%, 9%, 0.76);
+    --adaptive-surface-strong: hsla(220, 18%, 8%, 0.9);
+    --adaptive-text: hsl(210, 18%, 96%);
+    --adaptive-muted: hsl(210, 14%, 78%);
+    --adaptive-border: hsla(0, 0%, 100%, 0.22);
+    --adaptive-shadow: 0 16px 42px hsla(215, 30%, 8%, 0.34);
 }
 
 [data-wallpaper-tone="dark"] {
-    --adaptive-surface: hsla(220, 13%, 12%, 0.84);
-    --adaptive-surface-strong: hsla(220, 13%, 10%, 0.94);
-    --adaptive-text: hsl(210, 18%, 94%);
-    --adaptive-muted: hsl(210, 12%, 72%);
-    --adaptive-border: hsla(152, 40%, 64%, 0.18);
-    --adaptive-shadow: 0 16px 42px hsla(0, 0%, 0%, 0.38);
+    /* 暗背景上反过来用浅色浮层，否则和深色壁纸混在一起，看起来像没变化 */
+    --adaptive-surface: hsla(0, 0%, 100%, 0.9);
+    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.96);
+    --adaptive-text: hsl(222, 34%, 12%);
+    --adaptive-muted: hsl(215, 16%, 36%);
+    --adaptive-border: hsla(152, 30%, 28%, 0.26);
+    --adaptive-shadow: 0 16px 42px hsla(0, 0%, 0%, 0.26);
 }
 
 [data-wallpaper-tone] .fixed-btn,
