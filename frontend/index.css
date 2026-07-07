@@ -5017,23 +5017,23 @@ body {
 }
 
 [data-wallpaper-tone="light"] {
-    /* 亮壁纸：控件全透明，只保留深色文字/图标跟随壁纸明暗 */
-    --adaptive-surface: transparent;
-    --adaptive-surface-strong: transparent;
+    /* 亮壁纸：接近透明的深色细框，保留区域层级但不遮挡壁纸 */
+    --adaptive-surface: hsla(222, 34%, 12%, 0.045);
+    --adaptive-surface-strong: hsla(222, 34%, 12%, 0.07);
     --adaptive-text: hsl(222, 34%, 12%);
     --adaptive-muted: hsl(215, 22%, 26%);
-    --adaptive-border: transparent;
-    --adaptive-shadow: none;
+    --adaptive-border: hsla(222, 34%, 12%, 0.16);
+    --adaptive-shadow: 0 8px 24px hsla(222, 34%, 12%, 0.055);
 }
 
 [data-wallpaper-tone="dark"] {
-    /* 暗壁纸：控件全透明，只保留浅色文字/图标跟随壁纸明暗 */
-    --adaptive-surface: transparent;
-    --adaptive-surface-strong: transparent;
+    /* 暗壁纸：接近透明的浅色细框，让每块区域能分开 */
+    --adaptive-surface: hsla(210, 18%, 96%, 0.055);
+    --adaptive-surface-strong: hsla(210, 18%, 96%, 0.085);
     --adaptive-text: hsl(210, 18%, 96%);
     --adaptive-muted: hsl(210, 14%, 84%);
-    --adaptive-border: transparent;
-    --adaptive-shadow: none;
+    --adaptive-border: hsla(210, 18%, 96%, 0.2);
+    --adaptive-shadow: 0 8px 24px hsla(0, 0%, 0%, 0.16);
 }
 
 [data-theme="dark"][data-wallpaper-tone="light"] {
@@ -5145,10 +5145,10 @@ body {
 [data-wallpaper-tone] .modal-overlay,
 [data-wallpaper-tone] .empty-state,
 [data-wallpaper-tone] .footer {
-    background: transparent !important;
+    background: var(--adaptive-surface) !important;
     background-image: none !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
+    border-color: var(--adaptive-border) !important;
+    box-shadow: var(--adaptive-shadow) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
 }

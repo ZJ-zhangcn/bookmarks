@@ -22,12 +22,12 @@ test('wallpaper loader samples image luminance and writes data-wallpaper-tone', 
 });
 
 test('wallpaper tone CSS drives adaptive floating surfaces', () => {
-  assert.match(css, /\[data-wallpaper-tone="light"\]\s*{[\s\S]*--adaptive-surface:\s*transparent[\s\S]*--adaptive-text:\s*hsl\(222,\s*34%,\s*12%\)/);
-  assert.match(css, /\[data-wallpaper-tone="dark"\]\s*{[\s\S]*--adaptive-surface:\s*transparent[\s\S]*--adaptive-text:\s*hsl\(210,\s*18%,\s*96%\)/);
+  assert.match(css, /\[data-wallpaper-tone="light"\]\s*{[\s\S]*--adaptive-surface:\s*hsla\(222,\s*34%,\s*12%,\s*0\.045\)[\s\S]*--adaptive-border:\s*hsla\(222,\s*34%,\s*12%,\s*0\.16\)/);
+  assert.match(css, /\[data-wallpaper-tone="dark"\]\s*{[\s\S]*--adaptive-surface:\s*hsla\(210,\s*18%,\s*96%,\s*0\.055\)[\s\S]*--adaptive-border:\s*hsla\(210,\s*18%,\s*96%,\s*0\.2\)/);
   assert.match(css, /\[data-theme="dark"\]\[data-wallpaper-tone="light"\]\s*{[\s\S]*--adaptive-text:\s*hsl\(222,\s*34%,\s*12%\)/);
   assert.match(css, /\[data-theme="dark"\]\[data-wallpaper-tone="dark"\]\s*{[\s\S]*--adaptive-text:\s*hsl\(210,\s*18%,\s*96%\)/);
-  assert.match(css, /\[data-wallpaper-tone\]\s+\.fixed-btn,[\s\S]*\.confirm-dialog\s*{[\s\S]*background:\s*var\(--adaptive-surface\)[\s\S]*backdrop-filter:\s*none/);
-  assert.match(css, /\[data-wallpaper-tone\]\s+\.web-search-input,[\s\S]*\.footer\s*{[\s\S]*background:\s*transparent !important[\s\S]*backdrop-filter:\s*none !important/);
+  assert.match(css, /\[data-wallpaper-tone\]\s+\.fixed-btn,[\s\S]*\.confirm-dialog\s*{[\s\S]*background:\s*var\(--adaptive-surface\)[\s\S]*border-color:\s*var\(--adaptive-border\)[\s\S]*backdrop-filter:\s*none/);
+  assert.match(css, /\[data-wallpaper-tone\]\s+\.web-search-input,[\s\S]*\.footer\s*{[\s\S]*background:\s*var\(--adaptive-surface\) !important[\s\S]*border-color:\s*var\(--adaptive-border\) !important[\s\S]*box-shadow:\s*var\(--adaptive-shadow\) !important/);
   assert.match(css, /\[data-wallpaper-tone\]\s+\.web-search-input,[\s\S]*\.bookmark-card,[\s\S]*\.todo-card,[\s\S]*\.insight-card,[\s\S]*\.modal,[\s\S]*color:\s*var\(--adaptive-text\) !important/);
   assert.match(css, /\[data-wallpaper-tone\]\s+\.category-fab-chevron,[\s\S]*\.confirm-input-wrap span\s*{[\s\S]*color:\s*var\(--adaptive-muted\)/);
 });
