@@ -24,6 +24,7 @@ test('wallpaper loader samples image luminance and writes data-wallpaper-tone', 
 test('wallpaper tone CSS drives adaptive floating surfaces', () => {
   assert.match(css, /\[data-wallpaper-tone="light"\]\s*{[\s\S]*--adaptive-text:\s*hsl\(210,\s*18%,\s*96%\)/);
   assert.match(css, /\[data-wallpaper-tone="dark"\]\s*{[\s\S]*--adaptive-text:\s*hsl\(222,\s*34%,\s*12%\)/);
+  assert.match(css, /\[data-theme="dark"\]\[data-wallpaper-tone\]\s*{[\s\S]*--adaptive-surface:\s*hsla\(220,\s*13%,\s*12%,\s*0\.86\)[\s\S]*--adaptive-text:\s*hsl\(210,\s*18%,\s*94%\)/);
   assert.match(css, /\[data-wallpaper-tone\]\s+\.fixed-btn,[\s\S]*\.confirm-dialog\s*{[\s\S]*background:\s*var\(--adaptive-surface\)/);
   assert.match(css, /\[data-wallpaper-tone\]\s+\.category-fab-chevron,[\s\S]*\.confirm-input-wrap span\s*{[\s\S]*color:\s*var\(--adaptive-muted\)/);
 });
