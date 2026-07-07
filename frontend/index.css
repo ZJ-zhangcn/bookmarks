@@ -5017,9 +5017,9 @@ body {
 }
 
 [data-wallpaper-tone="light"] {
-    /* 亮壁纸：更轻的半透明深色面板，保留壁纸感但不牺牲可读性 */
-    --adaptive-surface: hsla(222, 34%, 12%, 0.34);
-    --adaptive-surface-strong: hsla(222, 34%, 12%, 0.50);
+    /* 亮壁纸：再降低一档不透明度，保留壁纸感但不牺牲可读性 */
+    --adaptive-surface: hsla(222, 34%, 12%, 0.28);
+    --adaptive-surface-strong: hsla(222, 34%, 12%, 0.42);
     --adaptive-text: hsl(210, 18%, 96%);
     --adaptive-muted: hsl(210, 14%, 82%);
     --adaptive-border: hsla(210, 18%, 96%, 0.18);
@@ -5027,9 +5027,9 @@ body {
 }
 
 [data-wallpaper-tone="dark"] {
-    /* 暗壁纸：更轻的半透明石墨面板，普通区域约四成不透明 */
-    --adaptive-surface: hsla(220, 13%, 10%, 0.40);
-    --adaptive-surface-strong: hsla(220, 13%, 10%, 0.55);
+    /* 暗壁纸：再降低一档不透明度，普通区域约三成不透明 */
+    --adaptive-surface: hsla(220, 13%, 10%, 0.32);
+    --adaptive-surface-strong: hsla(220, 13%, 10%, 0.46);
     --adaptive-text: hsl(210, 18%, 96%);
     --adaptive-muted: hsl(210, 14%, 82%);
     --adaptive-border: hsla(210, 18%, 96%, 0.16);
@@ -5037,9 +5037,9 @@ body {
 }
 
 [data-theme="light"][data-wallpaper-tone] {
-    /* 浅色主题也下调一档，让壁纸存在感更明显 */
-    --adaptive-surface: hsla(0, 0%, 100%, 0.62);
-    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.78);
+    /* 浅色主题同步再下调一档，让壁纸存在感更明显 */
+    --adaptive-surface: hsla(0, 0%, 100%, 0.52);
+    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.66);
     --adaptive-text: hsl(222, 34%, 12%);
     --adaptive-muted: hsl(215, 22%, 28%);
     --adaptive-border: hsla(215, 22%, 28%, 0.20);
