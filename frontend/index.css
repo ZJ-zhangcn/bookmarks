@@ -4684,6 +4684,12 @@ select:focus {
     --text-secondary: hsl(210, 12%, 72%);
     --text-tertiary: hsl(210, 9%, 56%);
     --text-muted: var(--text-tertiary);
+    --adaptive-surface: hsla(220, 13%, 12%, 0.82);
+    --adaptive-surface-strong: hsla(220, 13%, 10%, 0.94);
+    --adaptive-text: hsl(210, 18%, 94%);
+    --adaptive-muted: hsl(210, 12%, 72%);
+    --adaptive-border: hsla(152, 40%, 64%, 0.16);
+    --adaptive-shadow: 0 14px 40px hsla(0, 0%, 0%, 0.36);
     --radius-lg: 14px;
     --radius-xl: 18px;
 }
@@ -4707,6 +4713,12 @@ select:focus {
     --text-secondary: hsl(218, 22%, 28%);
     --text-tertiary: hsl(215, 16%, 38%);
     --text-muted: hsl(215, 14%, 42%);
+    --adaptive-surface: hsla(0, 0%, 100%, 0.88);
+    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.96);
+    --adaptive-text: hsl(222, 34%, 12%);
+    --adaptive-muted: hsl(215, 16%, 38%);
+    --adaptive-border: hsla(152, 28%, 32%, 0.24);
+    --adaptive-shadow: 0 14px 36px hsla(215, 24%, 26%, 0.16);
 }
 
 body {
@@ -5002,6 +5014,64 @@ body {
     color: hsl(215, 24%, 26%);
     background: hsla(210, 28%, 90%, 0.88);
     border-color: hsla(210, 18%, 74%, 0.7);
+}
+
+[data-wallpaper-tone="light"] {
+    --adaptive-surface: hsla(0, 0%, 100%, 0.88);
+    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.96);
+    --adaptive-text: hsl(222, 34%, 12%);
+    --adaptive-muted: hsl(215, 16%, 38%);
+    --adaptive-border: hsla(152, 28%, 32%, 0.26);
+    --adaptive-shadow: 0 16px 40px hsla(215, 24%, 26%, 0.18);
+}
+
+[data-wallpaper-tone="dark"] {
+    --adaptive-surface: hsla(220, 13%, 12%, 0.84);
+    --adaptive-surface-strong: hsla(220, 13%, 10%, 0.94);
+    --adaptive-text: hsl(210, 18%, 94%);
+    --adaptive-muted: hsl(210, 12%, 72%);
+    --adaptive-border: hsla(152, 40%, 64%, 0.18);
+    --adaptive-shadow: 0 16px 42px hsla(0, 0%, 0%, 0.38);
+}
+
+[data-wallpaper-tone] .fixed-btn,
+[data-wallpaper-tone] .category-fab,
+[data-wallpaper-tone] .category-sheet,
+[data-wallpaper-tone] .bookmark-search-panel,
+[data-wallpaper-tone] .command-palette-panel,
+[data-wallpaper-tone] .toast-message,
+[data-wallpaper-tone] .confirm-dialog {
+    background: var(--adaptive-surface);
+    color: var(--adaptive-text);
+    border-color: var(--adaptive-border);
+    box-shadow: var(--adaptive-shadow);
+}
+
+[data-wallpaper-tone] .category-sheet,
+[data-wallpaper-tone] .bookmark-search-panel,
+[data-wallpaper-tone] .command-palette-panel,
+[data-wallpaper-tone] .confirm-dialog {
+    background: var(--adaptive-surface-strong);
+}
+
+[data-wallpaper-tone] .fixed-btn,
+[data-wallpaper-tone] .category-fab {
+    text-shadow: 0 1px 1px color-mix(in srgb, var(--adaptive-surface-strong) 72%, transparent);
+}
+
+[data-wallpaper-tone] .fixed-btn svg,
+[data-wallpaper-tone] .category-fab-chevron,
+[data-wallpaper-tone] .category-sheet-header p,
+[data-wallpaper-tone] .category-sheet-count,
+[data-wallpaper-tone] .bookmark-search-header svg,
+[data-wallpaper-tone] .bookmark-search-close,
+[data-wallpaper-tone] .command-palette-item-subtitle,
+[data-wallpaper-tone] .command-palette-item-type,
+[data-wallpaper-tone] .command-palette-icon,
+[data-wallpaper-tone] .command-palette-shortcut,
+[data-wallpaper-tone] .confirm-dialog p,
+[data-wallpaper-tone] .confirm-input-wrap span {
+    color: var(--adaptive-muted);
 }
 
 @media (max-width: 768px) {

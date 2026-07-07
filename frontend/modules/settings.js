@@ -14,8 +14,73 @@ import webdavHelpers from './webdav-helpers.cjs';
 const { buildWebdavStatusPanel, parseJsonResponse } = webdavHelpers;
 
 const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
+const WALLPAPER_TONE_ATTR = 'data-wallpaper-tone';
 let wallpaperLoadSeq = 0;
 const INITIAL_WALLPAPER_WAIT_MS = 5000;
+
+export function getWallpaperToneFromLuminance(luminance, dimPercent = 30) {
+    const value = Number(luminance);
+    if (!Number.isFinite(value)) return '';
+    const dim = Math.min(0.85, Math.max(0, Number(dimPercent) || 0) / 100);
+    const perceived = Math.max(0, Math.min(1, value)) * (1 - dim);
+    return perceived >= 0.48 ? 'light' : 'dark';
+}
+
+function sampleImageLuminance(img) {
+    const canvas = document.createElement('canvas');
+    const size = 32;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, size, size);
+    const { data } = ctx.getImageData(0, 0, size, size);
+    let total = 0;
+    let count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+        const alpha = data[i + 3] / 255;
+        if (alpha <= 0.05) continue;
+        total += ((0.2126 * data[i]) + (0.7152 * data[i + 1]) + (0.0722 * data[i + 2])) / 255;
+        count += 1;
+    }
+    return count ? total / count : null;
+}
+
+function setWallpaperTone(tone, luminance) {
+    const root = document.documentElement;
+    if (!tone) {
+        root.removeAttribute(WALLPAPER_TONE_ATTR);
+        root.style.removeProperty('--wallpaper-luminance');
+        return;
+    }
+    root.setAttribute(WALLPAPER_TONE_ATTR, tone);
+    if (Number.isFinite(luminance)) {
+        root.style.setProperty('--wallpaper-luminance', luminance.toFixed(3));
+    }
+}
+
+function detectWallpaperTone(displayUrl, dimPercent, seq) {
+    const fallbackTone = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    setWallpaperTone(fallbackTone, NaN);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.referrerPolicy = 'no-referrer';
+    img.onload = () => {
+        if (seq !== wallpaperLoadSeq) return;
+        try {
+            const luminance = sampleImageLuminance(img);
+            const tone = getWallpaperToneFromLuminance(luminance, dimPercent);
+            if (tone) setWallpaperTone(tone, luminance);
+        } catch {
+            // 跨域图片如果不允许 canvas 采样，就保留主题 fallback，避免闪烁。
+        }
+    };
+    img.onerror = () => {
+        if (seq === wallpaperLoadSeq) setWallpaperTone('', NaN);
+    };
+    img.src = displayUrl;
+}
 
 function loadImageAndDecode(url, timeoutMs) {
     const src = String(url || '').trim();
@@ -174,11 +239,13 @@ export async function applyPersonalization(config, options = {}) {
             wallpaperImage.style.backgroundImage = `url(${displayUrl})`;
             if (bgDecoration) bgDecoration.style.display = 'none';
             localStorage.setItem(WALLPAPER_HINT_KEY, url);
+            detectWallpaperTone(displayUrl, dim, seq);
         };
         const applyFailure = () => {
             if (seq !== wallpaperLoadSeq) return;
             wallpaperLayer.classList.remove('active');
             wallpaperImage.style.backgroundImage = '';
+            setWallpaperTone('', NaN);
             if (bgDecoration) bgDecoration.style.display = '';
         };
 
@@ -229,6 +296,7 @@ export async function applyPersonalization(config, options = {}) {
     } else {
         wallpaperLayer.classList.remove('active');
         wallpaperImage.style.backgroundImage = '';
+        setWallpaperTone('', NaN);
 
         if (bgDecoration) bgDecoration.style.display = '';
 
