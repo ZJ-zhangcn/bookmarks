@@ -4661,3 +4661,283 @@ select:focus {
         display: none;
     }
 }
+
+/* ========================================
+   本地版视觉收敛：石墨灰导航台 + 绿色运维探针
+   ======================================== */
+:root {
+    --primary-hue: 152;
+    --primary: hsl(152, 72%, 46%);
+    --primary-light: hsl(151, 70%, 60%);
+    --primary-dark: hsl(154, 80%, 32%);
+    --accent-1: hsl(152, 70%, 46%);
+    --accent-2: hsl(181, 48%, 46%);
+    --accent-3: hsl(42, 70%, 55%);
+    --accent-primary: var(--primary);
+    --bg-primary: hsl(220, 14%, 7%);
+    --bg-secondary: hsl(220, 13%, 10%);
+    --bg-tertiary: hsl(220, 12%, 15%);
+    --glass-bg: hsla(220, 13%, 12%, 0.78);
+    --glass-border: hsla(152, 40%, 64%, 0.13);
+    --glass-shadow: 0 14px 40px hsla(0, 0%, 0%, 0.34);
+    --text-primary: hsl(210, 18%, 94%);
+    --text-secondary: hsl(210, 12%, 72%);
+    --text-tertiary: hsl(210, 9%, 56%);
+    --text-muted: var(--text-tertiary);
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+}
+
+[data-theme="light"] {
+    --primary-hue: 152;
+    --primary: hsl(152, 64%, 38%);
+    --primary-light: hsl(151, 54%, 46%);
+    --primary-dark: hsl(154, 70%, 28%);
+    --accent-1: hsl(152, 64%, 38%);
+    --accent-2: hsl(181, 42%, 40%);
+    --accent-3: hsl(42, 64%, 46%);
+    --accent-primary: var(--primary);
+    --bg-primary: hsl(210, 18%, 96%);
+    --bg-secondary: hsl(210, 18%, 92%);
+    --bg-tertiary: hsl(210, 15%, 86%);
+    --glass-bg: hsla(210, 24%, 100%, 0.82);
+    --glass-border: hsla(152, 34%, 34%, 0.18);
+    --text-muted: var(--text-tertiary);
+}
+
+body {
+    background:
+        linear-gradient(180deg, hsla(220, 16%, 9%, 0.98), hsla(220, 14%, 6%, 1)),
+        var(--bg-primary);
+}
+
+.bg-decoration::before {
+    background:
+        radial-gradient(620px circle at 20% 86%, hsla(152, 74%, 38%, 0.14), transparent 62%),
+        radial-gradient(520px circle at 82% 10%, hsla(181, 48%, 34%, 0.10), transparent 64%);
+}
+
+.bg-orb {
+    opacity: 0.18;
+    filter: blur(72px);
+}
+
+.bg-orb-1,
+.bg-orb-2,
+.bg-orb-3 {
+    background: var(--primary);
+}
+
+.container {
+    max-width: 1360px;
+    padding: clamp(16px, 2.4vw, 28px);
+}
+
+.header {
+    padding: clamp(18px, 3vw, 34px) 0 var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.logo {
+    gap: 0.75rem;
+    font-size: clamp(1.85rem, 3vw, 2.35rem);
+    margin-bottom: 0.25rem;
+}
+
+.logo-icon {
+    width: clamp(2.35rem, 4vw, 2.8rem);
+    height: clamp(2.35rem, 4vw, 2.8rem);
+    animation: none;
+    filter: drop-shadow(0 8px 18px rgba(16, 185, 129, 0.22));
+}
+
+.logo-text {
+    background: linear-gradient(135deg, var(--text-primary) 10%, var(--primary-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.tagline {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-tertiary);
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+}
+
+.web-search-container {
+    max-width: 680px;
+    margin-bottom: var(--spacing-md);
+}
+
+.web-search-input,
+.search-input,
+.engine-btn,
+.category-nav,
+.category-header,
+.bookmark-card,
+.fixed-btn,
+.toast-message,
+.empty-state,
+.modal,
+.command-palette-panel {
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+
+.web-search-input,
+.search-input {
+    min-height: 46px;
+    border-radius: 14px;
+}
+
+.web-search-input:focus,
+.search-input:focus {
+    border-color: hsla(152, 72%, 56%, 0.68);
+    box-shadow: 0 0 0 3px hsla(152, 72%, 46%, 0.14);
+}
+
+.web-search-btn {
+    background: linear-gradient(135deg, hsl(154, 76%, 30%), hsl(152, 72%, 45%));
+    box-shadow: none;
+}
+
+.web-search-btn:hover {
+    box-shadow: 0 8px 22px hsla(152, 72%, 36%, 0.24);
+}
+
+.search-container {
+    max-width: 560px;
+    margin-top: var(--spacing-md);
+}
+
+.category-nav {
+    gap: 0.45rem;
+    margin-bottom: var(--spacing-xl);
+    padding: 0.65rem;
+    border-radius: 16px;
+}
+
+.category-btn {
+    padding: 0.45rem 0.75rem;
+    border-radius: 12px;
+}
+
+.category-btn.active,
+.category-sheet-btn.active,
+.category-sheet-btn:hover,
+.command-palette-item.active,
+.command-palette-item:hover {
+    color: var(--text-primary);
+    background: hsla(152, 72%, 42%, 0.22);
+    border-color: hsla(152, 72%, 56%, 0.42);
+    box-shadow: none;
+}
+
+.bookmarks-container {
+    gap: var(--spacing-xl);
+}
+
+.category-header {
+    padding: 0.75rem 0.9rem;
+    margin-bottom: 0.9rem;
+    border-radius: 14px;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.category-title {
+    font-size: 1.08rem;
+    letter-spacing: 0.01em;
+}
+
+.category-count {
+    color: hsl(152, 56%, 66%);
+    background: hsla(152, 60%, 38%, 0.16);
+    border: 1px solid hsla(152, 48%, 52%, 0.18);
+}
+
+.bookmarks-grid {
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 0.85rem;
+}
+
+.bookmark-card {
+    align-items: flex-start;
+    gap: 0.75rem;
+    min-height: 118px;
+    padding: 0.95rem;
+    border-radius: 14px;
+}
+
+.bookmark-card::before {
+    background: linear-gradient(135deg, transparent 0%, hsla(152, 72%, 46%, 0.08) 100%);
+}
+
+.bookmark-card:hover {
+    transform: translateY(-2px);
+    border-color: hsla(152, 72%, 56%, 0.36);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
+}
+
+.bookmark-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: hsla(220, 12%, 20%, 0.86);
+}
+
+.bookmark-icon img,
+.bookmark-icon .saved-icon-letter-fallback {
+    width: 26px;
+    height: 26px;
+}
+
+.bookmark-card:hover .bookmark-icon {
+    transform: none;
+    background: hsla(152, 72%, 38%, 0.20);
+    box-shadow: inset 0 0 0 1px hsla(152, 72%, 56%, 0.28);
+}
+
+.bookmark-info {
+    width: 100%;
+    text-align: left;
+}
+
+.bookmark-name {
+    margin-bottom: 2px;
+    font-size: 0.93rem;
+}
+
+.bookmark-desc {
+    color: var(--text-tertiary);
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.tag-chip {
+    justify-content: flex-start;
+    color: hsl(210, 12%, 70%);
+    background: hsla(220, 10%, 22%, 0.62);
+}
+
+@media (max-width: 768px) {
+    .header {
+        padding-top: var(--spacing-md);
+    }
+
+    .tagline {
+        margin-bottom: var(--spacing-sm);
+        font-size: 0.84rem;
+    }
+
+    .bookmarks-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+
+    .bookmark-card {
+        min-height: 112px;
+        padding: 0.85rem;
+    }
+}

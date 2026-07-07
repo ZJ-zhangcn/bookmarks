@@ -16,10 +16,63 @@ function copyPwaAssets() {
   };
 }
 
+function frontendCommonjsAsEsm() {
+  const sharedIconPolicyPath = path.resolve(__dirname, '..', 'shared', 'icon-policy.cjs');
+  const frontendModulesDir = path.resolve(__dirname, 'modules');
+  const virtualSuffix = '?frontend-esm';
+
+  function isAllowedCommonjsModule(filePath) {
+    return filePath === sharedIconPolicyPath
+      || (filePath.startsWith(`${frontendModulesDir}${path.sep}`) && filePath.endsWith('.cjs'));
+  }
+
+  function toEsm(source, filePath) {
+    let converted = source.replace(
+      "const iconPolicy = require('../../shared/icon-policy.cjs');",
+      "import iconPolicy from '../../shared/icon-policy.cjs';"
+    );
+
+    const exportsMatch = converted.match(/if\s*\(\s*typeof module !== ['"]undefined['"]\s*\)\s*\{\s*module\.exports\s*=\s*\{([\s\S]*?)\};\s*\}\s*$/)
+      || converted.match(/module\.exports\s*=\s*\{([\s\S]*?)\};\s*$/);
+    if (!exportsMatch) {
+      throw new Error(`Unable to convert ${filePath} to an ES module for Vite dev`);
+    }
+
+    const exportedNames = exportsMatch[1]
+      .split(',')
+      .map(name => name.trim())
+      .filter(Boolean);
+    const esmExports = [
+      `const __commonjsDefault = { ${exportedNames.join(', ')} };`,
+      `export { ${exportedNames.join(', ')} };`,
+      'export default __commonjsDefault;'
+    ].join('\n');
+
+    return converted.replace(exportsMatch[0], esmExports);
+  }
+
+  return {
+    name: 'frontend-commonjs-as-esm',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      if (!importer || !source.endsWith('.cjs')) return null;
+      const importerPath = importer.split('?')[0];
+      const resolved = path.resolve(path.dirname(importerPath), source);
+      return isAllowedCommonjsModule(resolved) ? `${resolved}${virtualSuffix}` : null;
+    },
+    load(id) {
+      if (!id.endsWith(virtualSuffix)) return null;
+      const filePath = id.slice(0, -virtualSuffix.length);
+      if (!isAllowedCommonjsModule(filePath)) return null;
+      return toEsm(fs.readFileSync(filePath, 'utf8'), filePath);
+    }
+  };
+}
+
 export default defineConfig({
   root: '.',
   base: '/',
-  plugins: [copyPwaAssets()],
+  plugins: [frontendCommonjsAsEsm(), copyPwaAssets()],
   build: {
     outDir: path.resolve(__dirname, '..', 'dist'),
     emptyOutDir: true,
