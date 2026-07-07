@@ -5017,35 +5017,38 @@ body {
 }
 
 [data-wallpaper-tone="light"] {
-    /* 亮壁纸：接近透明的深色细框，保留区域层级但不遮挡壁纸 */
-    --adaptive-surface: hsla(222, 34%, 12%, 0.045);
-    --adaptive-surface-strong: hsla(222, 34%, 12%, 0.07);
-    --adaptive-text: hsl(222, 34%, 12%);
-    --adaptive-muted: hsl(215, 22%, 26%);
-    --adaptive-border: hsla(222, 34%, 12%, 0.16);
-    --adaptive-shadow: 0 8px 24px hsla(222, 34%, 12%, 0.055);
+    /* 亮壁纸：半透明深色面板，保留壁纸感但不再近乎全透明 */
+    --adaptive-surface: hsla(222, 34%, 12%, 0.42);
+    --adaptive-surface-strong: hsla(222, 34%, 12%, 0.58);
+    --adaptive-text: hsl(210, 18%, 96%);
+    --adaptive-muted: hsl(210, 14%, 82%);
+    --adaptive-border: hsla(210, 18%, 96%, 0.20);
+    --adaptive-shadow: 0 12px 30px hsla(222, 34%, 12%, 0.20);
 }
 
 [data-wallpaper-tone="dark"] {
-    /* 暗壁纸：接近透明的浅色细框，让每块区域能分开 */
-    --adaptive-surface: hsla(210, 18%, 96%, 0.055);
-    --adaptive-surface-strong: hsla(210, 18%, 96%, 0.085);
+    /* 暗壁纸：半透明石墨面板，避免控件和文字淹没在背景里 */
+    --adaptive-surface: hsla(220, 13%, 10%, 0.50);
+    --adaptive-surface-strong: hsla(220, 13%, 10%, 0.66);
     --adaptive-text: hsl(210, 18%, 96%);
-    --adaptive-muted: hsl(210, 14%, 84%);
-    --adaptive-border: hsla(210, 18%, 96%, 0.2);
-    --adaptive-shadow: 0 8px 24px hsla(0, 0%, 0%, 0.16);
+    --adaptive-muted: hsl(210, 14%, 82%);
+    --adaptive-border: hsla(210, 18%, 96%, 0.18);
+    --adaptive-shadow: 0 12px 30px hsla(0, 0%, 0%, 0.22);
 }
 
-[data-theme="dark"][data-wallpaper-tone="light"] {
-    /* 深色主题遇到亮壁纸也按壁纸反转文字，避免透明后浅字糊在亮背景上 */
+[data-theme="light"][data-wallpaper-tone] {
+    /* 浅色主题仍保持浅色半透明，而不是被壁纸透明化 */
+    --adaptive-surface: hsla(0, 0%, 100%, 0.72);
+    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.86);
     --adaptive-text: hsl(222, 34%, 12%);
-    --adaptive-muted: hsl(215, 22%, 26%);
+    --adaptive-muted: hsl(215, 22%, 28%);
+    --adaptive-border: hsla(215, 22%, 28%, 0.22);
+    --adaptive-shadow: 0 12px 30px hsla(215, 24%, 26%, 0.16);
 }
 
-[data-theme="dark"][data-wallpaper-tone="dark"] {
-    /* 深色主题遇到暗壁纸保持浅文字，功能区仍全透明 */
+[data-theme="dark"][data-wallpaper-tone] {
     --adaptive-text: hsl(210, 18%, 96%);
-    --adaptive-muted: hsl(210, 14%, 84%);
+    --adaptive-muted: hsl(210, 14%, 82%);
 }
 
 [data-wallpaper-tone] .fixed-btn,
@@ -5224,6 +5227,238 @@ body {
 [data-wallpaper-tone] .todo-meta,
 [data-wallpaper-tone] .category-sheet-count {
     color: var(--adaptive-muted) !important;
+}
+
+/* 切换分类底部弹窗是选择器界面：和设置弹窗一样不做透明化 */
+.category-sheet-overlay,
+[data-wallpaper-tone] .category-sheet-overlay {
+    background: rgba(2, 6, 12, 0.62) !important;
+}
+
+.category-sheet,
+[data-wallpaper-tone] .category-sheet {
+    background: hsl(220, 13%, 10%) !important;
+    color: var(--text-primary) !important;
+    border-color: hsla(152, 40%, 64%, 0.18) !important;
+    box-shadow: 0 -22px 58px rgba(0, 0, 0, 0.46) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+.category-sheet-close,
+.category-sheet-btn,
+[data-wallpaper-tone] .category-sheet-close,
+[data-wallpaper-tone] .category-sheet-btn {
+    background: hsl(220, 12%, 15%) !important;
+    color: var(--text-secondary) !important;
+    border-color: hsla(152, 40%, 64%, 0.14) !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+.category-sheet-btn.active,
+.category-sheet-btn:hover,
+[data-wallpaper-tone] .category-sheet-btn.active,
+[data-wallpaper-tone] .category-sheet-btn:hover {
+    background: hsla(152, 72%, 42%, 0.22) !important;
+    color: var(--text-primary) !important;
+    border-color: hsla(152, 72%, 56%, 0.42) !important;
+}
+
+.category-sheet-handle,
+[data-wallpaper-tone] .category-sheet-handle {
+    background: hsla(210, 18%, 96%, 0.24) !important;
+}
+
+[data-theme="light"] .category-sheet-overlay,
+[data-theme="light"][data-wallpaper-tone] .category-sheet-overlay {
+    background: rgba(15, 23, 42, 0.36) !important;
+}
+
+[data-theme="light"] .category-sheet,
+[data-theme="light"][data-wallpaper-tone] .category-sheet {
+    background: hsl(210, 24%, 96%) !important;
+    color: var(--text-primary) !important;
+    border-color: hsla(215, 18%, 42%, 0.18) !important;
+    box-shadow: 0 -22px 54px rgba(15, 23, 42, 0.22) !important;
+}
+
+[data-theme="light"] .category-sheet-close,
+[data-theme="light"] .category-sheet-btn,
+[data-theme="light"][data-wallpaper-tone] .category-sheet-close,
+[data-theme="light"][data-wallpaper-tone] .category-sheet-btn {
+    background: hsl(0, 0%, 100%) !important;
+    color: var(--text-secondary) !important;
+    border-color: hsla(215, 18%, 42%, 0.16) !important;
+}
+
+[data-theme="light"] .category-sheet-btn.active,
+[data-theme="light"] .category-sheet-btn:hover,
+[data-theme="light"][data-wallpaper-tone] .category-sheet-btn.active,
+[data-theme="light"][data-wallpaper-tone] .category-sheet-btn:hover {
+    background: hsl(152, 42%, 90%) !important;
+    color: hsl(152, 70%, 20%) !important;
+    border-color: hsl(152, 32%, 72%) !important;
+}
+
+[data-theme="light"] .category-sheet-handle,
+[data-theme="light"][data-wallpaper-tone] .category-sheet-handle {
+    background: hsla(215, 16%, 38%, 0.22) !important;
+}
+
+/* 设置弹窗是操作型界面：不跟随壁纸透明化，保证表单和列表始终可读 */
+#settingsModal.modal-overlay,
+[data-wallpaper-tone] #settingsModal.modal-overlay {
+    background: rgba(2, 6, 12, 0.78) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+[data-theme="light"] #settingsModal.modal-overlay,
+[data-theme="light"][data-wallpaper-tone] #settingsModal.modal-overlay {
+    background: rgba(15, 23, 42, 0.42) !important;
+}
+
+#settingsModal .modal,
+[data-wallpaper-tone] #settingsModal .modal {
+    background: hsl(220, 13%, 10%) !important;
+    background-image: none !important;
+    border-color: hsla(152, 40%, 64%, 0.18) !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48) !important;
+    color: var(--text-primary) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+[data-theme="light"] #settingsModal .modal,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .modal {
+    background: hsl(210, 24%, 96%) !important;
+    border-color: hsla(215, 18%, 42%, 0.18) !important;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22) !important;
+}
+
+#settingsModal .modal-header,
+#settingsModal .settings-content,
+[data-wallpaper-tone] #settingsModal .modal-header,
+[data-wallpaper-tone] #settingsModal .settings-content {
+    background: hsl(220, 13%, 10%) !important;
+    color: var(--text-primary) !important;
+}
+
+#settingsModal .settings-sidebar,
+[data-wallpaper-tone] #settingsModal .settings-sidebar {
+    background: hsl(220, 12%, 13%) !important;
+    border-color: hsla(152, 40%, 64%, 0.14) !important;
+    color: var(--text-secondary) !important;
+}
+
+#settingsModal .setting-card,
+#settingsModal .settings-section,
+#settingsModal .webdav-status-panel,
+#settingsModal .category-list-item,
+#settingsModal #settingsIconLibraryGrid .icon-library-item,
+[data-wallpaper-tone] #settingsModal .setting-card,
+[data-wallpaper-tone] #settingsModal .settings-section,
+[data-wallpaper-tone] #settingsModal .webdav-status-panel,
+[data-wallpaper-tone] #settingsModal .category-list-item,
+[data-wallpaper-tone] #settingsModal #settingsIconLibraryGrid .icon-library-item {
+    background: hsl(220, 12%, 15%) !important;
+    border-color: hsla(152, 40%, 64%, 0.14) !important;
+    box-shadow: none !important;
+    color: var(--text-primary) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+#settingsModal .setting-input,
+#settingsModal .setting-select,
+#settingsModal select,
+#settingsModal .form-group input,
+#settingsModal .form-group textarea,
+#settingsModal .form-group select,
+#settingsModal .slider,
+[data-wallpaper-tone] #settingsModal .setting-input,
+[data-wallpaper-tone] #settingsModal .setting-select,
+[data-wallpaper-tone] #settingsModal select,
+[data-wallpaper-tone] #settingsModal .form-group input,
+[data-wallpaper-tone] #settingsModal .form-group textarea,
+[data-wallpaper-tone] #settingsModal .form-group select,
+[data-wallpaper-tone] #settingsModal .slider {
+    background: hsl(220, 12%, 18%) !important;
+    border-color: hsla(152, 40%, 64%, 0.16) !important;
+    color: var(--text-primary) !important;
+    box-shadow: none !important;
+}
+
+#settingsModal .info-box,
+[data-wallpaper-tone] #settingsModal .info-box {
+    background: hsl(152, 26%, 14%) !important;
+    border-color: hsla(152, 50%, 46%, 0.28) !important;
+    color: var(--text-secondary) !important;
+}
+
+#settingsModal .settings-tab,
+[data-wallpaper-tone] #settingsModal .settings-tab {
+    color: var(--text-secondary) !important;
+}
+
+#settingsModal .settings-tab:hover,
+#settingsModal .settings-tab.active,
+[data-wallpaper-tone] #settingsModal .settings-tab:hover,
+[data-wallpaper-tone] #settingsModal .settings-tab.active {
+    color: var(--primary) !important;
+}
+
+[data-theme="light"] #settingsModal .modal-header,
+[data-theme="light"] #settingsModal .settings-content,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .modal-header,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .settings-content {
+    background: hsl(210, 24%, 96%) !important;
+}
+
+[data-theme="light"] #settingsModal .settings-sidebar,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .settings-sidebar {
+    background: hsl(210, 22%, 91%) !important;
+    border-color: hsla(215, 18%, 42%, 0.16) !important;
+}
+
+[data-theme="light"] #settingsModal .setting-card,
+[data-theme="light"] #settingsModal .settings-section,
+[data-theme="light"] #settingsModal .webdav-status-panel,
+[data-theme="light"] #settingsModal .category-list-item,
+[data-theme="light"] #settingsModal #settingsIconLibraryGrid .icon-library-item,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .setting-card,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .settings-section,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .webdav-status-panel,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .category-list-item,
+[data-theme="light"][data-wallpaper-tone] #settingsModal #settingsIconLibraryGrid .icon-library-item {
+    background: hsl(0, 0%, 100%) !important;
+    border-color: hsla(215, 18%, 42%, 0.16) !important;
+}
+
+[data-theme="light"] #settingsModal .setting-input,
+[data-theme="light"] #settingsModal .setting-select,
+[data-theme="light"] #settingsModal select,
+[data-theme="light"] #settingsModal .form-group input,
+[data-theme="light"] #settingsModal .form-group textarea,
+[data-theme="light"] #settingsModal .form-group select,
+[data-theme="light"] #settingsModal .slider,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .setting-input,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .setting-select,
+[data-theme="light"][data-wallpaper-tone] #settingsModal select,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .form-group input,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .form-group textarea,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .form-group select,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .slider {
+    background: hsl(210, 24%, 98%) !important;
+    border-color: hsla(215, 18%, 42%, 0.18) !important;
+}
+
+[data-theme="light"] #settingsModal .info-box,
+[data-theme="light"][data-wallpaper-tone] #settingsModal .info-box {
+    background: hsl(152, 42%, 93%) !important;
+    border-color: hsl(152, 34%, 74%) !important;
 }
 
 @media (max-width: 768px) {
