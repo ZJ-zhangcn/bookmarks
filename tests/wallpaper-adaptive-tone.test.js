@@ -22,10 +22,10 @@ test('wallpaper loader samples image luminance and writes data-wallpaper-tone', 
 });
 
 test('wallpaper tone CSS drives adaptive floating surfaces', () => {
-  assert.match(css, /\[data-wallpaper-tone="light"\]\s*{[\s\S]*--adaptive-surface:\s*hsla\(220,\s*18%,\s*9%,\s*0\.68\)[\s\S]*--adaptive-text:\s*hsl\(210,\s*18%,\s*96%\)/);
-  assert.match(css, /\[data-wallpaper-tone="dark"\]\s*{[\s\S]*--adaptive-surface:\s*hsla\(0,\s*0%,\s*100%,\s*0\.72\)[\s\S]*--adaptive-text:\s*hsl\(222,\s*34%,\s*12%\)/);
-  assert.match(css, /\[data-theme="dark"\]\[data-wallpaper-tone="light"\]\s*{[\s\S]*--adaptive-surface:\s*hsla\(220,\s*16%,\s*10%,\s*0\.7\)[\s\S]*--adaptive-text:\s*hsl\(210,\s*18%,\s*95%\)/);
-  assert.match(css, /\[data-theme="dark"\]\[data-wallpaper-tone="dark"\]\s*{[\s\S]*--adaptive-surface:\s*hsla\(220,\s*13%,\s*18%,\s*0\.58\)[\s\S]*--adaptive-text:\s*hsl\(210,\s*18%,\s*96%\)/);
-  assert.match(css, /\[data-wallpaper-tone\]\s+\.fixed-btn,[\s\S]*\.confirm-dialog\s*{[\s\S]*background:\s*var\(--adaptive-surface\)[\s\S]*backdrop-filter:\s*blur\(18px\) saturate\(1\.22\)/);
+  assert.match(css, /\[data-wallpaper-tone="light"\]\s*{[\s\S]*--adaptive-surface:\s*transparent[\s\S]*--adaptive-text:\s*hsl\(222,\s*34%,\s*12%\)/);
+  assert.match(css, /\[data-wallpaper-tone="dark"\]\s*{[\s\S]*--adaptive-surface:\s*transparent[\s\S]*--adaptive-text:\s*hsl\(210,\s*18%,\s*96%\)/);
+  assert.match(css, /\[data-theme="dark"\]\[data-wallpaper-tone="light"\]\s*{[\s\S]*--adaptive-text:\s*hsl\(222,\s*34%,\s*12%\)/);
+  assert.match(css, /\[data-theme="dark"\]\[data-wallpaper-tone="dark"\]\s*{[\s\S]*--adaptive-text:\s*hsl\(210,\s*18%,\s*96%\)/);
+  assert.match(css, /\[data-wallpaper-tone\]\s+\.fixed-btn,[\s\S]*\.confirm-dialog\s*{[\s\S]*background:\s*var\(--adaptive-surface\)[\s\S]*backdrop-filter:\s*none/);
   assert.match(css, /\[data-wallpaper-tone\]\s+\.category-fab-chevron,[\s\S]*\.confirm-input-wrap span\s*{[\s\S]*color:\s*var\(--adaptive-muted\)/);
 });

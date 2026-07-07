@@ -5017,43 +5017,35 @@ body {
 }
 
 [data-wallpaper-tone="light"] {
-    /* 亮壁纸：用半透明深玻璃压住背景，文字保持浅色 */
-    --adaptive-surface: hsla(220, 18%, 9%, 0.68);
-    --adaptive-surface-strong: hsla(220, 18%, 8%, 0.82);
-    --adaptive-text: hsl(210, 18%, 96%);
-    --adaptive-muted: hsl(210, 14%, 82%);
-    --adaptive-border: hsla(0, 0%, 100%, 0.24);
-    --adaptive-shadow: 0 16px 42px hsla(215, 30%, 8%, 0.3);
+    /* 亮壁纸：控件全透明，只保留深色文字/图标跟随壁纸明暗 */
+    --adaptive-surface: transparent;
+    --adaptive-surface-strong: transparent;
+    --adaptive-text: hsl(222, 34%, 12%);
+    --adaptive-muted: hsl(215, 22%, 26%);
+    --adaptive-border: transparent;
+    --adaptive-shadow: none;
 }
 
 [data-wallpaper-tone="dark"] {
-    /* 暗壁纸上的浅色主题：用半透明浅玻璃，不再是一整块死白 */
-    --adaptive-surface: hsla(0, 0%, 100%, 0.72);
-    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.84);
-    --adaptive-text: hsl(222, 34%, 12%);
-    --adaptive-muted: hsl(215, 16%, 34%);
-    --adaptive-border: hsla(152, 30%, 28%, 0.24);
-    --adaptive-shadow: 0 16px 42px hsla(0, 0%, 0%, 0.24);
+    /* 暗壁纸：控件全透明，只保留浅色文字/图标跟随壁纸明暗 */
+    --adaptive-surface: transparent;
+    --adaptive-surface-strong: transparent;
+    --adaptive-text: hsl(210, 18%, 96%);
+    --adaptive-muted: hsl(210, 14%, 84%);
+    --adaptive-border: transparent;
+    --adaptive-shadow: none;
 }
 
 [data-theme="dark"][data-wallpaper-tone="light"] {
-    /* 深色主题 + 亮壁纸：仍用深玻璃，但更透明地吃进壁纸色 */
-    --adaptive-surface: hsla(220, 16%, 10%, 0.7);
-    --adaptive-surface-strong: hsla(220, 16%, 9%, 0.84);
-    --adaptive-text: hsl(210, 18%, 95%);
-    --adaptive-muted: hsl(210, 14%, 82%);
-    --adaptive-border: hsla(152, 40%, 64%, 0.22);
-    --adaptive-shadow: 0 16px 42px hsla(0, 0%, 0%, 0.34);
+    /* 深色主题遇到亮壁纸也按壁纸反转文字，避免透明后浅字糊在亮背景上 */
+    --adaptive-text: hsl(222, 34%, 12%);
+    --adaptive-muted: hsl(215, 22%, 26%);
 }
 
 [data-theme="dark"][data-wallpaper-tone="dark"] {
-    /* 深色主题 + 暗壁纸：透明烟灰玻璃，不再反转成白色功能区 */
-    --adaptive-surface: hsla(220, 13%, 18%, 0.58);
-    --adaptive-surface-strong: hsla(220, 13%, 13%, 0.76);
+    /* 深色主题遇到暗壁纸保持浅文字，功能区仍全透明 */
     --adaptive-text: hsl(210, 18%, 96%);
     --adaptive-muted: hsl(210, 14%, 84%);
-    --adaptive-border: hsla(152, 40%, 64%, 0.24);
-    --adaptive-shadow: 0 16px 42px hsla(0, 0%, 0%, 0.36);
 }
 
 [data-wallpaper-tone] .fixed-btn,
@@ -5067,8 +5059,8 @@ body {
     color: var(--adaptive-text);
     border-color: var(--adaptive-border);
     box-shadow: var(--adaptive-shadow);
-    -webkit-backdrop-filter: blur(18px) saturate(1.22);
-    backdrop-filter: blur(18px) saturate(1.22);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 [data-wallpaper-tone] .category-sheet,
