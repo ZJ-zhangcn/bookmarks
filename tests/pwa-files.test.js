@@ -35,7 +35,12 @@ test('frontend registers service worker module', () => {
   assert.match(main, /registerServiceWorker\(\)/);
 
   const pwa = read('frontend/modules/pwa.js');
-  assert.match(pwa, /navigator\.serviceWorker\.register\('\/service-worker\.js'\)/);
+  assert.match(pwa, /const\s+SERVICE_WORKER_VERSION\s*=\s*'v11'/);
+  assert.match(pwa, /navigator\.serviceWorker\.register\(`\/service-worker\.js\?\$\{SERVICE_WORKER_VERSION\}`\)/);
+
+  const server = read('backend/server.js');
+  assert.match(server, /path\.basename\(filePath\)\s*===\s*'service-worker\.js'/);
+  assert.match(server, /Cache-Control',\s*'no-store, no-cache, must-revalidate, proxy-revalidate'/);
 
   const sw = read('frontend/service-worker.js');
   assert.match(sw, /const\s+CACHE_NAME\s*=/);

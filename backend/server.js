@@ -82,7 +82,11 @@ const staticRoot = fs.existsSync(distPath) ? distPath : frontendPath;
 
 app.use(express.static(staticRoot, {
     setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.html')) {
+        if (path.basename(filePath) === 'service-worker.js') {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        } else if (filePath.endsWith('.html')) {
             res.setHeader('Cache-Control', 'no-cache');
         } else if (filePath.match(/\.(css|js)$/)) {
             res.setHeader('Cache-Control', 'public, max-age=3600');
