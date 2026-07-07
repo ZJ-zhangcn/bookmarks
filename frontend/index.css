@@ -5017,33 +5017,33 @@ body {
 }
 
 [data-wallpaper-tone="light"] {
-    /* 亮壁纸：半透明深色面板，保留壁纸感但不再近乎全透明 */
-    --adaptive-surface: hsla(222, 34%, 12%, 0.42);
-    --adaptive-surface-strong: hsla(222, 34%, 12%, 0.58);
-    --adaptive-text: hsl(210, 18%, 96%);
-    --adaptive-muted: hsl(210, 14%, 82%);
-    --adaptive-border: hsla(210, 18%, 96%, 0.20);
-    --adaptive-shadow: 0 12px 30px hsla(222, 34%, 12%, 0.20);
-}
-
-[data-wallpaper-tone="dark"] {
-    /* 暗壁纸：半透明石墨面板，避免控件和文字淹没在背景里 */
-    --adaptive-surface: hsla(220, 13%, 10%, 0.50);
-    --adaptive-surface-strong: hsla(220, 13%, 10%, 0.66);
+    /* 亮壁纸：更轻的半透明深色面板，保留壁纸感但不牺牲可读性 */
+    --adaptive-surface: hsla(222, 34%, 12%, 0.34);
+    --adaptive-surface-strong: hsla(222, 34%, 12%, 0.50);
     --adaptive-text: hsl(210, 18%, 96%);
     --adaptive-muted: hsl(210, 14%, 82%);
     --adaptive-border: hsla(210, 18%, 96%, 0.18);
-    --adaptive-shadow: 0 12px 30px hsla(0, 0%, 0%, 0.22);
+    --adaptive-shadow: 0 12px 30px hsla(222, 34%, 12%, 0.18);
+}
+
+[data-wallpaper-tone="dark"] {
+    /* 暗壁纸：更轻的半透明石墨面板，普通区域约四成不透明 */
+    --adaptive-surface: hsla(220, 13%, 10%, 0.40);
+    --adaptive-surface-strong: hsla(220, 13%, 10%, 0.55);
+    --adaptive-text: hsl(210, 18%, 96%);
+    --adaptive-muted: hsl(210, 14%, 82%);
+    --adaptive-border: hsla(210, 18%, 96%, 0.16);
+    --adaptive-shadow: 0 12px 30px hsla(0, 0%, 0%, 0.20);
 }
 
 [data-theme="light"][data-wallpaper-tone] {
-    /* 浅色主题仍保持浅色半透明，而不是被壁纸透明化 */
-    --adaptive-surface: hsla(0, 0%, 100%, 0.72);
-    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.86);
+    /* 浅色主题也下调一档，让壁纸存在感更明显 */
+    --adaptive-surface: hsla(0, 0%, 100%, 0.62);
+    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.78);
     --adaptive-text: hsl(222, 34%, 12%);
     --adaptive-muted: hsl(215, 22%, 28%);
-    --adaptive-border: hsla(215, 22%, 28%, 0.22);
-    --adaptive-shadow: 0 12px 30px hsla(215, 24%, 26%, 0.16);
+    --adaptive-border: hsla(215, 22%, 28%, 0.20);
+    --adaptive-shadow: 0 12px 30px hsla(215, 24%, 26%, 0.14);
 }
 
 [data-theme="dark"][data-wallpaper-tone] {
