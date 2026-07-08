@@ -35,7 +35,7 @@ test('frontend registers service worker module', () => {
   assert.match(main, /registerServiceWorker\(\)/);
 
   const pwa = read('frontend/modules/pwa.js');
-  assert.match(pwa, /const\s+SERVICE_WORKER_VERSION\s*=\s*'v12'/);
+  assert.match(pwa, /const\s+SERVICE_WORKER_VERSION\s*=\s*'v13'/);
   assert.match(pwa, /navigator\.serviceWorker\.register\(`\/service-worker\.js\?\$\{SERVICE_WORKER_VERSION\}`\)/);
 
   const server = read('backend/server.js');

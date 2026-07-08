@@ -30,5 +30,8 @@ test('wallpaper tone CSS drives adaptive semi-transparent surfaces', () => {
   assert.match(css, /\[data-wallpaper-tone\]\s+\.web-search-input,[\s\S]*\.footer\s*{[\s\S]*background:\s*var\(--adaptive-surface\) !important[\s\S]*border-color:\s*var\(--adaptive-border\) !important[\s\S]*box-shadow:\s*var\(--adaptive-shadow\) !important/);
   assert.match(css, /\[data-wallpaper-tone\]\s+\.web-search-input,[\s\S]*\.bookmark-card,[\s\S]*\.todo-card,[\s\S]*\.insight-card,[\s\S]*\.modal,[\s\S]*color:\s*var\(--adaptive-text\) !important/);
   assert.match(css, /\.category-sheet,[\s\S]*\[data-wallpaper-tone\]\s+\.category-sheet\s*{[\s\S]*background:\s*hsl\(220,\s*13%,\s*10%\) !important[\s\S]*backdrop-filter:\s*none !important/);
+  assert.match(css, /#bookmarkModal\.modal-overlay,[\s\S]*\[data-wallpaper-tone\]\s+#bookmarkModal\.modal-overlay\s*{[\s\S]*background:\s*rgba\(2,\s*6,\s*12,\s*0\.78\) !important[\s\S]*backdrop-filter:\s*none !important/);
+  assert.match(css, /#bookmarkModal\s+\.modal,[\s\S]*\[data-wallpaper-tone\]\s+#bookmarkModal\s+\.modal\s*{[\s\S]*background:\s*hsl\(220,\s*13%,\s*10%\) !important[\s\S]*backdrop-filter:\s*none !important/);
+  assert.match(css, /#bookmarkModal\s+\.form-group input,[\s\S]*\[data-wallpaper-tone\]\s+#bookmarkModal\s+\.category-recommendations \.rec-chip\s*{[\s\S]*background:\s*hsl\(220,\s*12%,\s*18%\) !important[\s\S]*backdrop-filter:\s*none !important/);
   assert.match(css, /\[data-wallpaper-tone\]\s+\.category-fab-chevron,[\s\S]*\.confirm-input-wrap span\s*{[\s\S]*color:\s*var\(--adaptive-muted\)/);
 });

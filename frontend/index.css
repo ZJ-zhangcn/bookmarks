@@ -5461,6 +5461,142 @@ body {
     border-color: hsl(152, 34%, 74%) !important;
 }
 
+/* 添加/编辑书签弹窗是表单操作界面：和设置一样不跟随壁纸透明化 */
+#bookmarkModal.modal-overlay,
+[data-wallpaper-tone] #bookmarkModal.modal-overlay {
+    background: rgba(2, 6, 12, 0.78) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+[data-theme="light"] #bookmarkModal.modal-overlay,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal.modal-overlay {
+    background: rgba(15, 23, 42, 0.42) !important;
+}
+
+#bookmarkModal .modal,
+[data-wallpaper-tone] #bookmarkModal .modal {
+    background: hsl(220, 13%, 10%) !important;
+    background-image: none !important;
+    border-color: hsla(152, 40%, 64%, 0.18) !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48) !important;
+    color: var(--text-primary) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+#bookmarkModal .modal-header,
+#bookmarkModal .modal-body,
+[data-wallpaper-tone] #bookmarkModal .modal-header,
+[data-wallpaper-tone] #bookmarkModal .modal-body {
+    background: hsl(220, 13%, 10%) !important;
+    color: var(--text-primary) !important;
+}
+
+#bookmarkModal .form-group input,
+#bookmarkModal .form-group textarea,
+#bookmarkModal .form-group select,
+#bookmarkModal .icon-selector,
+#bookmarkModal .icon-content,
+#bookmarkModal .icon-preview,
+#bookmarkModal .icon-preview-auto,
+#bookmarkModal .icon-option-wrap,
+#bookmarkModal #iconLibraryGrid .icon-library-item,
+#bookmarkModal .category-recommendations,
+#bookmarkModal .category-recommendations .rec-chip,
+[data-wallpaper-tone] #bookmarkModal .form-group input,
+[data-wallpaper-tone] #bookmarkModal .form-group textarea,
+[data-wallpaper-tone] #bookmarkModal .form-group select,
+[data-wallpaper-tone] #bookmarkModal .icon-selector,
+[data-wallpaper-tone] #bookmarkModal .icon-content,
+[data-wallpaper-tone] #bookmarkModal .icon-preview,
+[data-wallpaper-tone] #bookmarkModal .icon-preview-auto,
+[data-wallpaper-tone] #bookmarkModal .icon-option-wrap,
+[data-wallpaper-tone] #bookmarkModal #iconLibraryGrid .icon-library-item,
+[data-wallpaper-tone] #bookmarkModal .category-recommendations,
+[data-wallpaper-tone] #bookmarkModal .category-recommendations .rec-chip {
+    background: hsl(220, 12%, 18%) !important;
+    background-image: none !important;
+    border-color: hsla(152, 40%, 64%, 0.16) !important;
+    color: var(--text-primary) !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+#bookmarkModal .icon-tabs,
+[data-wallpaper-tone] #bookmarkModal .icon-tabs {
+    background: hsl(220, 12%, 15%) !important;
+}
+
+#bookmarkModal .icon-tab.active,
+[data-wallpaper-tone] #bookmarkModal .icon-tab.active {
+    background: hsl(220, 12%, 20%) !important;
+    color: var(--text-primary) !important;
+}
+
+#bookmarkModal .icon-tab,
+#bookmarkModal .form-group label,
+#bookmarkModal .icon-hint,
+#bookmarkModal .ai-hint,
+#bookmarkModal .category-recommendations .rec-label,
+[data-wallpaper-tone] #bookmarkModal .icon-tab,
+[data-wallpaper-tone] #bookmarkModal .form-group label,
+[data-wallpaper-tone] #bookmarkModal .icon-hint,
+[data-wallpaper-tone] #bookmarkModal .ai-hint,
+[data-wallpaper-tone] #bookmarkModal .category-recommendations .rec-label {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] #bookmarkModal .modal,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .modal,
+[data-theme="light"] #bookmarkModal .modal-header,
+[data-theme="light"] #bookmarkModal .modal-body,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .modal-header,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .modal-body {
+    background: hsl(210, 24%, 96%) !important;
+    border-color: hsla(215, 18%, 42%, 0.18) !important;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22) !important;
+}
+
+[data-theme="light"] #bookmarkModal .form-group input,
+[data-theme="light"] #bookmarkModal .form-group textarea,
+[data-theme="light"] #bookmarkModal .form-group select,
+[data-theme="light"] #bookmarkModal .icon-selector,
+[data-theme="light"] #bookmarkModal .icon-content,
+[data-theme="light"] #bookmarkModal .icon-preview,
+[data-theme="light"] #bookmarkModal .icon-preview-auto,
+[data-theme="light"] #bookmarkModal .icon-option-wrap,
+[data-theme="light"] #bookmarkModal #iconLibraryGrid .icon-library-item,
+[data-theme="light"] #bookmarkModal .category-recommendations,
+[data-theme="light"] #bookmarkModal .category-recommendations .rec-chip,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .form-group input,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .form-group textarea,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .form-group select,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .icon-selector,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .icon-content,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .icon-preview,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .icon-preview-auto,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .icon-option-wrap,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal #iconLibraryGrid .icon-library-item,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .category-recommendations,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .category-recommendations .rec-chip {
+    background: hsl(0, 0%, 100%) !important;
+    border-color: hsla(215, 18%, 42%, 0.16) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="light"] #bookmarkModal .icon-tabs,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .icon-tabs {
+    background: hsl(210, 22%, 91%) !important;
+}
+
+[data-theme="light"] #bookmarkModal .icon-tab.active,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .icon-tab.active {
+    background: hsl(0, 0%, 100%) !important;
+    color: var(--text-primary) !important;
+}
+
 @media (max-width: 768px) {
     .header {
         padding-top: var(--spacing-md);

@@ -1,4 +1,4 @@
-const SERVICE_WORKER_VERSION = 'v12';
+const SERVICE_WORKER_VERSION = 'v13';
 
 /**
  * PWA 注册模块
