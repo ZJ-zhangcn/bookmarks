@@ -78,11 +78,19 @@ export function clearIconCandidates(container = DOM.iconPreviewAuto, fallback = 
 
 function bindCandidateSelection(container) {
     container.querySelectorAll('.icon-option-wrap').forEach(wrap => {
-        wrap.onclick = (e) => {
+        const selectWrap = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            container.querySelectorAll('.icon-option-wrap').forEach(w => w.classList.remove('selected'));
+            container.querySelectorAll('.icon-option-wrap').forEach(w => {
+                w.classList.remove('selected');
+                w.setAttribute('aria-pressed', 'false');
+            });
             wrap.classList.add('selected');
+            wrap.setAttribute('aria-pressed', 'true');
+        };
+        wrap.onclick = selectWrap;
+        wrap.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') selectWrap(e);
         };
     });
 }
@@ -112,7 +120,7 @@ export function renderIconCandidates(container, icons, options = {}) {
         target.innerHTML = `<div class="icon-selection">
             ${visibleIcons.map((icon, idx) => {
         const source = getIconSource(icon, { local });
-        return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlAttribute(icon)}" title="${escapeHtmlAttribute(source.label)}">
+        return `<div class="icon-option-wrap ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlAttribute(icon)}" title="${escapeHtmlAttribute(source.label)}" role="button" tabindex="0" aria-label="选择图标：${escapeHtmlAttribute(source.label)}" aria-pressed="${idx === 0 ? 'true' : 'false'}">
                     ${renderIconPreviewImage(icon, source, { local })}
                     <span class="icon-source-label ${source.class}">${escapeHtml(source.label)}</span>
                 </div>`;

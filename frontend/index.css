@@ -3116,6 +3116,7 @@ input:checked+.slider:before {
 }
 
 .icon-option-wrap {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -3140,7 +3141,43 @@ input:checked+.slider:before {
 
 .icon-option-wrap.selected {
     border-color: var(--primary);
-    box-shadow: 0 0 10px hsla(var(--primary-hue), 100%, 65%, 0.3);
+    background:
+        linear-gradient(180deg, hsla(var(--primary-hue), 100%, 65%, 0.22), hsla(var(--primary-hue), 100%, 65%, 0.08)),
+        var(--bg-tertiary);
+    box-shadow:
+        0 0 0 2px hsla(var(--primary-hue), 100%, 75%, 0.28),
+        0 0 16px hsla(var(--primary-hue), 100%, 65%, 0.45),
+        inset 0 0 0 1px hsla(0, 0%, 100%, 0.08);
+    transform: translateY(-1px);
+}
+
+.icon-option-wrap.selected::after {
+    content: '✓';
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 0 0 2px var(--bg-secondary), 0 4px 12px hsla(var(--primary-hue), 100%, 65%, 0.45);
+}
+
+.icon-option-wrap.selected .icon-source-label {
+    background: var(--primary);
+    color: white;
+}
+
+.icon-option-wrap:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 3px;
 }
 
 .icon-option {
@@ -5584,6 +5621,22 @@ body {
     background: hsl(0, 0%, 100%) !important;
     border-color: hsla(215, 18%, 42%, 0.16) !important;
     color: var(--text-primary) !important;
+}
+
+#bookmarkModal .icon-option-wrap.selected,
+[data-wallpaper-tone] #bookmarkModal .icon-option-wrap.selected {
+    background-color: hsl(220, 12%, 18%) !important;
+    background-image: linear-gradient(180deg, hsla(var(--primary-hue), 100%, 65%, 0.24), hsla(var(--primary-hue), 100%, 65%, 0.08)) !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 2px hsla(var(--primary-hue), 100%, 75%, 0.34), 0 0 18px hsla(var(--primary-hue), 100%, 65%, 0.5) !important;
+}
+
+[data-theme="light"] #bookmarkModal .icon-option-wrap.selected,
+[data-theme="light"][data-wallpaper-tone] #bookmarkModal .icon-option-wrap.selected {
+    background-color: hsl(0, 0%, 100%) !important;
+    background-image: linear-gradient(180deg, hsla(var(--primary-hue), 85%, 55%, 0.18), hsla(var(--primary-hue), 85%, 55%, 0.06)) !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 2px hsla(var(--primary-hue), 85%, 55%, 0.28), 0 0 16px hsla(var(--primary-hue), 85%, 55%, 0.22) !important;
 }
 
 [data-theme="light"] #bookmarkModal .icon-tabs,

@@ -104,3 +104,14 @@ test('auto icon letter fallback remains selectable and saveable', () => {
     assert.match(bookmarkSource, /getSelectedIconUrl/);
     assert.match(bookmarkSource, /getSelectedIconUrl\(DOM\.iconPreviewAuto\)/);
 });
+
+test('auto icon selected candidate is visibly and accessibly marked', () => {
+    const pickerSource = read('frontend/modules/icon-picker.js');
+    const css = read('frontend/index.css');
+
+    assert.match(pickerSource, /aria-pressed="\$\{idx === 0 \? 'true' : 'false'\}"/);
+    assert.match(pickerSource, /setAttribute\('aria-pressed', 'true'\)/);
+    assert.match(css, /\.icon-option-wrap\.selected::after\s*{[\s\S]*content:\s*'✓'/);
+    assert.match(css, /\.icon-option-wrap\.selected\s*{[\s\S]*box-shadow:[\s\S]*0 0 0 2px/);
+    assert.match(css, /#bookmarkModal \.icon-option-wrap\.selected,[\s\S]*background-image:[\s\S]*!important;[\s\S]*border-color:\s*var\(--primary\) !important;[\s\S]*box-shadow:[\s\S]*!important/);
+});
