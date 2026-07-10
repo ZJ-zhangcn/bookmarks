@@ -5650,6 +5650,226 @@ body {
     color: var(--text-primary) !important;
 }
 
+/* 搜索引擎选择下拉框是选择型操作界面：和设置一样使用实底，不透出壁纸 */
+.engine-dropdown,
+[data-wallpaper-tone] .engine-dropdown {
+    background: hsl(220, 13%, 10%) !important;
+    background-image: none !important;
+    border-color: hsla(152, 40%, 64%, 0.18) !important;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42) !important;
+    color: var(--text-primary) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+.engine-option,
+.engine-manage-btn,
+[data-wallpaper-tone] .engine-option,
+[data-wallpaper-tone] .engine-manage-btn {
+    background: hsl(220, 13%, 10%) !important;
+    color: var(--text-secondary) !important;
+}
+
+.engine-option:hover,
+.engine-manage-btn:hover,
+[data-wallpaper-tone] .engine-option:hover,
+[data-wallpaper-tone] .engine-manage-btn:hover {
+    background: hsl(220, 12%, 15%) !important;
+    color: var(--text-primary) !important;
+}
+
+.engine-option.active,
+[data-wallpaper-tone] .engine-option.active {
+    background: hsla(152, 72%, 42%, 0.22) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .engine-dropdown,
+[data-theme="light"][data-wallpaper-tone] .engine-dropdown {
+    background: hsl(210, 24%, 96%) !important;
+    border-color: hsla(215, 18%, 42%, 0.18) !important;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.22) !important;
+}
+
+[data-theme="light"] .engine-option,
+[data-theme="light"] .engine-manage-btn,
+[data-theme="light"][data-wallpaper-tone] .engine-option,
+[data-theme="light"][data-wallpaper-tone] .engine-manage-btn {
+    background: hsl(210, 24%, 96%) !important;
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .engine-option:hover,
+[data-theme="light"] .engine-manage-btn:hover,
+[data-theme="light"][data-wallpaper-tone] .engine-option:hover,
+[data-theme="light"][data-wallpaper-tone] .engine-manage-btn:hover {
+    background: hsl(0, 0%, 100%) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .engine-option.active,
+[data-theme="light"][data-wallpaper-tone] .engine-option.active {
+    background: hsl(152, 42%, 90%) !important;
+    color: hsl(152, 70%, 20%) !important;
+}
+
+/* 搜索框输入后的搜索建议：属于选择型浮层，和设置一样使用实底不透明 */
+.search-suggestions,
+[data-wallpaper-tone] .search-suggestions {
+    background: hsl(220, 13%, 10%) !important;
+    background-image: none !important;
+    border-color: hsla(152, 40%, 64%, 0.18) !important;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42) !important;
+    color: var(--text-primary) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+.suggestion-item,
+[data-wallpaper-tone] .suggestion-item {
+    background: hsl(220, 13%, 10%) !important;
+    border-color: hsla(152, 40%, 64%, 0.14) !important;
+    color: var(--text-secondary) !important;
+}
+
+.suggestion-item.active,
+.suggestion-item:hover,
+[data-wallpaper-tone] .suggestion-item.active,
+[data-wallpaper-tone] .suggestion-item:hover {
+    background: hsl(220, 12%, 15%) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .search-suggestions,
+[data-theme="light"][data-wallpaper-tone] .search-suggestions {
+    background: hsl(210, 24%, 96%) !important;
+    border-color: hsla(215, 18%, 42%, 0.18) !important;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.22) !important;
+}
+
+[data-theme="light"] .suggestion-item,
+[data-theme="light"][data-wallpaper-tone] .suggestion-item {
+    background: hsl(210, 24%, 96%) !important;
+    border-color: hsla(215, 18%, 42%, 0.14) !important;
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .suggestion-item.active,
+[data-theme="light"] .suggestion-item:hover,
+[data-theme="light"][data-wallpaper-tone] .suggestion-item.active,
+[data-theme="light"][data-wallpaper-tone] .suggestion-item:hover {
+    background: hsl(0, 0%, 100%) !important;
+    color: var(--text-primary) !important;
+}
+
+/* TODO 编辑弹窗是表单操作界面：和设置一样不跟随壁纸透明化 */
+#todoModal.modal-overlay,
+[data-wallpaper-tone] #todoModal.modal-overlay {
+    background: rgba(2, 6, 12, 0.78) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+#todoModal .modal,
+#todoModal .modal-header,
+#todoModal .modal-body,
+[data-wallpaper-tone] #todoModal .modal,
+[data-wallpaper-tone] #todoModal .modal-header,
+[data-wallpaper-tone] #todoModal .modal-body {
+    background: hsl(220, 13%, 10%) !important;
+    background-image: none !important;
+    border-color: hsla(152, 40%, 64%, 0.18) !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48) !important;
+    color: var(--text-primary) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+#todoModal .form-group input,
+#todoModal .form-group textarea,
+#todoModal .form-group select,
+[data-wallpaper-tone] #todoModal .form-group input,
+[data-wallpaper-tone] #todoModal .form-group textarea,
+[data-wallpaper-tone] #todoModal .form-group select {
+    background: hsl(220, 12%, 18%) !important;
+    background-image: none !important;
+    border-color: hsla(152, 40%, 64%, 0.16) !important;
+    color: var(--text-primary) !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+[data-theme="light"] #todoModal.modal-overlay,
+[data-theme="light"][data-wallpaper-tone] #todoModal.modal-overlay {
+    background: rgba(15, 23, 42, 0.42) !important;
+}
+
+[data-theme="light"] #todoModal .modal,
+[data-theme="light"] #todoModal .modal-header,
+[data-theme="light"] #todoModal .modal-body,
+[data-theme="light"][data-wallpaper-tone] #todoModal .modal,
+[data-theme="light"][data-wallpaper-tone] #todoModal .modal-header,
+[data-theme="light"][data-wallpaper-tone] #todoModal .modal-body {
+    background: hsl(210, 24%, 96%) !important;
+    border-color: hsla(215, 18%, 42%, 0.18) !important;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22) !important;
+}
+
+[data-theme="light"] #todoModal .form-group input,
+[data-theme="light"] #todoModal .form-group textarea,
+[data-theme="light"] #todoModal .form-group select,
+[data-theme="light"][data-wallpaper-tone] #todoModal .form-group input,
+[data-theme="light"][data-wallpaper-tone] #todoModal .form-group textarea,
+[data-theme="light"][data-wallpaper-tone] #todoModal .form-group select {
+    background: hsl(0, 0%, 100%) !important;
+    border-color: hsla(215, 18%, 42%, 0.16) !important;
+    color: var(--text-primary) !important;
+}
+
+/* 删除待办 / 删除书签共用确认框：改成设置弹窗同款实底 */
+.confirm-overlay,
+[data-wallpaper-tone] .confirm-overlay {
+    background: rgba(2, 6, 12, 0.78) !important;
+}
+
+.confirm-dialog,
+[data-wallpaper-tone] .confirm-dialog {
+    background: hsl(220, 13%, 10%) !important;
+    background-image: none !important;
+    border-color: hsla(152, 40%, 64%, 0.18) !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48) !important;
+    color: var(--text-primary) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+.confirm-input-wrap input,
+[data-wallpaper-tone] .confirm-input-wrap input {
+    background: hsl(220, 12%, 18%) !important;
+    border-color: hsla(152, 40%, 64%, 0.16) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .confirm-overlay,
+[data-theme="light"][data-wallpaper-tone] .confirm-overlay {
+    background: rgba(15, 23, 42, 0.42) !important;
+}
+
+[data-theme="light"] .confirm-dialog,
+[data-theme="light"][data-wallpaper-tone] .confirm-dialog {
+    background: hsl(210, 24%, 96%) !important;
+    border-color: hsla(215, 18%, 42%, 0.18) !important;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22) !important;
+}
+
+[data-theme="light"] .confirm-input-wrap input,
+[data-theme="light"][data-wallpaper-tone] .confirm-input-wrap input {
+    background: hsl(0, 0%, 100%) !important;
+    border-color: hsla(215, 18%, 42%, 0.16) !important;
+    color: var(--text-primary) !important;
+}
+
 @media (max-width: 768px) {
     .header {
         padding-top: var(--spacing-md);

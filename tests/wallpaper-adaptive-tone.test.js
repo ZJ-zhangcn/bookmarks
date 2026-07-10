@@ -33,5 +33,10 @@ test('wallpaper tone CSS drives adaptive semi-transparent surfaces', () => {
   assert.match(css, /#bookmarkModal\.modal-overlay,[\s\S]*\[data-wallpaper-tone\]\s+#bookmarkModal\.modal-overlay\s*{[\s\S]*background:\s*rgba\(2,\s*6,\s*12,\s*0\.78\) !important[\s\S]*backdrop-filter:\s*none !important/);
   assert.match(css, /#bookmarkModal\s+\.modal,[\s\S]*\[data-wallpaper-tone\]\s+#bookmarkModal\s+\.modal\s*{[\s\S]*background:\s*hsl\(220,\s*13%,\s*10%\) !important[\s\S]*backdrop-filter:\s*none !important/);
   assert.match(css, /#bookmarkModal\s+\.form-group input,[\s\S]*\[data-wallpaper-tone\]\s+#bookmarkModal\s+\.category-recommendations \.rec-chip\s*{[\s\S]*background:\s*hsl\(220,\s*12%,\s*18%\) !important[\s\S]*backdrop-filter:\s*none !important/);
+  assert.match(css, /\.engine-dropdown,[\s\S]*\[data-wallpaper-tone\]\s+\.engine-dropdown\s*{[\s\S]*background:\s*hsl\(220,\s*13%,\s*10%\) !important[\s\S]*backdrop-filter:\s*none !important/);
+  assert.match(css, /\.search-suggestions,[\s\S]*\[data-wallpaper-tone\]\s+\.search-suggestions\s*{[\s\S]*background:\s*hsl\(220,\s*13%,\s*10%\) !important[\s\S]*backdrop-filter:\s*none !important/);
+  assert.match(css, /#todoModal\.modal-overlay,[\s\S]*\[data-wallpaper-tone\]\s+#todoModal\.modal-overlay\s*{[\s\S]*background:\s*rgba\(2,\s*6,\s*12,\s*0\.78\) !important[\s\S]*backdrop-filter:\s*none !important/);
+  assert.match(css, /#todoModal\s+\.modal,[\s\S]*\[data-wallpaper-tone\]\s+#todoModal\s+\.modal-body\s*{[\s\S]*background:\s*hsl\(220,\s*13%,\s*10%\) !important[\s\S]*backdrop-filter:\s*none !important/);
+  assert.match(css, /\.confirm-dialog,[\s\S]*\[data-wallpaper-tone\]\s+\.confirm-dialog\s*{[\s\S]*background:\s*hsl\(220,\s*13%,\s*10%\) !important[\s\S]*backdrop-filter:\s*none !important/);
   assert.match(css, /\[data-wallpaper-tone\]\s+\.category-fab-chevron,[\s\S]*\.confirm-input-wrap span\s*{[\s\S]*color:\s*var\(--adaptive-muted\)/);
 });
