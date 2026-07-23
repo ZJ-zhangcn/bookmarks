@@ -88,6 +88,19 @@ test('home shell exposes one global-search entry and removes every legacy search
     assert.match(css, /\.global-search-panel/);
 });
 
+test('global search visibility becomes focusable immediately on open and hides after its fade on close', () => {
+    assert.match(
+        css,
+        /\.global-search-overlay\s*\{[\s\S]*?visibility:\s*hidden;[\s\S]*?transition:\s*opacity\s+var\(--transition-normal\),\s*visibility\s+0s\s+linear\s+var\(--transition-normal\);[\s\S]*?\}/,
+        'closed overlay delays visibility:hidden until its opacity transition finishes'
+    );
+    assert.match(
+        css,
+        /\.global-search-overlay\.open\s*\{[\s\S]*?visibility:\s*visible;[\s\S]*?transition-delay:\s*0s;[\s\S]*?\}/,
+        'opening overlay makes visibility:visible immediate for synchronous input focus'
+    );
+});
+
 test('global search source contract uses the pure model and safe local and web actions', () => {
     for (const name of ['openGlobalSearch', 'closeGlobalSearch', 'handleGlobalSearch']) {
         assert.match(search, new RegExp(`export\\s+function\\s+${name}\\b`));

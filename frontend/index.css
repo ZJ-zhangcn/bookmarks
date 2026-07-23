@@ -2662,13 +2662,14 @@ body {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity var(--transition-normal), visibility var(--transition-normal);
+    transition: opacity var(--transition-normal), visibility 0s linear var(--transition-normal);
 }
 
 .global-search-overlay.open {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
+    transition-delay: 0s;
 }
 
 .global-search-panel {
