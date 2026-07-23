@@ -16,7 +16,7 @@ function getOpenOverlays() {
         DOM.todoModal,
         DOM.categorySheetOverlay,
         DOM.confirmOverlay,
-        DOM.globalSearchOverlay,
+        DOM.bookmarkSearchOverlay,
         document.querySelector?.('.command-palette-overlay.open')
     ];
     return overlays.filter(isOpen);

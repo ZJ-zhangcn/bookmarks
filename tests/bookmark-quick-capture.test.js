@@ -94,7 +94,7 @@ function createFixture() {
         return element;
     };
 
-    const quickAddBtn = make('quickAddBtn', 'BUTTON');
+    const addBookmarkTrigger = make('addBookmarkTrigger', 'BUTTON');
     const engineModal = make('engineModal');
     engineModal.style.zIndex = '1000';
     const modal = make('bookmarkModal');
@@ -116,8 +116,8 @@ function createFixture() {
     const cancel = make('cancelBookmarkBtn', 'BUTTON');
     const confirmOverlay = make('confirmOverlay');
     confirmOverlay.style.zIndex = '1300';
-    const globalSearchOverlay = make('globalSearchOverlay');
-    globalSearchOverlay.style.zIndex = '1200';
+    const bookmarkSearchOverlay = make('bookmarkSearchOverlay');
+    bookmarkSearchOverlay.style.zIndex = '1200';
     const confirmTitle = make('confirmTitle', 'H3');
     const confirmMessage = make('confirmMessage');
     const confirmAccept = make('confirmAccept', 'BUTTON');
@@ -151,7 +151,7 @@ function createFixture() {
     return {
         document,
         elements,
-        quickAddBtn,
+        addBookmarkTrigger,
         engineModal,
         modal,
         modalClose,
@@ -170,7 +170,7 @@ function createFixture() {
         save,
         cancel,
         confirmOverlay,
-        globalSearchOverlay,
+        bookmarkSearchOverlay,
         confirmTitle,
         confirmMessage,
         confirmAccept,
@@ -191,7 +191,7 @@ async function loadBookmarkModule(fixture, label) {
     const state = await import(pathToFileURL(path.join(root, 'frontend/modules/state.js')).href);
     Object.keys(dom.DOM).forEach(key => delete dom.DOM[key]);
     Object.assign(dom.DOM, {
-        quickAddBtn: fixture.quickAddBtn,
+        addBookmarkTrigger: fixture.addBookmarkTrigger,
         engineModal: fixture.engineModal,
         bookmarkModal: fixture.modal,
         bookmarkModalTitle: fixture.title,
@@ -210,7 +210,7 @@ async function loadBookmarkModule(fixture, label) {
         saveBookmarkBtn: fixture.save,
         cancelBookmarkBtn: fixture.cancel,
         confirmOverlay: fixture.confirmOverlay,
-        globalSearchOverlay: fixture.globalSearchOverlay,
+        bookmarkSearchOverlay: fixture.bookmarkSearchOverlay,
         categoryRecommendations: { style: {} }
     });
 
@@ -221,7 +221,7 @@ async function loadBookmarkModule(fixture, label) {
 
 test('quick bookmark opens collapsed, focuses URL, and exposes exactly one inbox sentinel', async () => {
     const fixture = createFixture();
-    fixture.document.activeElement = fixture.quickAddBtn;
+    fixture.document.activeElement = fixture.addBookmarkTrigger;
     const { bookmark, state } = await loadBookmarkModule(fixture, 'quick-open');
     state.setCategories([
         { id: 'cat-inbox', name: '收件箱' },
@@ -242,12 +242,12 @@ test('quick bookmark opens collapsed, focuses URL, and exposes exactly one inbox
 
     bookmark.closeBookmarkModal();
     assert.equal(fixture.modal.getAttribute('aria-hidden'), 'true');
-    assert.equal(fixture.document.activeElement, fixture.quickAddBtn);
+    assert.equal(fixture.document.activeElement, fixture.addBookmarkTrigger);
 });
 
 test('closing a quick capture ignores the focus-restoring URL blur', async () => {
     const fixture = createFixture();
-    fixture.document.activeElement = fixture.quickAddBtn;
+    fixture.document.activeElement = fixture.addBookmarkTrigger;
     const { bookmark, state } = await loadBookmarkModule(fixture, 'close-url-blur');
     state.setCategories([]);
     state.setBookmarks([]);
@@ -392,13 +392,13 @@ test('bookmark focus trap defers to a new-category prompt above it', async () =>
     );
 });
 
-test('bookmark focus trap defers to global search above it', async () => {
+test('bookmark focus trap defers to bookmark search above it', async () => {
     const fixture = createFixture();
-    const { bookmark, state } = await loadBookmarkModule(fixture, 'global-search-focus');
+    const { bookmark, state } = await loadBookmarkModule(fixture, 'bookmark-search-focus');
     state.setCategories([]);
     state.setBookmarks([]);
     bookmark.openBookmarkModal();
-    fixture.globalSearchOverlay.classList.add('open');
+    fixture.bookmarkSearchOverlay.classList.add('open');
     fixture.save.focus();
 
     let prevented = false;
@@ -408,7 +408,7 @@ test('bookmark focus trap defers to global search above it', async () => {
         preventDefault: () => { prevented = true; }
     });
 
-    assert.equal(prevented, false, 'a higher global-search overlay must own Tab');
+    assert.equal(prevented, false, 'a higher bookmark-search overlay must own Tab');
     assert.equal(fixture.document.activeElement, fixture.save);
 });
 

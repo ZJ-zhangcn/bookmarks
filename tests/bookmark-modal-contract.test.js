@@ -96,12 +96,12 @@ test('bookmark-only visibility timing supports synchronous URL focus and polishe
     );
 });
 
-test('toast messages do not intercept the fixed quick-add control', () => {
+test('toast messages do not intercept fixed navigation controls', () => {
     const toastRule = cssRule('.toast-message');
     assert.match(
         toastRule,
         /pointer-events:\s*none;/,
-        'noninteractive save feedback must not block the quick-add button beneath it'
+        'noninteractive save feedback must not block fixed navigation controls beneath it'
     );
 });
 

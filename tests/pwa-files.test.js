@@ -35,7 +35,7 @@ test('frontend registers service worker module', () => {
   assert.match(main, /registerServiceWorker\(\)/);
 
   const pwa = read('frontend/modules/pwa.js');
-  assert.match(pwa, /const\s+SERVICE_WORKER_VERSION\s*=\s*'v17'/);
+  assert.match(pwa, /const\s+SERVICE_WORKER_VERSION\s*=\s*'v18'/);
   assert.match(pwa, /navigator\.serviceWorker\.register\(`\/service-worker\.js\?\$\{SERVICE_WORKER_VERSION\}`\)/);
 
   const server = read('backend/server.js');
@@ -43,7 +43,7 @@ test('frontend registers service worker module', () => {
   assert.match(server, /Cache-Control',\s*'no-store, no-cache, must-revalidate, proxy-revalidate'/);
 
   const sw = read('frontend/service-worker.js');
-  assert.match(sw, /const\s+CACHE_NAME\s*=\s*'bookmark-nav-pwa-v17'/);
+  assert.match(sw, /const\s+CACHE_NAME\s*=\s*'bookmark-nav-pwa-v18'/);
   assert.match(sw, /\/api\/bootstrap-v2/);
   assert.match(sw, /if\s*\(request\.method\s*!==\s*'GET'\)\s*return;/);
   assert.match(sw, /if\s*\(url\.pathname\s*===\s*BOOTSTRAP_PATH\)\s*{\s*event\.respondWith\(networkFirst\(request\)\)/);

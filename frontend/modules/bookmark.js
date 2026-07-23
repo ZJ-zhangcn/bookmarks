@@ -118,9 +118,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
     if (!wasOpen) {
         bookmarkPreviousFocus = isValidBookmarkRestoreTarget(document.activeElement)
             ? document.activeElement
-            : isValidBookmarkRestoreTarget(DOM.quickAddBtn)
-                ? DOM.quickAddBtn
-                : null;
+            : null;
     }
 
     cancelBookmarkUrlEnrichment();
@@ -290,9 +288,7 @@ export function closeBookmarkModal() {
     if (!wasOpen && !previousFocus) return;
     const focusTarget = isValidBookmarkRestoreTarget(previousFocus)
         ? previousFocus
-        : isValidBookmarkRestoreTarget(DOM.quickAddBtn)
-            ? DOM.quickAddBtn
-            : null;
+        : null;
     focusTarget?.focus?.();
 }
 
