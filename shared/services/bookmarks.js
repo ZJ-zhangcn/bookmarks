@@ -7,6 +7,47 @@ function isMysql(db) {
     return db.USE_MYSQL || db.getDatabaseType?.() === 'mysql';
 }
 
+const INBOX_CATEGORY_ID = 'cat_inbox';
+const INBOX_CATEGORY_NAME = '收件箱';
+
+function isInboxCategoryRequest(categoryId) {
+    return categoryId == null ||
+        (typeof categoryId === 'string' && (categoryId.trim() === '' || categoryId === '__inbox__'));
+}
+
+async function createBookmarkCategory(db, { id = newId('cat'), name }) {
+    const maxCatOrder = await db.queryOne('SELECT MAX(sort_order) as max_order FROM categories');
+    const catSortOrder = (maxCatOrder?.max_order ?? -1) + 1;
+    await db.execute(
+        'INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)',
+        [id, name, '📁', catSortOrder]
+    );
+    return id;
+}
+
+async function resolveBookmarkCategoryId(db, categoryId) {
+    if (isInboxCategoryRequest(categoryId)) {
+        const existingInbox = await db.queryOne('SELECT id FROM categories WHERE name = ?', [INBOX_CATEGORY_NAME]);
+        if (existingInbox) return existingInbox.id;
+
+        try {
+            return await createBookmarkCategory(db, { id: INBOX_CATEGORY_ID, name: INBOX_CATEGORY_NAME });
+        } catch (error) {
+            const concurrentInbox = await db.queryOne('SELECT id, name FROM categories WHERE id = ?', [INBOX_CATEGORY_ID]);
+            if (concurrentInbox?.name === INBOX_CATEGORY_NAME) return concurrentInbox.id;
+
+            const namedInbox = await db.queryOne('SELECT id FROM categories WHERE name = ?', [INBOX_CATEGORY_NAME]);
+            if (namedInbox) return namedInbox.id;
+            if (concurrentInbox) return createBookmarkCategory(db, { name: INBOX_CATEGORY_NAME });
+            throw error;
+        }
+    }
+
+    const existingCategory = await db.queryOne('SELECT id FROM categories WHERE id = ?', [categoryId]);
+    if (existingCategory) return existingCategory.id;
+    return createBookmarkCategory(db, { name: categoryId });
+}
+
 
 async function attachBookmarkAi(db, bookmarks) {
     if (!Array.isArray(bookmarks) || bookmarks.length === 0) return;
@@ -123,15 +164,7 @@ async function saveBookmark(db, { id, category_id, name, url, description, icon,
     const bookmarkId = id || newId('bm');
     const isNewBookmark = !id;
 
-    let finalCategoryId = category_id;
-    const existingCat = await db.queryOne('SELECT id FROM categories WHERE id = ?', [category_id]);
-    if (!existingCat) {
-        const newCatId = newId('cat');
-        const maxCatOrder = await db.queryOne('SELECT MAX(sort_order) as max_order FROM categories');
-        const catSortOrder = (maxCatOrder?.max_order ?? -1) + 1;
-        await db.execute('INSERT INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)', [newCatId, category_id, '📁', catSortOrder]);
-        finalCategoryId = newCatId;
-    }
+    const finalCategoryId = await resolveBookmarkCategoryId(db, category_id);
 
     let sortOrder = 0;
     if (isNewBookmark) {
