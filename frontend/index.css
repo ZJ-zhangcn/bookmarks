@@ -1931,6 +1931,17 @@ body {
 /* ========================================
    空状态
    ======================================== */
+.filtered-empty {
+    align-self: stretch;
+    margin: 0;
+    padding: var(--spacing-lg);
+    color: var(--text-secondary);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    text-align: center;
+}
+
 .empty-state {
     text-align: center;
     padding: var(--spacing-2xl) var(--spacing-xl);
@@ -5887,5 +5898,125 @@ body {
     .bookmark-card {
         min-height: 112px;
         padding: 0.85rem;
+    }
+}
+
+/* First-library onboarding stays readable even when a wallpaper is enabled. */
+.library-onboarding {
+    margin: 0 0 var(--spacing-xl);
+    padding: clamp(1.1rem, 3vw, 1.6rem);
+    color: #f4fff8;
+    background: #0d1d16 !important;
+    background-image: none !important;
+    border: 1px solid #3a6a52 !important;
+    border-radius: 16px;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+.library-onboarding[hidden],
+.library-onboarding [hidden] {
+    display: none !important;
+}
+
+.library-onboarding h2 {
+    margin: 0;
+    color: inherit;
+    font-size: clamp(1.15rem, 2.5vw, 1.45rem);
+    line-height: 1.3;
+}
+
+.library-onboarding p {
+    max-width: 42rem;
+    margin: 0.55rem 0 0;
+    color: #c9e4d4;
+    line-height: 1.6;
+}
+
+.library-onboarding-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    margin-top: 1.15rem;
+}
+
+.library-onboarding .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.65rem 1rem;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 650;
+    text-align: center;
+    white-space: normal;
+}
+
+.library-onboarding-import {
+    color: #062b1c !important;
+    background: #6ee7b7 !important;
+    border-color: #9cf2cf !important;
+}
+
+.library-onboarding-secondary {
+    color: #f4fff8 !important;
+    background: #1d4d36 !important;
+    border-color: #5ea77e !important;
+}
+
+.library-onboarding-dismiss {
+    color: #d9eee1 !important;
+    background: #24342b !important;
+    border-color: #587065 !important;
+}
+
+.library-onboarding .btn:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
+.library-onboarding .btn:focus-visible {
+    outline: 3px solid #b9f8d7;
+    outline-offset: 3px;
+}
+
+[data-theme="light"] .library-onboarding {
+    color: #10251b;
+    background: #f4fbf7 !important;
+    border-color: #9dcab0 !important;
+    box-shadow: 0 16px 36px rgba(20, 58, 38, 0.15) !important;
+}
+
+[data-theme="light"] .library-onboarding p {
+    color: #315440;
+}
+
+[data-theme="light"] .library-onboarding-import {
+    color: #ffffff !important;
+    background: #047857 !important;
+    border-color: #047857 !important;
+}
+
+[data-theme="light"] .library-onboarding-secondary {
+    color: #12311f !important;
+    background: #d7f0df !important;
+    border-color: #8fca9e !important;
+}
+
+[data-theme="light"] .library-onboarding-dismiss {
+    color: #254331 !important;
+    background: #e7eee9 !important;
+    border-color: #b8cabb !important;
+}
+
+@media (max-width: 560px) {
+    .library-onboarding-actions {
+        flex-direction: column;
+    }
+
+    .library-onboarding .btn {
+        width: 100%;
     }
 }

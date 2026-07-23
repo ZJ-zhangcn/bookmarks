@@ -5,7 +5,7 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 import { debounce } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
-import { renderBookmarks, updateCategoryQuickLabel } from './render.js';
+import { dismissSeedOnboarding, renderAll, renderBookmarks, updateCategoryQuickLabel } from './render.js';
 import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload } from './bookmark.js';
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
@@ -216,12 +216,12 @@ export function bindAllEvents() {
     DOM.bookmarkSearchOverlay.addEventListener('click', e => { if (e.target === DOM.bookmarkSearchOverlay) closeBookmarkSearch(); });
     DOM.bookmarkSearchInput.addEventListener('input', debouncedBookmarkSearch);
 
-    if (DOM.emptyAddBookmark) {
-        DOM.emptyAddBookmark.addEventListener('click', () => openBookmarkModal());
-    }
-    if (DOM.emptyAddCategory) {
-        DOM.emptyAddCategory.addEventListener('click', () => openCategoryModal());
-    }
+    DOM.onboardingBrowserImportBtn?.addEventListener('click', () => DOM.browserImportFile?.click());
+    DOM.onboardingAddBookmarkBtn?.addEventListener('click', () => openBookmarkModal());
+    DOM.onboardingDismissBtn?.addEventListener('click', () => {
+        dismissSeedOnboarding();
+        renderAll();
+    });
 
     DOM.exportBtn.addEventListener('click', exportConfig);
     DOM.importBtn.addEventListener('click', () => DOM.importFile.click());

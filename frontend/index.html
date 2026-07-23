@@ -150,6 +150,16 @@
             <!-- TODO 将通过 JavaScript 动态渲染 -->
         </section>
 
+        <section id="libraryOnboarding" class="library-onboarding" aria-live="polite" hidden>
+            <h2 id="libraryOnboardingTitle"></h2>
+            <p id="libraryOnboardingHint"></p>
+            <div class="library-onboarding-actions">
+                <button type="button" class="btn library-onboarding-import" id="onboardingBrowserImportBtn">导入浏览器书签</button>
+                <button type="button" class="btn library-onboarding-secondary" id="onboardingAddBookmarkBtn">添加第一个书签</button>
+                <button type="button" class="btn library-onboarding-dismiss" id="onboardingDismissBtn">稍后再说</button>
+            </div>
+        </section>
+
         <!-- 分类筛选 -->
         <nav class="category-nav" id="categoryNav">
             <button class="category-btn active" data-category="all">
@@ -182,19 +192,6 @@
         <main class="bookmarks-container" id="bookmarksContainer">
             <!-- 书签将通过 JavaScript 动态渲染 -->
         </main>
-
-
-
-        <!-- 空状态 -->
-        <div class="empty-state" id="emptyState" style="display: none;">
-            <div class="empty-icon">🔍</div>
-            <p class="empty-text">没有找到匹配的书签</p>
-            <p class="empty-hint">试试其他关键词，或者添加一个新书签</p>
-            <div class="empty-actions">
-                <button class="btn btn-primary" id="emptyAddBookmark">+ 添加书签</button>
-                <button class="btn btn-secondary" id="emptyAddCategory">+ 添加分类</button>
-            </div>
-        </div>
 
         <!-- 页脚 -->
         <footer class="footer">

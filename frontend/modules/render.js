@@ -11,17 +11,80 @@ import { observeBookmarkIcons } from './api.js';
 import { bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { buildCategorySheetItems, buildCategoryFabLabel } from './ux.js';
 import { createVirtualScroll } from './virtual-scroll.js';
+import libraryOnboardingHelpers from './library-onboarding-helpers.cjs';
+
+const { getLibraryOnboardingState, shouldShowLibraryOnboarding } = libraryOnboardingHelpers;
+const SEED_ONBOARDING_DISMISSAL_KEY = 'bookmarks:seed-onboarding-dismissed';
 
 // 虚拟滚动实例映射（按分类ID）
 const virtualScrollInstances = new Map();
 const VIRTUAL_SCROLL_THRESHOLD = 50; // 书签数量超过此值时启用虚拟滚动
 
+function isSeedOnboardingDismissed() {
+    try {
+        return localStorage.getItem(SEED_ONBOARDING_DISMISSAL_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+export function dismissSeedOnboarding() {
+    try {
+        localStorage.setItem(SEED_ONBOARDING_DISMISSAL_KEY, '1');
+    } catch {
+        // Storage can be unavailable in private or quota-constrained browsers.
+    }
+}
+
+function renderFilteredEmptyStatus(shouldShow) {
+    const existingStatus = DOM.bookmarksContainer.querySelector('.filtered-empty');
+    if (!shouldShow) {
+        existingStatus?.remove();
+        return;
+    }
+    if (existingStatus) return;
+
+    const status = document.createElement('p');
+    status.className = 'filtered-empty';
+    status.setAttribute('role', 'status');
+    status.textContent = '未找到匹配的书签。请尝试其他关键词。';
+    DOM.bookmarksContainer.appendChild(status);
+}
+
 export function renderAll() {
     renderCategoryNav();
+    renderLibraryOnboarding();
     renderBookmarks();
     renderTodos();
     renderEngineDropdown();
     updateEngineDisplay();
+}
+
+export function renderLibraryOnboarding() {
+    if (!DOM.libraryOnboarding) return;
+
+    const libraryState = getLibraryOnboardingState(state.bookmarks);
+    const dismissed = isSeedOnboardingDismissed();
+    const shouldShow = shouldShowLibraryOnboarding({ bookmarks: state.bookmarks, dismissed });
+
+    if (!shouldShow) {
+        DOM.libraryOnboarding.hidden = true;
+        return;
+    }
+
+    const isEmptyLibrary = libraryState === 'empty';
+    if (DOM.libraryOnboardingTitle) {
+        DOM.libraryOnboardingTitle.textContent = isEmptyLibrary
+            ? '从浏览器书签开始'
+            : '这些是示例书签，导入你的常用入口吧';
+    }
+    if (DOM.libraryOnboardingHint) {
+        DOM.libraryOnboardingHint.textContent = isEmptyLibrary
+            ? '从 Chrome、Firefox 或 Edge 导出的 HTML 书签文件中导入，把每天会用到的入口带进来。'
+            : '示例书签只用于演示。导入 Chrome、Firefox 或 Edge 导出的 HTML 书签文件，换成你的常用入口。';
+    }
+    if (DOM.onboardingDismissBtn) DOM.onboardingDismissBtn.hidden = isEmptyLibrary;
+    DOM.libraryOnboarding.hidden = false;
 }
 
 export function renderCategoryNav() {
@@ -47,9 +110,12 @@ export function updateCategoryQuickLabel() {
 }
 
 export function renderBookmarks() {
+    if (!DOM.bookmarksContainer) return;
+
     const searchTerm = state.currentSearch.toLowerCase().trim();
     const isSearchMode = !!searchTerm;
     let hasResults = false;
+    let hasFilteredResults = false;
 
     const bookmarksByCategory = new Map();
     state.bookmarks.forEach(bookmark => {
@@ -70,6 +136,7 @@ export function renderBookmarks() {
                 item.url.toLowerCase().includes(searchTerm) ||
                 (tagsText && tagsText.toLowerCase().includes(searchTerm));
         });
+        if (isCurrentCategoryActive && filteredItems.length > 0) hasFilteredResults = true;
 
         const shouldShow = isCurrentCategoryActive && (filteredItems.length > 0 || state.currentCategory !== 'all');
 
@@ -193,8 +260,9 @@ export function renderBookmarks() {
         }
     });
 
-    DOM.emptyState.style.display = hasResults ? 'none' : 'block';
-    DOM.bookmarksContainer.style.display = hasResults ? 'flex' : 'none';
+    const shouldShowFilteredEmpty = isSearchMode && !hasFilteredResults;
+    renderFilteredEmptyStatus(shouldShowFilteredEmpty);
+    DOM.bookmarksContainer.style.display = hasResults || shouldShowFilteredEmpty ? 'flex' : 'none';
 
     requestAnimationFrame(() => {
         setTimeout(observeBookmarkIcons, 50);
