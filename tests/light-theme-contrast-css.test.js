@@ -35,3 +35,31 @@ test('light theme overrides dark-only surfaces and low contrast chips', () => {
   assert.match(css, /\[data-theme="light"\]\s+\.category-count\s*{[\s\S]*color:\s*hsl\(152,\s*70%,\s*20%\)/);
   assert.match(css, /\[data-theme="light"\]\s+\.tag-chip\s*{[\s\S]*color:\s*hsl\(215,\s*24%,\s*26%\)/);
 });
+
+test('final light global-search overrides keep its opaque surfaces ahead of the dark defaults', () => {
+  const marker = '/* Global search light-theme contrast */';
+  const finalOverride = css.lastIndexOf(marker);
+  assert.notEqual(finalOverride, -1, 'expected a final global-search light-theme override block');
+  assert.ok(finalOverride > css.indexOf('.global-search-panel {'), 'light global-search rules must follow dark defaults');
+
+  const block = css.slice(finalOverride);
+  for (const selector of [
+    '.global-search-overlay',
+    '.global-search-panel',
+    '.global-search-header',
+    '.global-search-result-icon',
+    '.global-search-result:hover',
+    '.global-search-close:hover'
+  ]) {
+    const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    assert.match(block, new RegExp(`\\[data-theme="light"\\][\\s\\S]*${escapedSelector}`), `missing light override for ${selector}`);
+    assert.match(block, new RegExp(`\\[data-theme="light"\\]\\[data-wallpaper-tone\\][\\s\\S]*${escapedSelector}`), `missing wallpaper-light override for ${selector}`);
+  }
+
+  assert.match(block, /background:\s*hsl\(210,\s*24%,\s*96%\)\s*!important/);
+  assert.match(block, /background:\s*hsl\(0,\s*0%,\s*100%\)\s*!important/);
+  assert.match(block, /background:\s*hsl\(210,\s*22%,\s*91%\)\s*!important/);
+  assert.match(block, /background:\s*rgba\(15,\s*23,\s*42,\s*0\.36\)\s*!important/);
+  assert.match(block, /color:\s*var\(--text-primary\)\s*!important/);
+  assert.doesNotMatch(block, /hsl\(220,\s*13%,\s*10%\)/, 'light override must not reintroduce the dark global-search panel surface');
+});

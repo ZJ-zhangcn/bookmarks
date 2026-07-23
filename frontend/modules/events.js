@@ -10,21 +10,14 @@ import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmar
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
 import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl, fetchBookmarkMetadata } from './favicon.js';
-import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
+import { openGlobalSearch, closeGlobalSearch, handleGlobalSearch, handleGlobalSearchFocusTrap } from './search.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
-import { initSearchSuggestions } from './suggest.js';
 import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { initUxFeedback, renderCategorySheet } from './ux.js';
 import { initCommandPalette } from './command-palette.js';
 
-// 防抖搜索函数
-const debouncedSearch = debounce((value) => {
-    state.setCurrentSearch(value);
-    renderBookmarks();
-}, 200);
-
-const debouncedBookmarkSearch = debounce(() => {
-    handleBookmarkSearch();
+const debouncedGlobalSearch = debounce(() => {
+    handleGlobalSearch();
 }, 150);
 
 function updateCategoryFabLabel() {
@@ -117,11 +110,17 @@ function initCategoryQuickSwitcher() {
 
 export function bindAllEvents() {
     initUxFeedback();
-    initSearchSuggestions();
     initCategoryQuickSwitcher();
-    initCommandPalette({ openBookmarkModal, openSettingsModal });
-    DOM.searchInput.addEventListener('input', e => debouncedSearch(e.target.value));
-    DOM.searchClear.addEventListener('click', () => { DOM.searchInput.value = ''; state.setCurrentSearch(''); renderBookmarks(); });
+    document.addEventListener('keydown', handleGlobalSearchFocusTrap);
+    initCommandPalette({ openBookmarkModal, openSettingsModal, openGlobalSearch });
+
+    DOM.globalSearchTrigger.addEventListener('click', openGlobalSearch);
+    DOM.globalSearchClose.addEventListener('click', closeGlobalSearch);
+    DOM.globalSearchOverlay.addEventListener('click', e => {
+        if (e.target === DOM.globalSearchOverlay) closeGlobalSearch();
+    });
+    DOM.globalSearchInput.addEventListener('input', debouncedGlobalSearch);
+    DOM.quickAddBtn.addEventListener('click', () => openBookmarkModal());
 
     DOM.categoryNav.addEventListener('click', e => {
         const btn = e.target.closest('.category-btn');
@@ -136,18 +135,13 @@ export function bindAllEvents() {
             state.setCurrentEngine({ name: opt.querySelector('span:last-child').textContent, icon: opt.dataset.icon, url: opt.dataset.url });
             import('./render.js').then(m => m.updateEngineDisplay());
             DOM.engineSelector.classList.remove('open');
-            DOM.webSearchInput.focus();
+            if (DOM.globalSearchOverlay.classList.contains('open')) {
+                handleGlobalSearch();
+                DOM.globalSearchInput.focus();
+            }
         }
     });
     document.addEventListener('click', e => { if (!DOM.engineSelector.contains(e.target)) DOM.engineSelector.classList.remove('open'); });
-    DOM.webSearchForm.addEventListener('submit', e => {
-        e.preventDefault();
-        const q = DOM.webSearchInput.value.trim();
-        if (q) {
-            window.open(state.currentEngine.url + encodeURIComponent(q), '_blank');
-            DOM.webSearchInput.value = '';
-        }
-    });
 
     DOM.engineManageBtn.addEventListener('click', e => { e.stopPropagation(); DOM.engineSelector.classList.remove('open'); openEngineModal(); });
     DOM.modalClose.addEventListener('click', closeEngineModal);
@@ -211,10 +205,6 @@ export function bindAllEvents() {
     DOM.settingsModal.addEventListener('click', e => { if (e.target === DOM.settingsModal) closeSettingsModal(); });
     DOM.addCategoryBtn.addEventListener('click', () => openCategoryModal());
 
-    DOM.bookmarkSearchBtn.addEventListener('click', openBookmarkSearch);
-    DOM.bookmarkSearchClose.addEventListener('click', closeBookmarkSearch);
-    DOM.bookmarkSearchOverlay.addEventListener('click', e => { if (e.target === DOM.bookmarkSearchOverlay) closeBookmarkSearch(); });
-    DOM.bookmarkSearchInput.addEventListener('input', debouncedBookmarkSearch);
 
     DOM.onboardingBrowserImportBtn?.addEventListener('click', () => DOM.browserImportFile?.click());
     DOM.onboardingAddBookmarkBtn?.addEventListener('click', () => openBookmarkModal());
@@ -317,10 +307,10 @@ export function bindAllEvents() {
             return;
         }
 
-        // Ctrl/Cmd + F: Open bookmark search
+        // Ctrl/Cmd + F: Open global search
         if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
             e.preventDefault();
-            openBookmarkSearch();
+            openGlobalSearch();
             return;
         }
 

@@ -4,6 +4,7 @@
  */
 import * as state from './state.js';
 import { escapeHtml, escapeHtmlAttribute, toSafeExternalUrl } from './utils.js';
+import { closeGlobalSearch } from './search.js';
 
 let overlay;
 let input;
@@ -22,7 +23,17 @@ export function initCommandPalette(actions = {}) {
 
         if ((event.ctrlKey || event.metaKey) && key === 'k') {
             event.preventDefault();
+            if (document.getElementById('globalSearchOverlay')?.classList.contains('open')) {
+                closeGlobalSearch();
+            }
             openCommandPalette();
+            return;
+        }
+
+        if ((event.ctrlKey || event.metaKey) && key === 'f' && isOpen()) {
+            event.preventDefault();
+            closeCommandPalette();
+            commandActions.openGlobalSearch?.();
             return;
         }
 
@@ -135,7 +146,7 @@ function buildCommandItems(query) {
         { command: 'add-bookmark', icon: '➕', title: '新增书签', subtitle: '打开添加书签窗口', type: '操作', run: () => commandActions.openBookmarkModal?.() },
         { command: 'open-settings', icon: '⚙️', title: '打开设置', subtitle: '主题、同步、AI、导入导出', type: '操作', run: () => commandActions.openSettingsModal?.() },
         { command: 'open-todos', icon: '✅', title: '查看 TODO', subtitle: '跳转到待办区域', type: '操作', run: () => scrollToElement('#todosContainer') },
-        { command: 'focus-filter', icon: '🔎', title: '过滤书签', subtitle: '聚焦首页书签过滤框', type: '操作', run: () => focusElement('#searchInput') }
+        { command: 'open-global-search', icon: '🔎', title: '打开全局搜索', subtitle: '搜索本地书签或使用当前引擎搜索网页', type: '操作', run: () => commandActions.openGlobalSearch?.() }
     ];
 
     const bookmarkItems = state.bookmarks.map(bookmark => ({
@@ -164,7 +175,8 @@ function buildCommandItems(query) {
         type: '搜索',
         run: () => {
             state.setCurrentEngine({ name: engine.name, icon: engine.icon, url: engine.url });
-            focusElement('#webSearchInput');
+            import('./render.js').then(module => module.updateEngineDisplay());
+            commandActions.openGlobalSearch?.();
         }
     }));
 
@@ -200,13 +212,6 @@ function runActiveCommand() {
 
 function scrollToElement(selector) {
     document.querySelector(selector)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function focusElement(selector) {
-    const element = document.querySelector(selector);
-    if (!element) return;
-    element.focus();
-    element.select?.();
 }
 
 function scrollToCategory(categoryId) {

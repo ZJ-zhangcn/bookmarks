@@ -9,6 +9,7 @@ import { renderCategoryList } from './category.js';
 import { preloadImage, toSafeImageUrl } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { showToast, showConfirm } from './ux.js';
+import { closeGlobalSearch } from './search.js';
 import webdavHelpers from './webdav-helpers.cjs';
 
 const { buildWebdavStatusPanel, parseJsonResponse } = webdavHelpers;
@@ -17,6 +18,13 @@ const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
 const WALLPAPER_TONE_ATTR = 'data-wallpaper-tone';
 let wallpaperLoadSeq = 0;
 const INITIAL_WALLPAPER_WAIT_MS = 5000;
+
+function resolveGlobalSearchVisibility(config = {}) {
+    if (Object.prototype.hasOwnProperty.call(config, 'globalSearchShow')) {
+        return config.globalSearchShow !== false;
+    }
+    return config.searchBarShow !== false || config.bookmarkFilterShow !== false;
+}
 
 export function getWallpaperToneFromLuminance(luminance, dimPercent = 30) {
     const value = Number(luminance);
@@ -127,7 +135,8 @@ export function closeSettingsModal() {
 }
 
 export function closeAllModals() {
-    [DOM.engineModal, DOM.bookmarkModal, DOM.categoryModal, DOM.settingsModal, DOM.bookmarkSearchOverlay, DOM.todoModal].forEach(m => m?.classList.remove('open'));
+    closeGlobalSearch();
+    [DOM.engineModal, DOM.bookmarkModal, DOM.categoryModal, DOM.settingsModal, DOM.todoModal].forEach(m => m?.classList.remove('open'));
     document.body.style.overflow = '';
 }
 
@@ -147,8 +156,7 @@ export async function loadPersonalization(options = {}) {
             if (DOM.logoShow) DOM.logoShow.checked = config.logoShow !== false;
             if (DOM.logoText) DOM.logoText.value = config.logoText || '书签导航';
             if (DOM.clockShow) DOM.clockShow.checked = config.clockShow || false;
-            if (DOM.searchBarShow) DOM.searchBarShow.checked = config.searchBarShow !== false;
-            if (DOM.bookmarkFilterShow) DOM.bookmarkFilterShow.checked = config.bookmarkFilterShow !== false;
+            if (DOM.globalSearchShow) DOM.globalSearchShow.checked = resolveGlobalSearchVisibility(config);
             if (DOM.wallpaperUrl) DOM.wallpaperUrl.value = config.wallpaperUrl || '';
             if (DOM.wallpaperBlur) DOM.wallpaperBlur.value = config.wallpaperBlur || 0;
             if (DOM.wallpaperBlurValue) DOM.wallpaperBlurValue.textContent = (config.wallpaperBlur || 0) + 'px';
@@ -169,8 +177,7 @@ export async function savePersonalization() {
         logoShow: DOM.logoShow ? DOM.logoShow.checked : true,
         logoText: DOM.logoText ? DOM.logoText.value : '书签导航',
         clockShow: DOM.clockShow ? DOM.clockShow.checked : false,
-        searchBarShow: DOM.searchBarShow ? DOM.searchBarShow.checked : true,
-        bookmarkFilterShow: DOM.bookmarkFilterShow ? DOM.bookmarkFilterShow.checked : true,
+        globalSearchShow: DOM.globalSearchShow ? DOM.globalSearchShow.checked : true,
         wallpaperUrl: DOM.wallpaperUrl ? DOM.wallpaperUrl.value : '',
         wallpaperBlur: DOM.wallpaperBlur ? parseInt(DOM.wallpaperBlur.value) : 0,
         wallpaperDim: DOM.wallpaperDim ? parseInt(DOM.wallpaperDim.value) : 30,
@@ -199,11 +206,9 @@ export async function applyPersonalization(config, options = {}) {
         logo.textContent = config.logoText || '书签导航';
     }
 
-    const searchForm = document.querySelector('.web-search-form');
-    if (searchForm) searchForm.style.display = config.searchBarShow ? '' : 'none';
-
-    if (DOM.searchContainer) {
-        DOM.searchContainer.style.display = config.bookmarkFilterShow !== false ? '' : 'none';
+    const globalSearchBar = document.querySelector('.global-search-bar');
+    if (globalSearchBar) {
+        globalSearchBar.style.display = resolveGlobalSearchVisibility(config) ? '' : 'none';
     }
 
     if (DOM.clockContainer) {
