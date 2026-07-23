@@ -73,6 +73,16 @@ test('favicon request guard ignores stale requests', () => {
     assert.equal(guard.isCurrent(second, 'https://b.example'), true);
 });
 
+test('favicon request guard invalidates active work when a modal closes or URL changes', () => {
+    const guard = createFaviconRequestGuard();
+    const request = guard.start('https://example.com');
+    guard.invalidate();
+
+    assert.equal(guard.isCurrent(request, 'https://example.com'), false);
+    const fresh = guard.start('https://example.com');
+    assert.equal(guard.isCurrent(fresh, 'https://example.com'), true);
+});
+
 test('resolveIconHref resolves relative icon URLs against page URL', () => {
     assert.equal(
         resolveIconHref('assets/icon.png', 'https://example.com/docs/page.html'),

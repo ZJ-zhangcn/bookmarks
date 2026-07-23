@@ -268,8 +268,8 @@
     </div>
 
     <!-- 书签管理弹窗 -->
-    <div class="modal-overlay" id="bookmarkModal">
-        <div class="modal">
+    <div class="modal-overlay" id="bookmarkModal" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bookmarkModalTitle">
             <div class="modal-header">
                 <h3 class="modal-title" id="bookmarkModalTitle">添加书签</h3>
                 <button class="modal-close" id="bookmarkModalClose" aria-label="关闭">
@@ -279,74 +279,79 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div class="form-group" id="bookmarkNameGroup">
-                    <label for="bookmarkInputName">名称 *</label>
-                    <input type="text" id="bookmarkInputName" placeholder="网站名称" autocomplete="off" data-form-type="other">
-                </div>
                 <div class="form-group">
                     <label for="bookmarkInputUrl">网址 *</label>
                     <input type="url" id="bookmarkInputUrl" placeholder="https://example.com" autocomplete="off" data-form-type="other">
                 </div>
-                <div class="form-group">
-                    <label for="bookmarkInputDesc">描述</label>
-                    <input type="text" id="bookmarkInputDesc" placeholder="简短描述" autocomplete="off" data-form-type="other">
-                </div>
-                <div class="form-group" id="bookmarkTagsGroup">
-                    <label for="bookmarkInputTags">标签</label>
-                    <input type="text" id="bookmarkInputTags" placeholder="用逗号分隔：开发,工具,AI" autocomplete="off" data-form-type="other">
-                    <div class="ai-actions" id="bookmarkAiActions" style="display:none;">
-                        <button type="button" class="btn btn-secondary btn-sm" id="aiGenerateBtn">AI 生成描述/标签</button>
-                        <button type="button" class="btn btn-secondary btn-sm" id="aiRefineBtn">AI 精炼摘要</button>
-                        <small class="ai-hint" id="aiStatusHint"></small>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>图标</label>
-                    <div class="icon-selector">
-                        <div class="icon-tabs">
-                            <button type="button" class="icon-tab active" data-type="auto">自动</button>
-                            <button type="button" class="icon-tab" data-type="library">图标库</button>
-                            <button type="button" class="icon-tab" data-type="emoji">Emoji</button>
-                            <button type="button" class="icon-tab" data-type="url">URL</button>
-                            <button type="button" class="icon-tab" data-type="upload">上传</button>
+                <details id="bookmarkAdvancedFields" class="bookmark-advanced-fields">
+                    <summary>更多选项（名称、分类、图标与 AI）</summary>
+                    <div class="bookmark-advanced-content">
+                        <div class="form-group" id="bookmarkNameGroup">
+                            <label for="bookmarkInputName">名称 *</label>
+                            <input type="text" id="bookmarkInputName" placeholder="网站名称" autocomplete="off" data-form-type="other">
                         </div>
-                        <div class="icon-content">
-                            <div class="icon-panel active" data-panel="auto">
-                                <small class="icon-hint">根据网址自动获取</small>
-                                <div class="icon-preview icon-preview-auto" id="iconPreviewAuto"><span>🌐</span></div>
+                        <div class="form-group">
+                            <label for="bookmarkInputDesc">描述</label>
+                            <input type="text" id="bookmarkInputDesc" placeholder="简短描述" autocomplete="off" data-form-type="other">
+                        </div>
+                        <div class="form-group" id="bookmarkTagsGroup">
+                            <label for="bookmarkInputTags">标签</label>
+                            <input type="text" id="bookmarkInputTags" placeholder="用逗号分隔：开发,工具,AI" autocomplete="off" data-form-type="other">
+                            <div class="ai-actions" id="bookmarkAiActions" style="display:none;">
+                                <button type="button" class="btn btn-secondary btn-sm" id="aiGenerateBtn">AI 生成描述/标签</button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="aiRefineBtn">AI 精炼摘要</button>
+                                <small class="ai-hint" id="aiStatusHint"></small>
                             </div>
-                            <div class="icon-panel" data-panel="library">
-                                <small class="icon-hint">从已有书签中选择图标</small>
-                                <div class="icon-library-grid" id="iconLibraryGrid">
-                                    <div class="icon-library-loading">加载中...</div>
+                        </div>
+                        <div class="form-group">
+                            <label>图标</label>
+                            <div class="icon-selector">
+                                <div class="icon-tabs">
+                                    <button type="button" class="icon-tab active" data-type="auto">自动</button>
+                                    <button type="button" class="icon-tab" data-type="library">图标库</button>
+                                    <button type="button" class="icon-tab" data-type="emoji">Emoji</button>
+                                    <button type="button" class="icon-tab" data-type="url">URL</button>
+                                    <button type="button" class="icon-tab" data-type="upload">上传</button>
+                                </div>
+                                <div class="icon-content">
+                                    <div class="icon-panel active" data-panel="auto">
+                                        <small class="icon-hint">根据网址自动获取</small>
+                                        <div class="icon-preview icon-preview-auto" id="iconPreviewAuto"><span>🌐</span></div>
+                                    </div>
+                                    <div class="icon-panel" data-panel="library">
+                                        <small class="icon-hint">从已有书签中选择图标</small>
+                                        <div class="icon-library-grid" id="iconLibraryGrid">
+                                            <div class="icon-library-loading">加载中...</div>
+                                        </div>
+                                    </div>
+                                    <div class="icon-panel" data-panel="emoji">
+                                        <input type="text" id="bookmarkInputEmoji" placeholder="🌐" maxlength="4" autocomplete="off" data-form-type="other">
+                                    </div>
+                                    <div class="icon-panel" data-panel="url">
+                                        <input type="url" id="bookmarkInputIconUrl" placeholder="图标 URL" autocomplete="off" data-form-type="other">
+                                    </div>
+                                    <div class="icon-panel" data-panel="upload">
+                                        <input type="file" id="bookmarkInputIconFile" accept="image/*" style="display:none;">
+                                        <button type="button" class="btn btn-secondary btn-sm" id="uploadIconBtn">选择图片</button>
+                                        <div class="icon-preview" id="iconPreviewUpload"></div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="icon-panel" data-panel="emoji">
-                                <input type="text" id="bookmarkInputEmoji" placeholder="🌐" maxlength="4" autocomplete="off" data-form-type="other">
-                            </div>
-                            <div class="icon-panel" data-panel="url">
-                                <input type="url" id="bookmarkInputIconUrl" placeholder="图标 URL" autocomplete="off" data-form-type="other">
-                            </div>
-                            <div class="icon-panel" data-panel="upload">
-                                <input type="file" id="bookmarkInputIconFile" accept="image/*" style="display:none;">
-                                <button type="button" class="btn btn-secondary btn-sm" id="uploadIconBtn">选择图片</button>
-                                <div class="icon-preview" id="iconPreviewUpload"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="bookmarkInputCategory">分类</label>
+                            <select id="bookmarkInputCategory"></select>
+                            <div id="categoryRecommendations" class="category-recommendations" style="display:none;" aria-live="polite">
+                                <span class="rec-label">AI 推荐：</span>
+                                <div class="rec-chips" id="categoryRecChips"></div>
+                                <button type="button" class="rec-close" id="categoryRecClose" aria-label="关闭推荐">&times;</button>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label for="bookmarkInputCategory">分类</label>
-                    <select id="bookmarkInputCategory"></select>
-                    <div id="categoryRecommendations" class="category-recommendations" style="display:none;" aria-live="polite">
-                        <span class="rec-label">AI 推荐：</span>
-                        <div class="rec-chips" id="categoryRecChips"></div>
-                        <button type="button" class="rec-close" id="categoryRecClose" aria-label="关闭推荐">&times;</button>
-                    </div>
-                </div>
+                </details>
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" id="cancelBookmarkBtn">取消</button>
-                    <button type="button" class="btn btn-primary" id="saveBookmarkBtn">保存</button>
+                    <button type="button" class="btn btn-primary" id="saveBookmarkBtn">保存书签</button>
                 </div>
             </div>
         </div>

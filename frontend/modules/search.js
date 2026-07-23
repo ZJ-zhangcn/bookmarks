@@ -6,6 +6,7 @@ import * as state from './state.js';
 import { escapeHtml, escapeHtmlAttribute, toSafeExternalUrl } from './utils.js';
 import { openBookmarkModal, recordBookmarkVisit } from './bookmark.js';
 import { bindIconImageFallbacks, iconImageHtml } from './icon-display.js';
+import { syncDocumentScrollLock } from './overlay-state.js';
 import globalSearchHelpers from './global-search-helpers.cjs';
 
 const { buildGlobalSearchModel } = globalSearchHelpers;
@@ -34,21 +35,6 @@ function isConnected(element) {
 
 function isValidGlobalSearchRestoreTarget(element) {
     return isConnected(element) && !element.closest?.('[aria-hidden="true"]');
-}
-
-function hasOpenModalOrOverlay() {
-    const cachedOverlays = [
-        DOM.engineModal,
-        DOM.bookmarkModal,
-        DOM.categoryModal,
-        DOM.settingsModal,
-        DOM.todoModal,
-        DOM.categorySheetOverlay,
-        DOM.confirmOverlay
-    ];
-
-    return cachedOverlays.some(overlay => overlay?.classList.contains('open'))
-        || Boolean(document.querySelector('.command-palette-overlay.open'));
 }
 
 function getGlobalSearchFocusables() {
@@ -85,7 +71,7 @@ export function closeGlobalSearch() {
     DOM.globalSearchOverlay.setAttribute('aria-hidden', 'true');
     DOM.globalSearchTrigger?.setAttribute('aria-expanded', 'false');
     clearGlobalSearch();
-    document.body.style.overflow = hasOpenModalOrOverlay() ? 'hidden' : '';
+    syncDocumentScrollLock();
 
     const previousFocus = globalSearchPreviousFocus;
     globalSearchPreviousFocus = null;

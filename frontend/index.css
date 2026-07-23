@@ -576,6 +576,36 @@ body {
     visibility: visible;
 }
 
+/* 书签弹窗会同步聚焦 URL：打开立即可见，关闭后再隐藏。 */
+#bookmarkModal {
+    /* Cmd/Ctrl+N rises above ordinary dialogs; higher-layer search, sheets, and confirms stay foreground. */
+    z-index: 1150;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity var(--transition-normal), visibility 0s linear var(--transition-normal);
+}
+
+#bookmarkModal.open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+}
+
+/* Form controls inherit overlay visibility. Limit their transitions so a modal
+   opening never delays visibility (and therefore synchronous URL focus). */
+#bookmarkModal :is(
+    .form-group input,
+    .form-group textarea,
+    .form-group select,
+    .btn,
+    .modal-close,
+    .icon-tab
+) {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+}
+
 /* 分类弹窗需要更高的 z-index 以覆盖设置弹窗 */
 #categoryModal {
     z-index: 1100;
@@ -642,6 +672,61 @@ body {
     padding: var(--spacing-lg);
     overflow-y: auto;
     flex: 1;
+}
+
+.bookmark-advanced-fields {
+    margin-bottom: var(--spacing-lg);
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+}
+
+.bookmark-advanced-fields summary {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+}
+
+.bookmark-advanced-fields summary::-webkit-details-marker {
+    display: none;
+}
+
+.bookmark-advanced-fields summary::after {
+    content: '⌄';
+    margin-left: auto;
+    color: var(--text-tertiary);
+    transition: transform var(--transition-fast);
+}
+
+.bookmark-advanced-fields[open] summary {
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.bookmark-advanced-fields[open] summary::after {
+    transform: rotate(180deg);
+}
+
+.bookmark-advanced-content {
+    padding: var(--spacing-md);
+}
+
+.bookmark-advanced-content .form-group:last-child {
+    margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .bookmark-advanced-fields summary {
+        min-height: 48px;
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
 }
 
 /* 搜索引擎列表 */
@@ -1548,7 +1633,7 @@ body {
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-    pointer-events: auto;
+    pointer-events: none;
     animation: toastIn 0.2s ease both;
 }
 
@@ -3266,6 +3351,7 @@ input:checked+.slider:before {
 
 .icon-tabs {
     display: flex;
+    overflow-x: auto;
     background: var(--bg-tertiary);
 }
 

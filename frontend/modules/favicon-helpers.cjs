@@ -57,6 +57,9 @@ function createFaviconRequestGuard() {
             currentToken += 1;
             return { token: currentToken, url: String(url || '') };
         },
+        invalidate() {
+            currentToken += 1;
+        },
         isCurrent(request, currentUrl) {
             return Boolean(request)
                 && request.token === currentToken

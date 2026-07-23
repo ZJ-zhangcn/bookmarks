@@ -1,6 +1,7 @@
 /**
  * Lightweight UX helpers: toast notifications, confirm dialog, and mobile category switcher data.
  */
+import { syncDocumentScrollLock } from './overlay-state.js';
 import { escapeHtml, escapeHtmlAttribute } from './utils.js';
 
 export function buildCategorySheetItems({ categories = [], bookmarks = [] } = {}) {
@@ -125,7 +126,7 @@ export function showConfirm({
             settled = true;
             overlay.classList.remove('open');
             overlay.setAttribute('aria-hidden', 'true');
-            document.body.style.overflow = '';
+            syncDocumentScrollLock();
             confirmBtn.removeEventListener('click', onConfirm);
             cancelBtn.removeEventListener('click', onCancel);
             overlay.removeEventListener('click', onOverlayClick);

@@ -6,15 +6,16 @@ import * as state from './state.js';
 import { debounce } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
 import { dismissSeedOnboarding, renderAll, renderBookmarks, updateCategoryQuickLabel } from './render.js';
-import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload } from './bookmark.js';
+import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleBookmarkModalFocusTrap, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload } from './bookmark.js';
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
-import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl, fetchBookmarkMetadata } from './favicon.js';
+import { fetchEngineIcon, updateEngineIconPreviewUrl, handleBookmarkUrlInput, flushBookmarkUrlEnrichment } from './favicon.js';
 import { openGlobalSearch, closeGlobalSearch, handleGlobalSearch, handleGlobalSearchFocusTrap } from './search.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
 import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { initUxFeedback, renderCategorySheet } from './ux.js';
 import { initCommandPalette } from './command-palette.js';
+import { hasForegroundOverlayAbove, isConfirmOverlayOpen } from './overlay-state.js';
 
 const debouncedGlobalSearch = debounce(() => {
     handleGlobalSearch();
@@ -112,6 +113,7 @@ export function bindAllEvents() {
     initUxFeedback();
     initCategoryQuickSwitcher();
     document.addEventListener('keydown', handleGlobalSearchFocusTrap);
+    document.addEventListener('keydown', handleBookmarkModalFocusTrap);
     initCommandPalette({ openBookmarkModal, openSettingsModal, openGlobalSearch });
 
     DOM.globalSearchTrigger.addEventListener('click', openGlobalSearch);
@@ -190,10 +192,8 @@ export function bindAllEvents() {
 
     DOM.selectFromLibraryBtn.addEventListener('click', toggleEngineIconLibrary);
 
-    DOM.bookmarkInputUrl.addEventListener('blur', () => {
-        fetchFavicon();
-        fetchBookmarkMetadata();
-    });
+    DOM.bookmarkInputUrl.addEventListener('input', handleBookmarkUrlInput);
+    DOM.bookmarkInputUrl.addEventListener('blur', flushBookmarkUrlEnrichment);
 
     DOM.categoryModalClose.addEventListener('click', closeCategoryModal);
     DOM.categoryModal.addEventListener('click', e => { if (e.target === DOM.categoryModal) closeCategoryModal(); });
@@ -289,6 +289,7 @@ export function bindAllEvents() {
         // Ctrl/Cmd + N: Add new bookmark
         if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'n') {
             e.preventDefault();
+            if (hasForegroundOverlayAbove(DOM.bookmarkModal)) return;
             openBookmarkModal();
             return;
         }
@@ -314,8 +315,9 @@ export function bindAllEvents() {
             return;
         }
 
-        // Escape: Close all modals
+        // Escape: let a foreground confirmation resolve before closing lower dialogs.
         if (e.key === 'Escape') {
+            if (isConfirmOverlayOpen()) return;
             closeAllModals();
             return;
         }

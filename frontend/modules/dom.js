@@ -51,6 +51,7 @@ export function cacheDOMElements() {
         bookmarkModal: document.getElementById('bookmarkModal'),
         bookmarkModalTitle: document.getElementById('bookmarkModalTitle'),
         bookmarkModalClose: document.getElementById('bookmarkModalClose'),
+        bookmarkAdvancedFields: document.getElementById('bookmarkAdvancedFields'),
         bookmarkInputName: document.getElementById('bookmarkInputName'),
         bookmarkInputUrl: document.getElementById('bookmarkInputUrl'),
         bookmarkInputDesc: document.getElementById('bookmarkInputDesc'),

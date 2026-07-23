@@ -16,6 +16,86 @@ import {
 
 const faviconRequestGuard = createFaviconRequestGuard();
 const metadataRequestGuard = createFaviconRequestGuard();
+const BOOKMARK_ENRICHMENT_DELAY_MS = 350;
+let bookmarkEnrichmentTimer = null;
+let queuedBookmarkUrl = '';
+let observedBookmarkUrl = '';
+let enrichedBookmarkUrl = '';
+
+function isBookmarkModalOpen() {
+    return Boolean(DOM.bookmarkModal?.classList?.contains?.('open'));
+}
+
+function getValidBookmarkHttpUrl() {
+    const url = DOM.bookmarkInputUrl?.value.trim() || '';
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? url : '';
+    } catch {
+        return '';
+    }
+}
+
+function clearBookmarkEnrichmentTimer() {
+    if (bookmarkEnrichmentTimer) {
+        clearTimeout(bookmarkEnrichmentTimer);
+        bookmarkEnrichmentTimer = null;
+    }
+}
+
+function observeBookmarkUrl(url) {
+    if (url === observedBookmarkUrl) return;
+    observedBookmarkUrl = url;
+    enrichedBookmarkUrl = '';
+    faviconRequestGuard.invalidate();
+    metadataRequestGuard.invalidate();
+}
+
+function runBookmarkUrlEnrichment(url) {
+    clearBookmarkEnrichmentTimer();
+    queuedBookmarkUrl = '';
+    if (!isBookmarkModalOpen() || !url || url !== getValidBookmarkHttpUrl() || url === enrichedBookmarkUrl) return;
+    enrichedBookmarkUrl = url;
+    fetchFavicon();
+    fetchBookmarkMetadata();
+}
+
+export function handleBookmarkUrlInput() {
+    const url = getValidBookmarkHttpUrl();
+    const rawUrl = DOM.bookmarkInputUrl?.value.trim() || '';
+    observeBookmarkUrl(rawUrl);
+    if (!url) {
+        clearBookmarkEnrichmentTimer();
+        queuedBookmarkUrl = '';
+        return;
+    }
+    if (url === enrichedBookmarkUrl || url === queuedBookmarkUrl) return;
+
+    clearBookmarkEnrichmentTimer();
+    queuedBookmarkUrl = url;
+    bookmarkEnrichmentTimer = setTimeout(() => {
+        bookmarkEnrichmentTimer = null;
+        runBookmarkUrlEnrichment(url);
+    }, BOOKMARK_ENRICHMENT_DELAY_MS);
+}
+
+export function flushBookmarkUrlEnrichment() {
+    const url = getValidBookmarkHttpUrl();
+    const rawUrl = DOM.bookmarkInputUrl?.value.trim() || '';
+    observeBookmarkUrl(rawUrl);
+    clearBookmarkEnrichmentTimer();
+    queuedBookmarkUrl = '';
+    runBookmarkUrlEnrichment(url);
+}
+
+export function cancelBookmarkUrlEnrichment() {
+    clearBookmarkEnrichmentTimer();
+    queuedBookmarkUrl = '';
+    observedBookmarkUrl = '';
+    enrichedBookmarkUrl = '';
+    faviconRequestGuard.invalidate();
+    metadataRequestGuard.invalidate();
+}
 
 async function tryLoadImage(url, timeout = 3000) {
     return new Promise(resolve => {
@@ -100,6 +180,7 @@ export async function fetchFavicon() {
         if (!faviconRequestGuard.isCurrent(request, DOM.bookmarkInputUrl.value.trim())) return;
         renderBookmarkIconCandidates(allIcons);
     } catch (e) {
+        if (!faviconRequestGuard.isCurrent(request, DOM.bookmarkInputUrl.value.trim())) return;
         clearIconCandidates(DOM.iconPreviewAuto, '🌐');
     }
 }

@@ -8,11 +8,24 @@ import { renderAll } from './render.js';
 import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { getSelectedIconUrl } from './icon-picker.js';
+import { cancelBookmarkUrlEnrichment } from './favicon.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 import { showToast, showConfirm, showPrompt } from './ux.js';
+import { hasForegroundOverlayAbove, syncDocumentScrollLock } from './overlay-state.js';
 import sortHelpers from './sort-helpers.cjs';
+import bookmarkDraftHelpers from './bookmark-draft-helpers.cjs';
 
 const { moveItemInList } = sortHelpers;
+const { buildQuickBookmarkDraft } = bookmarkDraftHelpers;
+const BOOKMARK_FOCUSABLE_SELECTOR = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])'
+].join(',');
+let bookmarkPreviousFocus = null;
 
 async function loadAiModule() {
     return import('./ai.js');
@@ -22,6 +35,52 @@ function refreshAiUiVisibility() {
     loadAiModule()
         .then(ai => ai.updateAiUiVisibility())
         .catch(() => {});
+}
+
+function isBookmarkModalOpen() {
+    return Boolean(DOM.bookmarkModal?.classList?.contains?.('open'));
+}
+
+function isConnected(element) {
+    return Boolean(element && element.isConnected !== false);
+}
+
+function isValidBookmarkRestoreTarget(element) {
+    return isConnected(element)
+        && element !== document.body
+        && !element.closest?.('[aria-hidden="true"]');
+}
+
+function getBookmarkModalFocusables() {
+    const dialog = DOM.bookmarkModal?.querySelector('.modal') || DOM.bookmarkModal;
+    if (!dialog) return [];
+    return Array.from(dialog.querySelectorAll?.(BOOKMARK_FOCUSABLE_SELECTOR) || [])
+        .filter(element => isConnected(element)
+            && !element.disabled
+            && element.getAttribute?.('aria-hidden') !== 'true'
+            && !element.closest?.('details:not([open])'));
+}
+
+export function handleBookmarkModalFocusTrap(event) {
+    if (event.key !== 'Tab' || !isBookmarkModalOpen()
+        || hasForegroundOverlayAbove(DOM.bookmarkModal)) return;
+    const focusables = getBookmarkModalFocusables();
+    if (!focusables.length) return;
+
+    const first = focusables[0];
+    const last = focusables.at(-1);
+    const activeElement = document.activeElement;
+    if (event.shiftKey) {
+        if (activeElement === first || !DOM.bookmarkModal?.contains(activeElement)) {
+            event.preventDefault();
+            last.focus();
+        }
+        return;
+    }
+    if (activeElement === last || !DOM.bookmarkModal?.contains(activeElement)) {
+        event.preventDefault();
+        first.focus();
+    }
 }
 
 export function handleBookmarkClick(e) {
@@ -55,12 +114,42 @@ export function recordBookmarkVisit(bookmarkId) {
 }
 
 export function openBookmarkModal(bookmarkId = null, categoryId = null) {
+    const wasOpen = isBookmarkModalOpen();
+    if (!wasOpen) {
+        bookmarkPreviousFocus = isValidBookmarkRestoreTarget(document.activeElement)
+            ? document.activeElement
+            : isValidBookmarkRestoreTarget(DOM.quickAddBtn)
+                ? DOM.quickAddBtn
+                : null;
+    }
+
+    cancelBookmarkUrlEnrichment();
     state.setEditingBookmarkId(bookmarkId);
     const existingBookmark = bookmarkId ? state.bookmarks.find(b => b.id === bookmarkId) : null;
+    const isQuick = !bookmarkId;
+    const requestedCategoryId = existingBookmark?.category_id || categoryId;
+    const requestedInbox = isQuick && (requestedCategoryId === '__inbox__'
+        || state.categories.some(category => String(category.id) === String(requestedCategoryId)
+            && category.name === '收件箱'));
+    const initialCategoryId = requestedInbox
+        ? '__inbox__'
+        : requestedCategoryId || (isQuick ? '__inbox__' : state.categories[0]?.id || '');
+    const categoryChoices = isQuick
+        ? state.categories.filter(category => category.name !== '收件箱')
+        : state.categories;
+    const inboxOption = isQuick
+        ? `<option value="__inbox__">收件箱</option>`
+        : '';
 
-    DOM.bookmarkInputCategory.innerHTML = state.categories.map(c =>
-        `<option value="${escapeHtmlAttribute(c.id)}" ${c.id === categoryId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
+    DOM.bookmarkInputCategory.innerHTML = inboxOption + categoryChoices.map(category =>
+        `<option value="${escapeHtmlAttribute(category.id)}">${escapeHtml(category.name)}</option>`
     ).join('') + '<option value="__new__">+ 新建分类...</option>';
+    DOM.bookmarkInputCategory.value = initialCategoryId;
+
+    DOM.bookmarkModal.dataset ||= {};
+    DOM.bookmarkModal.dataset.mode = bookmarkId ? 'edit' : 'quick';
+    DOM.bookmarkAdvancedFields && (DOM.bookmarkAdvancedFields.open = Boolean(bookmarkId));
+    if (DOM.saveBookmarkBtn) DOM.saveBookmarkBtn.textContent = '保存书签';
 
     if (bookmarkId) {
         DOM.bookmarkModalTitle.textContent = '编辑书签';
@@ -104,7 +193,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
                 }
             } else {
                 DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
-                delete DOM.iconPreviewAuto.dataset.hasCandidates;
+                if (DOM.iconPreviewAuto.dataset) delete DOM.iconPreviewAuto.dataset.hasCandidates;
             }
             DOM.iconPreviewUpload.innerHTML = '';
         }
@@ -120,18 +209,20 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
         DOM.bookmarkInputEmoji.value = '';
         DOM.bookmarkInputIconUrl.value = '';
         DOM.iconPreviewAuto.innerHTML = '<span>🌐</span>';
-        delete DOM.iconPreviewAuto.dataset.hasCandidates;
+        if (DOM.iconPreviewAuto.dataset) delete DOM.iconPreviewAuto.dataset.hasCandidates;
         DOM.iconPreviewUpload.innerHTML = '';
     }
 
-    document.querySelectorAll('.icon-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.icon-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.icon-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.icon-panel').forEach(panel => panel.classList.remove('active'));
     document.querySelector(`[data-type="${state.currentIconType}"]`)?.classList.add('active');
     DOM.bookmarkModal.querySelector(`[data-panel="${state.currentIconType}"]`)?.classList.add('active');
 
     hideCategoryRecommendations();
     DOM.bookmarkModal.classList.add('open');
+    if (DOM.bookmarkModal.setAttribute) DOM.bookmarkModal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    DOM.bookmarkInputUrl?.focus?.();
     refreshAiUiVisibility();
     if (DOM.bookmarkInputTags) {
         loadBookmarkAi(bookmarkId);
@@ -149,7 +240,7 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
             if (newCatName && newCatName.trim()) {
                 createCategoryForBookmark(newCatName.trim());
             } else {
-                this.value = state.categories[0]?.id || '';
+                this.value = initialCategoryId;
             }
         }
     };
@@ -186,19 +277,45 @@ export async function saveBookmarkAi(bookmarkId) {
 }
 
 export function closeBookmarkModal() {
+    const wasOpen = isBookmarkModalOpen();
+    cancelBookmarkUrlEnrichment();
     DOM.bookmarkModal.classList.remove('open');
-    document.body.style.overflow = '';
+    if (DOM.bookmarkModal.setAttribute) DOM.bookmarkModal.setAttribute('aria-hidden', 'true');
+    syncDocumentScrollLock();
     state.setEditingBookmarkId(null);
+    state.setEditingBookmark(null);
+
+    const previousFocus = bookmarkPreviousFocus;
+    bookmarkPreviousFocus = null;
+    if (!wasOpen && !previousFocus) return;
+    const focusTarget = isValidBookmarkRestoreTarget(previousFocus)
+        ? previousFocus
+        : isValidBookmarkRestoreTarget(DOM.quickAddBtn)
+            ? DOM.quickAddBtn
+            : null;
+    focusTarget?.focus?.();
 }
 
 export async function saveBookmark() {
-    const name = DOM.bookmarkInputName.value.trim();
-    const url = DOM.bookmarkInputUrl.value.trim();
+    let name = DOM.bookmarkInputName.value.trim();
+    let url = DOM.bookmarkInputUrl.value.trim();
     const description = DOM.bookmarkInputDesc.value.trim();
-    const category_id = DOM.bookmarkInputCategory.value;
+    let category_id = DOM.bookmarkInputCategory.value;
+    const isQuick = DOM.bookmarkModal.dataset?.mode === 'quick';
 
-    if (!name) { showToast('请填写名称', 'warning'); return; }
-    if (!url) { showToast('请填写网址', 'warning'); return; }
+    if (isQuick) {
+        const draft = buildQuickBookmarkDraft({ url, name, categoryId: category_id });
+        if (!draft.ok) {
+            showToast('请输入有效的 HTTP(S) 网址', 'warning');
+            return;
+        }
+        name = draft.name;
+        url = draft.url;
+        category_id = draft.categoryId;
+    } else {
+        if (!name) { showToast('请填写名称', 'warning'); return; }
+        if (!url) { showToast('请填写网址', 'warning'); return; }
+    }
 
     let icon_type = state.currentIconType;
     let icon_data = '';
@@ -249,13 +366,12 @@ export async function saveBookmark() {
     }
 
     try {
-        const nameForSave = DOM.bookmarkInputName.value.trim();
         const res = await fetch(`${state.API_BASE}/api/bookmarks`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 id: state.editingBookmarkId,
-                category_id, name: nameForSave, url, description, icon, icon_type, icon_data
+                category_id, name, url, description, icon, icon_type, icon_data
             })
         });
         const result = await res.json().catch(() => null);

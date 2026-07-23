@@ -10,6 +10,7 @@ import { preloadImage, toSafeImageUrl } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { showToast, showConfirm } from './ux.js';
 import { closeGlobalSearch } from './search.js';
+import { closeBookmarkModal } from './bookmark.js';
 import webdavHelpers from './webdav-helpers.cjs';
 
 const { buildWebdavStatusPanel, parseJsonResponse } = webdavHelpers;
@@ -136,7 +137,8 @@ export function closeSettingsModal() {
 
 export function closeAllModals() {
     closeGlobalSearch();
-    [DOM.engineModal, DOM.bookmarkModal, DOM.categoryModal, DOM.settingsModal, DOM.todoModal].forEach(m => m?.classList.remove('open'));
+    closeBookmarkModal();
+    [DOM.engineModal, DOM.categoryModal, DOM.settingsModal, DOM.todoModal].forEach(m => m?.classList.remove('open'));
     document.body.style.overflow = '';
 }
 
