@@ -84,6 +84,7 @@ function validateBackupPayload(data, options = {}) {
         const required = mode === 'restore' && ['categories', 'bookmarks', 'engines'].includes(field);
         collections[field] = assertArrayField(data, field, required);
     }
+    const trash = assertArrayField(data, 'bookmark_trash');
 
     const categoryIds = assertUniqueIds(collections.categories, 'categories', 'id');
     const bookmarkIds = assertUniqueIds(collections.bookmarks, 'bookmarks', 'id');
@@ -91,6 +92,12 @@ function validateBackupPayload(data, options = {}) {
     assertUniqueIds(collections.todos, 'todos', 'id');
     assertUniqueIds(collections.icon_library, 'icon_library', 'id');
     assertUniqueIds(collections.bookmark_ai, 'bookmark_ai', 'bookmark_id');
+    assertUniqueIds(trash, 'bookmark_trash', 'id');
+    for (let index = 0; index < trash.length; index += 1) {
+        if (typeof trash[index].snapshot_json !== 'string' || !trash[index].snapshot_json) {
+            throw new Error(`bookmark_trash[${index}].snapshot_json 必须是非空字符串`);
+        }
+    }
 
     const totals = { iconBytes: 0 };
     for (let index = 0; index < collections.bookmarks.length; index += 1) {
@@ -161,6 +168,7 @@ async function clearRestoredData(conn) {
     await conn.execute('DELETE FROM todos');
     await conn.execute('DELETE FROM icon_library');
     await conn.execute('DELETE FROM icon_discovery_cache');
+    await conn.execute('DELETE FROM bookmark_trash');
     await conn.execute('DELETE FROM config WHERE key = ?', ['personalization']);
 }
 
@@ -189,6 +197,12 @@ async function exportData(db, includeIcons) {
     }
 
     const todos = await db.queryAll('SELECT id, title, is_done, sort_order, created_at, updated_at, completed_at FROM todos');
+    let bookmarkTrash = [];
+    try {
+        bookmarkTrash = await db.queryAll('SELECT id, snapshot_json, deleted_at, expires_at FROM bookmark_trash');
+    } catch {
+        bookmarkTrash = [];
+    }
 
     let personalization = null;
     const row = await db.queryOne('SELECT value FROM config WHERE `key` = ?', ['personalization']);
@@ -205,6 +219,21 @@ async function exportData(db, includeIcons) {
             ...e,
             icon: (e.icon && !e.icon.startsWith('data:') && !e.icon.startsWith('http')) ? e.icon : ''
         }));
+        bookmarkTrash = bookmarkTrash.map(item => {
+            try {
+                const snapshot = JSON.parse(item.snapshot_json);
+                if (snapshot?.bookmark) {
+                    snapshot.bookmark = {
+                        ...snapshot.bookmark,
+                        icon_type: snapshot.bookmark.icon_type === 'emoji' ? snapshot.bookmark.icon_type : 'auto',
+                        icon_data: snapshot.bookmark.icon_type === 'emoji' ? snapshot.bookmark.icon_data : ''
+                    };
+                }
+                return { ...item, snapshot_json: JSON.stringify(snapshot) };
+            } catch {
+                return item;
+            }
+        });
     }
 
     return {
@@ -216,6 +245,7 @@ async function exportData(db, includeIcons) {
         bookmark_ai: bookmarkAi,
         icon_library: iconLibrary,
         todos,
+        bookmark_trash: bookmarkTrash,
         engines,
         personalization
     };
@@ -229,12 +259,22 @@ async function importData(db, data, options = {}) {
         bookmark_ai: bookmarkAi,
         icon_library: iconLibrary,
         todos,
+        bookmark_trash: bookmarkTrash,
         engines,
         personalization
     } = data;
 
     await db.transaction(async (conn) => {
         if (validation.mode === 'restore') await clearRestoredData(conn);
+
+        if (validation.mode === 'restore') {
+            for (const trash of (bookmarkTrash || [])) {
+                await conn.execute(
+                    'INSERT INTO bookmark_trash (id, snapshot_json, deleted_at, expires_at) VALUES (?, ?, ?, ?)',
+                    [trash.id, trash.snapshot_json, trash.deleted_at || null, trash.expires_at || null]
+                );
+            }
+        }
 
         if (categories) {
             for (let i = 0; i < categories.length; i++) {

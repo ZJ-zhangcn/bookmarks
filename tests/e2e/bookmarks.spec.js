@@ -56,6 +56,17 @@ test('creates, searches, edits and deletes a bookmark', async ({ page }) => {
     expect(bootstrapRequests).toBe(0);
 });
 
+test('moves deleted bookmarks to trash and restores them from the undo action', async ({ page }) => {
+    const name = `E2E 回收站 ${Date.now()}`;
+    await addBookmark(page, name, 'https://example.com/trash');
+    const card = page.locator('.bookmark-card', { hasText: name });
+    await card.locator('.bookmark-action-btn.delete').click();
+    await page.locator('#confirmAccept').click();
+    await expect(page.locator('.bookmark-card', { hasText: name })).toHaveCount(0);
+    await page.locator('.toast-action', { hasText: '撤销' }).click();
+    await expect(page.locator('.bookmark-card', { hasText: name })).toBeVisible();
+});
+
 test('records a visit while keeping the warm bootstrap cache', async ({ page }) => {
     const first = await page.request.get('/api/bootstrap-v2');
     expect(first.ok()).toBeTruthy();
@@ -105,7 +116,7 @@ test('exports data and shows traceable release information', async ({ page }) =>
     await page.locator('.settings-tab[data-tab="about"]').click();
     await expect(page.locator('#aboutVersion')).toHaveText('版本 e2e');
     await expect(page.locator('#aboutBuildInfo')).toContainText('playwright');
-    await expect(page.locator('#aboutBuildInfo')).toContainText('SQLite schema v1');
+    await expect(page.locator('#aboutBuildInfo')).toContainText('SQLite schema v2');
 });
 
 test('restores a validated snapshot and refreshes AI tags immediately', async ({ page }) => {

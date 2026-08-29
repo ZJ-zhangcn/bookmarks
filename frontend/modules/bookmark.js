@@ -9,7 +9,7 @@ import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } f
 import { refreshIconLibraryCache } from './icon-library.js';
 import { getSelectedIconUrl } from './icon-picker.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
-import { showToast, showConfirm, showPrompt } from './ux.js';
+import { showToast, showActionToast, showConfirm, showPrompt } from './ux.js';
 import sortHelpers from './sort-helpers.cjs';
 import { apiRequest, runWithButton } from './api-client.js';
 
@@ -297,10 +297,24 @@ export async function deleteBookmark(id) {
     if (!ok) return;
 
     try {
-        await apiRequest(`/api/bookmarks?id=${encodeURIComponent(id)}`, { method: 'DELETE' }, { errorPrefix: '删除书签失败' });
+        const removed = await apiRequest(`/api/bookmarks?id=${encodeURIComponent(id)}`, { method: 'DELETE' }, { errorPrefix: '删除书签失败' });
         state.removeBookmark(id);
         renderBookmarks();
-        showToast('书签已删除', 'success');
+        showActionToast('书签已移入回收站', '撤销', async toast => {
+            try {
+                const restored = await apiRequest(`/api/bookmarks/${encodeURIComponent(removed?.trashId || id)}/restore`, {
+                    method: 'POST'
+                }, { toast: false });
+                if (restored) {
+                    state.upsertBookmark(restored);
+                    renderBookmarks();
+                    toast.remove();
+                    showToast('书签已恢复', 'success');
+                }
+            } catch (error) {
+                showToast('撤销失败：' + error.message, 'error');
+            }
+        }, { type: 'success', timeoutMs: 8000 });
     } catch {
         // apiRequest 已统一提示
     }

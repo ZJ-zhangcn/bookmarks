@@ -1,4 +1,4 @@
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 const TABLE_SCHEMA_SQL = `
     CREATE TABLE IF NOT EXISTS categories (
@@ -104,6 +104,10 @@ const REQUIRED_COLUMNS = {
     todos: ['id', 'title', 'is_done', 'sort_order', 'created_at', 'updated_at', 'completed_at']
 };
 
+const V2_REQUIRED_COLUMNS = {
+    bookmark_trash: ['id', 'snapshot_json', 'deleted_at', 'expires_at']
+};
+
 function quoteIdentifier(value) {
     return `"${String(value).replace(/"/g, '""')}"`;
 }
@@ -116,8 +120,8 @@ function getTableColumns(connection, tableName) {
     return connection.prepare(`PRAGMA table_info(${quoteIdentifier(tableName)})`).all().map(row => row.name);
 }
 
-function assertRequiredColumns(connection) {
-    for (const [tableName, requiredColumns] of Object.entries(REQUIRED_COLUMNS)) {
+function assertRequiredColumns(connection, schemas = REQUIRED_COLUMNS) {
+    for (const [tableName, requiredColumns] of Object.entries(schemas)) {
         const actualColumns = new Set(getTableColumns(connection, tableName));
         const missingColumns = requiredColumns.filter(column => !actualColumns.has(column));
         if (missingColumns.length > 0) {
@@ -132,6 +136,10 @@ function assertRequiredColumns(connection) {
 function ensureCurrentSchema(connection) {
     connection.exec(TABLE_SCHEMA_SQL);
     assertRequiredColumns(connection);
+    if (getSchemaVersion(connection) >= 2) {
+        assertRequiredColumns(connection, V2_REQUIRED_COLUMNS);
+        connection.exec('CREATE INDEX IF NOT EXISTS idx_bookmark_trash_deleted_at ON bookmark_trash(deleted_at DESC);');
+    }
     connection.exec(INDEX_SCHEMA_SQL);
 }
 
@@ -141,6 +149,21 @@ const MIGRATIONS = [
         name: 'baseline_current_sqlite_schema',
         up(connection) {
             ensureCurrentSchema(connection);
+        }
+    },
+    {
+        version: 2,
+        name: 'add_bookmark_trash',
+        up(connection) {
+            connection.exec(`
+                CREATE TABLE IF NOT EXISTS bookmark_trash (
+                    id TEXT PRIMARY KEY,
+                    snapshot_json TEXT NOT NULL,
+                    deleted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    expires_at DATETIME
+                );
+            `);
+            connection.exec('CREATE INDEX IF NOT EXISTS idx_bookmark_trash_deleted_at ON bookmark_trash(deleted_at DESC);');
         }
     }
 ];

@@ -7,7 +7,8 @@ function createMemoryBookmarkDb() {
     const tables = {
         categories: [{ id: 'cat-1', name: '默认', icon: '📁', sort_order: 0, created_at: '2026-01-01' }],
         bookmarks: [],
-        bookmarkAi: []
+        bookmarkAi: [],
+        bookmarkTrash: []
     };
 
     const db = {
@@ -73,6 +74,10 @@ function createMemoryBookmarkDb() {
                 tables.bookmarkAi = tables.bookmarkAi.filter(row => row.bookmark_id !== params[0]);
                 return { changes: 1 };
             }
+            if (/INSERT INTO bookmark_trash/i.test(sql)) {
+                tables.bookmarkTrash.push({ id: params[0], snapshot_json: params[1], expires_at: params[2] });
+                return { changes: 1 };
+            }
             if (/DELETE FROM bookmarks/i.test(sql)) {
                 tables.bookmarks = tables.bookmarks.filter(row => row.id !== params[0]);
                 return { changes: 1 };
@@ -133,4 +138,5 @@ test('deleting a bookmark removes its AI metadata in the same transaction', asyn
 
     assert.equal(db.tables.bookmarks.length, 0);
     assert.equal(db.tables.bookmarkAi.length, 0);
+    assert.equal(db.tables.bookmarkTrash.length, 1);
 });

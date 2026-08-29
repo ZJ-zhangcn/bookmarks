@@ -17,6 +17,34 @@ module.exports = function(db, options = {}) {
         res.json(success(bookmarks));
     }));
 
+    // GET /api/bookmarks/trash
+    router.get('/trash', asyncHandler(async (_req, res) => {
+        const removed = await bookmarksService.purgeTrash(db, { expiredOnly: true });
+        const items = await bookmarksService.listTrash(db);
+        res.json(success({ items, removed }));
+    }));
+
+    // POST /api/bookmarks/:id/restore
+    router.post('/:id/restore', requireAdmin, asyncHandler(async (req, res) => {
+        const bookmark = await bookmarksService.restoreBookmark(db, req.params.id);
+        if (!bookmark) throw new AppError('回收站中不存在该书签', 404);
+        onDataChanged();
+        res.json(success(bookmark));
+    }));
+
+    // DELETE /api/bookmarks/trash (清空或清理过期记录)
+    router.delete('/trash', requireAdmin, asyncHandler(async (req, res) => {
+        const removed = await bookmarksService.purgeTrash(db, { expiredOnly: req.query.expired === '1' });
+        res.json(success({ removed }));
+    }));
+
+    // DELETE /api/bookmarks/trash/:id (永久删除单条)
+    router.delete('/trash/:id', requireAdmin, asyncHandler(async (req, res) => {
+        const removed = await bookmarksService.deleteTrash(db, req.params.id);
+        if (!removed) throw new AppError('回收站中不存在该记录', 404);
+        res.json(success({ removed: 1 }));
+    }));
+
     // GET /api/bookmarks/:id/icon
     router.get('/:id/icon', asyncHandler(async (req, res) => {
         const bookmark = await bookmarksService.getBookmarkIcon(db, req.params.id);
@@ -80,9 +108,10 @@ module.exports = function(db, options = {}) {
         if (!id) {
             throw new AppError('缺少书签 ID', 400);
         }
-        await bookmarksService.deleteBookmark(db, id);
+        const removed = await bookmarksService.deleteBookmark(db, id);
+        if (!removed) throw new AppError('书签不存在', 404);
         onDataChanged();
-        res.json(success());
+        res.json(success(removed));
     }));
 
     // PUT /api/bookmarks (排序)

@@ -6,7 +6,7 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderAll } from './render.js';
 import { renderCategoryList } from './category.js';
-import { preloadImage, toSafeImageUrl } from './utils.js';
+import { preloadImage, toSafeImageUrl, escapeHtml } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { showToast, showConfirm } from './ux.js';
 import { apiRequest, runWithButton } from './api-client.js';
@@ -18,6 +18,7 @@ const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
 const WALLPAPER_TONE_ATTR = 'data-wallpaper-tone';
 let wallpaperLoadSeq = 0;
 const INITIAL_WALLPAPER_WAIT_MS = 5000;
+let trashEventsBound = false;
 
 export function getWallpaperToneFromLuminance(luminance, dimPercent = 30) {
     const value = Number(luminance);
@@ -118,8 +119,91 @@ export { initTheme, applyTheme, setTheme } from './theme.js';
 export function openSettingsModal() {
     renderCategoryList();
     loadPersonalization();
+    bindTrashEvents();
+    loadTrash();
     DOM.settingsModal.classList.add('open');
     document.body.style.overflow = 'hidden';
+}
+
+function formatTrashDate(value) {
+    if (!value) return '未知时间';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('zh-CN');
+}
+
+function renderTrash(items = []) {
+    if (!DOM.trashList) return;
+    if (!items.length) {
+        DOM.trashList.innerHTML = '<div class="setting-hint">回收站为空</div>';
+        if (DOM.trashEmptyBtn) DOM.trashEmptyBtn.disabled = true;
+        return;
+    }
+    if (DOM.trashEmptyBtn) DOM.trashEmptyBtn.disabled = false;
+    DOM.trashList.innerHTML = items.map(item => `
+        <div class="trash-item" data-trash-id="${escapeHtml(item.id)}">
+            <div class="trash-item-info">
+                <strong>${escapeHtml(item.name)}</strong>
+                <span>${escapeHtml(item.categoryName || '未分类')} · 删除于 ${escapeHtml(formatTrashDate(item.deletedAt))}</span>
+            </div>
+            <div class="trash-item-actions">
+                <button type="button" class="btn btn-secondary btn-sm" data-trash-action="restore">恢复</button>
+                <button type="button" class="btn btn-danger btn-sm" data-trash-action="delete">永久删除</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+export async function loadTrash() {
+    if (!DOM.trashList) return;
+    try {
+        const result = await apiRequest('/api/bookmarks/trash', { cache: 'no-store' }, { toast: false });
+        renderTrash(result?.items || []);
+    } catch (error) {
+        DOM.trashList.innerHTML = `<div class="setting-hint">回收站加载失败：${escapeHtml(error.message)}</div>`;
+    }
+}
+
+function bindTrashEvents() {
+    if (trashEventsBound || !DOM.trashList) return;
+    trashEventsBound = true;
+    DOM.trashRefreshBtn?.addEventListener('click', loadTrash);
+    DOM.trashEmptyBtn?.addEventListener('click', async () => {
+        const confirmed = await showConfirm({
+            title: '清空回收站？',
+            message: '清空后无法恢复这些书签。',
+            confirmText: '清空',
+            danger: true
+        });
+        if (!confirmed) return;
+        try {
+            await apiRequest('/api/bookmarks/trash', { method: 'DELETE' }, { errorPrefix: '清空回收站失败' });
+            await loadTrash();
+            showToast('回收站已清空', 'success');
+        } catch {}
+    });
+    DOM.trashList.addEventListener('click', async event => {
+        const button = event.target.closest('[data-trash-action]');
+        const item = button?.closest('[data-trash-id]');
+        if (!button || !item) return;
+        const trashId = item.dataset.trashId;
+        if (button.dataset.trashAction === 'restore') {
+            try {
+                const restored = await apiRequest(`/api/bookmarks/${encodeURIComponent(trashId)}/restore`, { method: 'POST' }, { errorPrefix: '恢复书签失败' });
+                state.upsertBookmark(restored);
+                renderAll();
+                await loadTrash();
+                showToast('书签已恢复', 'success');
+            } catch {}
+            return;
+        }
+        const confirmed = await showConfirm({ title: '永久删除书签？', message: '永久删除后无法恢复。', confirmText: '永久删除', danger: true });
+        if (!confirmed) return;
+        try {
+            await apiRequest(`/api/bookmarks/trash/${encodeURIComponent(trashId)}`, { method: 'DELETE' }, { errorPrefix: '永久删除失败' });
+            await loadTrash();
+            showToast('书签已永久删除', 'success');
+        } catch {}
+    });
 }
 
 export function closeSettingsModal() {

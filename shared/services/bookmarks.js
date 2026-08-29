@@ -180,10 +180,152 @@ async function saveBookmark(db, { id, category_id, name, url, description, icon,
 }
 
 async function deleteBookmark(db, id) {
+    const bookmark = await getBookmarkById(db, id);
+    if (!bookmark) return null;
+    const category = bookmark.category_id
+        ? await db.queryOne('SELECT id, name, icon, type, sort_order FROM categories WHERE id = ?', [bookmark.category_id])
+        : null;
+    const aiRow = await db.queryOne(
+        'SELECT bookmark_id, tags, summary, provider, model, updated_at FROM bookmark_ai WHERE bookmark_id = ?',
+        [bookmark.id]
+    );
+    let aiTags = bookmark.tags;
+    if (aiRow?.tags) {
+        try { aiTags = JSON.parse(aiRow.tags); } catch { aiTags = []; }
+    }
+    const trashId = newId('trash');
+    const retentionDays = Number.isFinite(Number.parseInt(process.env.TRASH_RETENTION_DAYS, 10))
+        ? Math.min(365, Math.max(1, Number.parseInt(process.env.TRASH_RETENTION_DAYS, 10)))
+        : 30;
+    const expiresAt = new Date(Date.now() + retentionDays * 24 * 60 * 60 * 1000).toISOString();
+    const snapshot = {
+        version: 1,
+        bookmark: {
+            id: bookmark.id,
+            category_id: bookmark.category_id,
+            name: bookmark.name,
+            url: bookmark.url || '',
+            description: bookmark.description || '',
+            icon: bookmark.icon || '🌐',
+            icon_type: bookmark.icon_type || 'auto',
+            icon_data: bookmark.icon_data || '',
+            sort_order: bookmark.sort_order ?? 0,
+            visit_count: bookmark.visit_count ?? 0,
+            last_visited_at: bookmark.last_visited_at || null,
+            created_at: bookmark.created_at || null
+        },
+        category: category || null,
+        bookmark_ai: {
+            bookmark_id: bookmark.id,
+            tags: Array.isArray(aiTags) ? aiTags : [],
+            summary: aiRow?.summary || bookmark.ai_summary || '',
+            provider: aiRow?.provider || '',
+            model: aiRow?.model || '',
+            updated_at: aiRow?.updated_at || null
+        }
+    };
+
     await db.transaction(async (conn) => {
+        await conn.execute(
+            'INSERT INTO bookmark_trash (id, snapshot_json, deleted_at, expires_at) VALUES (?, ?, CURRENT_TIMESTAMP, ?)',
+            [trashId, JSON.stringify(snapshot), expiresAt]
+        );
         await conn.execute('DELETE FROM bookmark_ai WHERE bookmark_id = ?', [id]);
         await conn.execute('DELETE FROM bookmarks WHERE id = ?', [id]);
     });
+    return { trashId, bookmarkId: bookmark.id, name: bookmark.name, expiresAt };
+}
+
+function parseTrashSnapshot(row) {
+    if (!row?.snapshot_json) throw new Error('回收站记录内容无效');
+    let snapshot;
+    try { snapshot = JSON.parse(row.snapshot_json); } catch { throw new Error('回收站记录内容损坏'); }
+    if (!snapshot?.bookmark?.id || !snapshot.bookmark.category_id || !snapshot.bookmark.name) {
+        throw new Error('回收站记录缺少必要书签字段');
+    }
+    return snapshot;
+}
+
+async function listTrash(db, { includeExpired = false } = {}) {
+    const rows = await db.queryAll(
+        `SELECT id, snapshot_json, deleted_at, expires_at
+         FROM bookmark_trash
+         ${includeExpired ? '' : 'WHERE expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP'}
+         ORDER BY deleted_at DESC`
+    );
+    return rows.map(row => {
+        try {
+            const snapshot = parseTrashSnapshot(row);
+            return {
+                id: row.id,
+                bookmarkId: snapshot.bookmark.id,
+                name: snapshot.bookmark.name,
+                url: snapshot.bookmark.url || '',
+                description: snapshot.bookmark.description || '',
+                icon: snapshot.bookmark.icon || '🌐',
+                categoryId: snapshot.bookmark.category_id,
+                categoryName: snapshot.category?.name || '',
+                deletedAt: row.deleted_at,
+                expiresAt: row.expires_at
+            };
+        } catch {
+            return null;
+        }
+    }).filter(Boolean);
+}
+
+async function restoreBookmark(db, id) {
+    const rows = await db.queryAll('SELECT id, snapshot_json FROM bookmark_trash ORDER BY deleted_at DESC');
+    const row = rows.find(item => item.id === id || (() => {
+        try { return JSON.parse(item.snapshot_json)?.bookmark?.id === id; } catch { return false; }
+    })());
+    if (!row) return null;
+    const snapshot = parseTrashSnapshot(row);
+    const bookmark = snapshot.bookmark;
+    const existing = await db.queryOne('SELECT id FROM bookmarks WHERE id = ?', [bookmark.id]);
+    if (existing) throw new Error('同 ID 书签已存在，无法恢复');
+    let category = await db.queryOne('SELECT id FROM categories WHERE id = ?', [bookmark.category_id]);
+    let categoryId = bookmark.category_id;
+
+    await db.transaction(async conn => {
+        if (!category) {
+            const categorySnapshot = snapshot.category || {};
+            const maxOrder = await db.queryOne('SELECT MAX(sort_order) AS max_order FROM categories');
+            categoryId = newId('cat');
+            await conn.execute(
+                'INSERT INTO categories (id, name, icon, type, sort_order) VALUES (?, ?, ?, ?, ?)',
+                [categoryId, `${categorySnapshot.name || '已恢复'}（恢复）`, categorySnapshot.icon || '📁', categorySnapshot.type || 'bookmark', (maxOrder?.max_order ?? -1) + 1]
+            );
+        }
+        await conn.execute(
+            `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, sort_order, visit_count, last_visited_at, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))`,
+            [bookmark.id, categoryId, bookmark.name, bookmark.url || '', bookmark.description || '', bookmark.icon || '🌐', bookmark.icon_type || 'auto', bookmark.icon_data || '', bookmark.sort_order ?? 0, Number(bookmark.visit_count) || 0, bookmark.last_visited_at || null, bookmark.created_at || null]
+        );
+        const ai = snapshot.bookmark_ai;
+        if (ai) {
+            const tags = Array.isArray(ai.tags) ? JSON.stringify(ai.tags) : (ai.tags || '[]');
+            await conn.execute(
+                'INSERT INTO bookmark_ai (bookmark_id, tags, summary, provider, model, updated_at) VALUES (?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))',
+                [bookmark.id, tags, ai.summary || '', ai.provider || '', ai.model || '', ai.updated_at || null]
+            );
+        }
+        await conn.execute('DELETE FROM bookmark_trash WHERE id = ?', [row.id]);
+    });
+    return getBookmarkById(db, bookmark.id);
+}
+
+async function deleteTrash(db, id) {
+    const result = await db.execute('DELETE FROM bookmark_trash WHERE id = ?', [id]);
+    return Boolean(result?.changes);
+}
+
+async function purgeTrash(db, { expiredOnly = false } = {}) {
+    const sql = expiredOnly
+        ? 'DELETE FROM bookmark_trash WHERE expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP'
+        : 'DELETE FROM bookmark_trash';
+    const result = await db.execute(sql);
+    return Number(result?.changes) || 0;
 }
 
 async function sortBookmarks(db, order) {
@@ -222,6 +364,10 @@ module.exports = {
     getBatchIcons,
     saveBookmark,
     deleteBookmark,
+    listTrash,
+    restoreBookmark,
+    deleteTrash,
+    purgeTrash,
     sortBookmarks,
     recordBookmarkVisit
 };

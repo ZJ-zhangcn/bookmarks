@@ -31,13 +31,17 @@ test('empty SQLite database migrates to the current schema version', () => {
 
         assert.equal(result.fromVersion, 0);
         assert.equal(result.toVersion, CURRENT_SCHEMA_VERSION);
-        assert.deepEqual(result.applied.map(item => item.version), [1]);
+        assert.deepEqual(result.applied.map(item => item.version), [1, 2]);
         assert.equal(getSchemaVersion(connection), CURRENT_SCHEMA_VERSION);
 
         for (const [tableName, expectedColumns] of Object.entries(REQUIRED_COLUMNS)) {
             const actualColumns = connection.prepare(`PRAGMA table_info("${tableName}")`).all().map(row => row.name);
             assert.deepEqual(actualColumns, expectedColumns);
         }
+        assert.deepEqual(
+            connection.prepare('PRAGMA table_info("bookmark_trash")').all().map(row => row.name),
+            ['id', 'snapshot_json', 'deleted_at', 'expires_at']
+        );
     });
 });
 

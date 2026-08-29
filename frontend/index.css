@@ -2787,6 +2787,58 @@ body {
     white-space: nowrap;
 }
 
+.trash-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
+.trash-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) 0;
+    border-top: 1px solid var(--glass-border);
+}
+
+.trash-item-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.trash-item-info strong,
+.trash-item-info span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trash-item-info span {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
+.trash-item-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+    .trash-item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .trash-item-actions {
+        width: 100%;
+    }
+}
+
 /* AI 状态提示较长，允许换行 */
 #aiSettingsServerHint {
     white-space: pre-wrap;
