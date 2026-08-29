@@ -58,6 +58,27 @@ async function getAllBookmarks(db, { includeIcons = false } = {}) {
     return bookmarks;
 }
 
+async function getBookmarkById(db, id) {
+    const bookmark = await db.queryOne(
+        `SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
+                b.icon_data, b.sort_order, b.created_at, b.visit_count, b.last_visited_at,
+                c.name as category_name, c.icon as category_icon,
+                ba.tags, ba.summary as ai_summary
+         FROM bookmarks b
+         LEFT JOIN categories c ON b.category_id = c.id
+         LEFT JOIN bookmark_ai ba ON b.id = ba.bookmark_id
+         WHERE b.id = ? AND COALESCE(b.item_type, 'bookmark') <> 'component'`,
+        [id]
+    );
+    if (!bookmark) return null;
+    try { bookmark.tags = JSON.parse(bookmark.tags || '[]'); } catch { bookmark.tags = []; }
+    if (!Array.isArray(bookmark.tags)) bookmark.tags = [];
+    bookmark.ai_summary = bookmark.ai_summary || '';
+    bookmark.visit_count = Number(bookmark.visit_count) || 0;
+    bookmark.last_visited_at = bookmark.last_visited_at || null;
+    return bookmark;
+}
+
 async function getGroupedBookmarks(db) {
     const categories = await db.queryAll('SELECT * FROM categories ORDER BY sort_order, created_at');
     const bookmarks = await db.queryAll(`
@@ -155,7 +176,7 @@ async function saveBookmark(db, { id, category_id, name, url, description, icon,
         params
     );
 
-    return { id: bookmarkId };
+    return getBookmarkById(db, bookmarkId);
 }
 
 async function deleteBookmark(db, id) {
@@ -177,18 +198,25 @@ async function sortBookmarks(db, order) {
 
 async function recordBookmarkVisit(db, id) {
     if (!id) return { changes: 0 };
-    return db.execute(
+    const result = await db.execute(
         `UPDATE bookmarks
          SET visit_count = COALESCE(visit_count, 0) + 1,
              last_visited_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         [id]
     );
+    if (!result?.changes) return { changes: 0, bookmark: null };
+    const bookmark = await db.queryOne(
+        'SELECT id, visit_count, last_visited_at FROM bookmarks WHERE id = ?',
+        [id]
+    );
+    return { changes: result.changes, bookmark };
 }
 
 module.exports = {
     attachBookmarkAi,
     getAllBookmarks,
+    getBookmarkById,
     getGroupedBookmarks,
     getBookmarkIcon,
     getBatchIcons,

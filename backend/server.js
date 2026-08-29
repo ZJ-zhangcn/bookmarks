@@ -113,7 +113,6 @@ app.use((req, res, next) => {
     if (writeMethods.includes(req.method)) {
         const affectedPaths = [
             '/api/categories',
-            '/api/bookmarks',
             '/api/engines',
             '/api/config',
             '/api/todos',
@@ -166,7 +165,12 @@ app.get('/api/health', async (req, res) => {
 // ========================================
 // 模块化路由
 // ========================================
-const routes = require('./routes')(db);
+const routes = require('./routes')(db, {
+    bookmarks: {
+        onDataChanged: () => bootstrapV2Module.clearBootstrapCache?.(),
+        onVisitRecorded: (id, visit) => bootstrapV2Module.updateCachedBookmarkVisit?.(id, visit)
+    }
+});
 
 // 主路由（新路径）
 app.use('/api/categories', routes.categories);

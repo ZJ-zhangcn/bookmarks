@@ -35,8 +35,6 @@ export const AI_CLIENT_STORAGE = {
 
 // 图标缓存
 export const iconCache = new Map();
-export const iconLoadQueue = [];
-export let isLoadingIcons = false;
 export let availableIcons = [];
 export let iconLibraryCache = null;
 export let selectedLibraryIcon = null;
@@ -71,9 +69,37 @@ export function setSortingCategory(val) { sortingCategory = val; }
 export function setPersonalizationConfig(val) { personalizationConfig = val; }
 export function setEditingTodoId(val) { editingTodoId = val; }
 export function setTodoShowCompleted(val) { todoShowCompleted = val; }
-export function setIsLoadingIcons(val) { isLoadingIcons = val; }
 export function setAvailableIcons(val) { availableIcons = val; }
 export function setIconLibraryCache(val) { iconLibraryCache = val; }
 export function setSelectedLibraryIcon(val) { selectedLibraryIcon = val; }
 export function setClockInterval(val) { clockInterval = val; }
 export function setCollapsedCategories(val) { collapsedCategories = val; }
+
+function compareBookmarks(a, b) {
+    const categoryOrder = new Map(categories.map((category, index) => [category.id, index]));
+    const categoryDiff = (categoryOrder.get(a.category_id) ?? Number.MAX_SAFE_INTEGER)
+        - (categoryOrder.get(b.category_id) ?? Number.MAX_SAFE_INTEGER);
+    if (categoryDiff !== 0) return categoryDiff;
+    const sortDiff = (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0);
+    if (sortDiff !== 0) return sortDiff;
+    return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+}
+
+export function upsertBookmark(bookmark) {
+    if (!bookmark?.id) return null;
+    const index = bookmarks.findIndex(item => item.id === bookmark.id);
+    if (index >= 0) bookmarks = bookmarks.map((item, itemIndex) => itemIndex === index ? { ...item, ...bookmark } : item);
+    else bookmarks = [...bookmarks, bookmark];
+    bookmarks.sort(compareBookmarks);
+    dataVersion++;
+    return bookmarks.find(item => item.id === bookmark.id) || null;
+}
+
+export function removeBookmark(id) {
+    const next = bookmarks.filter(item => item.id !== id);
+    if (next.length === bookmarks.length) return false;
+    bookmarks = next;
+    iconCache.delete(id);
+    dataVersion++;
+    return true;
+}

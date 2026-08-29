@@ -184,3 +184,13 @@ async function refreshCacheInBackground(db) {
 module.exports.clearBootstrapCache = function() {
     bootstrapCache = { ts: 0, data: null };
 };
+
+module.exports.updateCachedBookmarkVisit = function(id, visit) {
+    const bookmarks = bootstrapCache.data?.data?.bookmarks;
+    if (!Array.isArray(bookmarks)) return false;
+    const bookmark = bookmarks.find(item => item.id === id);
+    if (!bookmark) return false;
+    bookmark.visit_count = Number(visit?.visit_count) || 0;
+    bookmark.last_visited_at = visit?.last_visited_at || null;
+    return true;
+};

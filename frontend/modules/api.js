@@ -5,6 +5,9 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 import { toIconDisplayUrl, iconImageHtml } from './icon-display.js';
 import { apiRequest } from './api-client.js';
+import iconLoadQueueModule from './icon-load-queue.cjs';
+
+const { createIconLoadQueue } = iconLoadQueueModule;
 
 export async function loadCoreData() {
     let payload = null;
@@ -59,41 +62,40 @@ export async function loadAiStatus() {
     }
 }
 
-export async function loadIconsBatch(ids) {
-    if (ids.length === 0 || state.isLoadingIcons) return;
-
-    state.setIsLoadingIcons(true);
-    const idsToLoad = ids.filter(id => !state.iconCache.has(id)).slice(0, 20);
-
-    if (idsToLoad.length === 0) {
-        state.setIsLoadingIcons(false);
-        return;
-    }
-
-    try {
-        const data = await apiRequest('/api/bookmarks/icons', {
+const iconLoadQueue = createIconLoadQueue({
+    batchSize: 20,
+    maxConcurrent: 1,
+    maxRetries: 2,
+    isResolved: id => state.iconCache.has(id),
+    loadBatch: ids => apiRequest('/api/bookmarks/icons', {
             method: 'POST',
-            json: { ids: idsToLoad }
-        }, { toast: false });
-
-        if (data) {
-            Object.entries(data).forEach(([id, iconInfo]) => {
-                state.iconCache.set(id, iconInfo);
-                updateBookmarkIcon(id, iconInfo);
-            });
-
-            idsToLoad.forEach(id => {
-                if (!data[id]) {
-                    state.iconCache.set(id, null);
-                }
-            });
-        }
-    } catch (e) {
-        console.error('加载图标失败:', e);
-    } finally {
-        state.setIsLoadingIcons(false);
-        setTimeout(observeBookmarkIcons, 100);
+            json: { ids }
+        }, { toast: false }),
+    onResult(ids, data) {
+        Object.entries(data || {}).forEach(([id, iconInfo]) => {
+            state.iconCache.set(id, iconInfo);
+            updateBookmarkIcon(id, iconInfo);
+        });
+        ids.forEach(id => {
+            if (!Object.prototype.hasOwnProperty.call(data || {}, id)) state.iconCache.set(id, null);
+        });
+    },
+    onError(ids) {
+        ids.forEach(id => state.iconCache.set(id, null));
     }
+});
+
+export async function loadIconsBatch(ids) {
+    iconLoadQueue.enqueue(ids);
+    await iconLoadQueue.whenIdle();
+}
+
+export function queueBookmarkIcons(ids) {
+    return iconLoadQueue.enqueue(ids);
+}
+
+export function isBookmarkIconQueued(id) {
+    return iconLoadQueue.has(id);
 }
 
 // IntersectionObserver实例（高性能懒加载）
@@ -111,6 +113,7 @@ export function initIconObserver() {
 
     iconObserver = new IntersectionObserver((entries) => {
         const visibleBookmarkIds = [];
+        const elementsById = new Map();
 
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -122,15 +125,20 @@ export function initIconObserver() {
                     // 支持 'auto' 和 'base64' 类型的图标自动获取
                     if (bookmark && (bookmark.icon_type === 'base64' || bookmark.icon_type === 'auto') && !bookmark.icon_data) {
                         visibleBookmarkIds.push(id);
+                        elementsById.set(id, el);
                     }
                 }
-                // 加载后停止观察
-                iconObserver.unobserve(el);
+                if (id && state.iconCache.has(id)) iconObserver.unobserve(el);
             }
         });
 
-        if (visibleBookmarkIds.length > 0 && !state.isLoadingIcons) {
-            loadIconsBatch(visibleBookmarkIds);
+        if (visibleBookmarkIds.length > 0) {
+            queueBookmarkIcons(visibleBookmarkIds);
+            visibleBookmarkIds.forEach(id => {
+                if (isBookmarkIconQueued(id) || state.iconCache.has(id)) {
+                    iconObserver.unobserve(elementsById.get(id));
+                }
+            });
         }
     }, {
         rootMargin: '400px' // 提前加载（从 200px 增加到 400px）
@@ -213,4 +221,3 @@ export async function loadTodos() {
         console.error('加载 TODO 失败:', e);
     }
 }
-

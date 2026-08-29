@@ -14,6 +14,10 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('creates, searches, edits and deletes a bookmark', async ({ page }) => {
+    let bootstrapRequests = 0;
+    page.on('request', request => {
+        if (new URL(request.url()).pathname === '/api/bootstrap-v2') bootstrapRequests += 1;
+    });
     const name = `E2E 书签 ${Date.now()}`;
     const updatedName = `${name} 已更新`;
     await addBookmark(page, name, 'https://example.com/e2e');
@@ -31,6 +35,24 @@ test('creates, searches, edits and deletes a bookmark', async ({ page }) => {
     await page.locator('.bookmark-card', { hasText: updatedName }).locator('.bookmark-action-btn.delete').click();
     await page.locator('#confirmAccept').click();
     await expect(page.locator('.bookmark-card', { hasText: updatedName })).toHaveCount(0);
+    expect(bootstrapRequests).toBe(0);
+});
+
+test('records a visit while keeping the warm bootstrap cache', async ({ page }) => {
+    const first = await page.request.get('/api/bootstrap-v2');
+    expect(first.ok()).toBeTruthy();
+    const payload = await first.json();
+    const bookmark = payload.data.bookmarks[0];
+
+    const visit = await page.request.post(`/api/bookmarks/${encodeURIComponent(bookmark.id)}/visit`);
+    expect(visit.ok()).toBeTruthy();
+
+    const second = await page.request.get('/api/bootstrap-v2');
+    expect(second.headers()['x-cache']).toBe('HIT');
+    const refreshed = await second.json();
+    const updated = refreshed.data.bookmarks.find(item => item.id === bookmark.id);
+    expect(updated.visit_count).toBe((Number(bookmark.visit_count) || 0) + 1);
+    expect(updated.last_visited_at).toBeTruthy();
 });
 
 test('reorders bookmarks and persists the new order', async ({ page }) => {

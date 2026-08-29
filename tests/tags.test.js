@@ -143,3 +143,21 @@ test('empty async AI lookup does not clear tags pre-filled from bootstrap data',
         global.fetch = originalFetch;
     }
 });
+
+test('failed manual tag save reports null so local bookmark data can keep server tags', async () => {
+    setupBrowserGlobals();
+    const domModule = await import(pathToFileURL(path.resolve(__dirname, '../frontend/modules/dom.js')).href);
+    const tagInput = { value: '新标签' };
+    Object.assign(domModule.DOM, { bookmarkInputTags: tagInput });
+    const { saveBookmarkAi } = await importBookmarkModule('save-tags-failure');
+    const originalFetch = global.fetch;
+    global.fetch = async () => {
+        throw new Error('offline');
+    };
+
+    try {
+        assert.equal(await saveBookmarkAi('bm-tags'), null);
+    } finally {
+        global.fetch = originalFetch;
+    }
+});

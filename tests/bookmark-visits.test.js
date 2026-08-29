@@ -28,6 +28,14 @@ function createMemoryBookmarkDb() {
             return [];
         },
         async queryOne(sql, params = []) {
+            if (/SELECT b\.id, b\.category_id/i.test(sql)) {
+                const row = tables.bookmarks.find(b => b.id === params[0]);
+                return row ? { ...row, category_name: '默认', category_icon: '📁', tags: null, ai_summary: '' } : null;
+            }
+            if (/SELECT id, visit_count, last_visited_at FROM bookmarks/i.test(sql)) {
+                const row = tables.bookmarks.find(b => b.id === params[0]);
+                return row ? { id: row.id, visit_count: row.visit_count, last_visited_at: row.last_visited_at } : null;
+            }
             if (/FROM categories WHERE id/i.test(sql)) return tables.categories.find(c => c.id === params[0]) || null;
             if (/MAX\(sort_order\).*FROM bookmarks/i.test(sql)) {
                 const categoryId = params[0];
@@ -91,10 +99,29 @@ test('recordBookmarkVisit increments visit count and last visited timestamp', as
         icon_data: ''
     });
 
-    await bookmarksService.recordBookmarkVisit(db, 'bm-visit');
+    const result = await bookmarksService.recordBookmarkVisit(db, 'bm-visit');
 
     assert.equal(db.tables.bookmarks[0].visit_count, 1);
     assert.equal(db.tables.bookmarks[0].last_visited_at, 'now');
+    assert.deepEqual(result.bookmark, { id: 'bm-visit', visit_count: 1, last_visited_at: 'now' });
+});
+
+test('saveBookmark returns the complete bookmark needed for local UI updates', async () => {
+    const db = createMemoryBookmarkDb();
+    const bookmark = await bookmarksService.saveBookmark(db, {
+        category_id: 'cat-1',
+        name: 'Local update',
+        url: 'https://example.com/local',
+        description: 'description',
+        icon: '🌐',
+        icon_type: 'auto',
+        icon_data: ''
+    });
+
+    assert.equal(bookmark.name, 'Local update');
+    assert.equal(bookmark.category_name, '默认');
+    assert.deepEqual(bookmark.tags, []);
+    assert.equal(bookmark.visit_count, 0);
 });
 
 test('deleting a bookmark removes its AI metadata in the same transaction', async () => {

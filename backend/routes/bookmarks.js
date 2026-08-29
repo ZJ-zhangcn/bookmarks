@@ -7,7 +7,9 @@ const { success, asyncHandler, AppError } = require('../utils');
 const { requireAdmin } = require('../middleware/security');
 const bookmarksService = require('../../shared/services/bookmarks');
 
-module.exports = function(db) {
+module.exports = function(db, options = {}) {
+    const onDataChanged = typeof options.onDataChanged === 'function' ? options.onDataChanged : () => {};
+    const onVisitRecorded = typeof options.onVisitRecorded === 'function' ? options.onVisitRecorded : () => {};
     // GET /api/bookmarks
     router.get('/', asyncHandler(async (req, res) => {
         const includeIcons = req.query.includeIcons === 'true';
@@ -53,8 +55,9 @@ module.exports = function(db) {
     router.post('/:id/visit', asyncHandler(async (req, res) => {
         const { id } = req.params;
         if (!id) throw new AppError('缺少书签 ID', 400);
-        await bookmarksService.recordBookmarkVisit(db, id);
-        res.json(success());
+        const result = await bookmarksService.recordBookmarkVisit(db, id);
+        if (result.bookmark) onVisitRecorded(id, result.bookmark);
+        res.json(success(result.bookmark));
     }));
 
     // POST /api/bookmarks (普通创建/更新)
@@ -67,6 +70,7 @@ module.exports = function(db) {
         }
 
         const result = await bookmarksService.saveBookmark(db, { id, category_id, name, url, description, icon, icon_type, icon_data });
+        onDataChanged();
         res.json(success(result));
     }));
 
@@ -77,6 +81,7 @@ module.exports = function(db) {
             throw new AppError('缺少书签 ID', 400);
         }
         await bookmarksService.deleteBookmark(db, id);
+        onDataChanged();
         res.json(success());
     }));
 
@@ -87,6 +92,7 @@ module.exports = function(db) {
             throw new AppError('无效的排序数据', 400);
         }
         await bookmarksService.sortBookmarks(db, order);
+        onDataChanged();
         res.json(success());
     }));
 

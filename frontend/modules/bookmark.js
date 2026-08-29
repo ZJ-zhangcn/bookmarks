@@ -4,7 +4,7 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 import { loadData } from './api.js';
-import { renderAll } from './render.js';
+import { renderAll, renderBookmarks } from './render.js';
 import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { getSelectedIconUrl } from './icon-picker.js';
@@ -173,14 +173,16 @@ export async function loadBookmarkAi(bookmarkId) {
 }
 
 export async function saveBookmarkAi(bookmarkId) {
-    if (!DOM.bookmarkInputTags) return;
+    if (!DOM.bookmarkInputTags) return null;
     const tagsText = DOM.bookmarkInputTags.value.trim();
     try {
         await apiRequest('/api/ai?action=bookmark', {
             method: 'POST',
             json: { bookmarkId, tags: tagsText }
         }, { toast: false });
+        return tagsText.split(/[,\n，;；|/]+/g).map(tag => tag.trim()).filter(Boolean);
     } catch (e) {}
+    return null;
 }
 
 export function closeBookmarkModal() {
@@ -262,11 +264,20 @@ export async function saveBookmark() {
             // 清除该书签的图标缓存，确保显示最新图标
             if (savedId) {
                 state.iconCache.delete(savedId);
-                await saveBookmarkAi(savedId);
+                const tags = await saveBookmarkAi(savedId);
+                if (tags) {
+                    result.tags = tags;
+                    result.ai_summary = '';
+                }
             }
 
-            await loadData();
-            renderAll();
+            if (!result?.category_id || !state.categories.some(category => category.id === result.category_id)) {
+                await loadData();
+                renderAll();
+            } else {
+                state.upsertBookmark(result);
+                renderBookmarks();
+            }
             refreshIconLibraryCache();
             closeBookmarkModal();
             showToast('书签已保存', 'success');
@@ -287,8 +298,8 @@ export async function deleteBookmark(id) {
 
     try {
         await apiRequest(`/api/bookmarks?id=${encodeURIComponent(id)}`, { method: 'DELETE' }, { errorPrefix: '删除书签失败' });
-        await loadData();
-        renderAll();
+        state.removeBookmark(id);
+        renderBookmarks();
         showToast('书签已删除', 'success');
     } catch {
         // apiRequest 已统一提示
