@@ -16,6 +16,8 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      # 固定到持久化卷，避免 .env 中的相对路径落到容器临时文件系统
+      - DB_PATH=/app/backend/data/bookmarks.db
       # =====================
       # 鉴权（推荐配置）
       # =====================
