@@ -45,6 +45,7 @@ RUN apk add --no-cache ca-certificates libstdc++ && \
 
 WORKDIR /app
 
+COPY package.json ./
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY backend/ ./backend/
 COPY shared/ ./shared/
