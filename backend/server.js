@@ -81,12 +81,15 @@ const staticRoot = fs.existsSync(distPath) ? distPath : frontendPath;
 
 app.use(express.static(staticRoot, {
     setHeaders: (res, filePath) => {
+        const fileName = path.basename(filePath);
         if (path.basename(filePath) === 'service-worker.js') {
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
         } else if (filePath.endsWith('.html')) {
             res.setHeader('Cache-Control', 'no-cache');
+        } else if (filePath.includes(`${path.sep}assets${path.sep}`) && /-[A-Za-z0-9_-]{8,}\.(?:css|js)$/.test(fileName)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         } else if (filePath.match(/\.(css|js)$/)) {
             res.setHeader('Cache-Control', 'public, max-age=3600');
         } else {

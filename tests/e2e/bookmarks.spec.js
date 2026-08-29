@@ -13,6 +13,24 @@ test.beforeEach(async ({ page }) => {
     await expect(page.locator('.loading-overlay')).toBeHidden();
 });
 
+test('serves hashed assets immutably while keeping entry files revalidatable', async ({ page }) => {
+    const htmlResponse = await page.request.get('/index.html');
+    expect(htmlResponse.ok()).toBeTruthy();
+    expect(htmlResponse.headers()['cache-control']).toBe('no-cache');
+
+    const html = await htmlResponse.text();
+    const hashedAsset = html.match(/(?:src|href)="(\/assets\/[^"?]+-[A-Za-z0-9_-]{8,}\.(?:js|css))"/)?.[1];
+    expect(hashedAsset).toBeTruthy();
+
+    const assetResponse = await page.request.get(hashedAsset);
+    expect(assetResponse.ok()).toBeTruthy();
+    expect(assetResponse.headers()['cache-control']).toBe('public, max-age=31536000, immutable');
+
+    const workerResponse = await page.request.get('/service-worker.js');
+    expect(workerResponse.ok()).toBeTruthy();
+    expect(workerResponse.headers()['cache-control']).toContain('no-store');
+});
+
 test('creates, searches, edits and deletes a bookmark', async ({ page }) => {
     let bootstrapRequests = 0;
     page.on('request', request => {

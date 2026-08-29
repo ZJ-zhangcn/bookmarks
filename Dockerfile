@@ -17,7 +17,19 @@ COPY frontend/ ./frontend/
 COPY shared/ ./shared/
 RUN npm run build:frontend
 
-# ============ 阶段二：运行时镜像 ============
+# ============ 阶段二：构建生产依赖 ============
+FROM node:22-alpine AS production-deps
+
+# better-sqlite3 may need a native build when no matching prebuilt binary exists.
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --omit=dev && \
+    npm cache clean --force
+
+# ============ 阶段三：运行时镜像 ============
 FROM node:22-alpine
 
 ARG APP_VERSION=1.0.0
@@ -27,23 +39,20 @@ ENV APP_VERSION=$APP_VERSION \
     GIT_COMMIT=$GIT_COMMIT \
     BUILD_TIME=$BUILD_TIME
 
-# 安装 better-sqlite3 编译依赖
-RUN apk add --no-cache python3 make g++ ca-certificates && \
+# 只保留运行时证书和 native addon 所需的 C++ 运行库
+RUN apk add --no-cache ca-certificates libstdc++ && \
     update-ca-certificates
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --omit=dev && \
-    npm cache clean --force
-
+COPY --from=production-deps /app/node_modules ./node_modules
 COPY backend/ ./backend/
 COPY shared/ ./shared/
 COPY --from=frontend-builder /app/dist ./dist/
 
 RUN mkdir -p /app/backend/data
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 EXPOSE 3000

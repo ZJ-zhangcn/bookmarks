@@ -46,6 +46,8 @@ test('frontend registers service worker module', () => {
   const server = read('backend/server.js');
   assert.match(server, /path\.basename\(filePath\)\s*===\s*'service-worker\.js'/);
   assert.match(server, /Cache-Control',\s*'no-store, no-cache, must-revalidate, proxy-revalidate'/);
+  assert.match(server, /max-age=31536000, immutable/);
+  assert.match(server, /assets.*\[A-Za-z0-9_\-\]\{8,\}/);
 
   const sw = read('frontend/service-worker.js');
   assert.match(sw, /globalThis\.__PWA_CACHE_NAME__/);
