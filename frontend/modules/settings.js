@@ -178,49 +178,6 @@ export async function runHealthCheck() {
     }, '检查中...');
 }
 
-export async function loadTagManager() {
-    if (!DOM.tagManagerList) return;
-    try {
-        const tags = await apiRequest('/api/tags', { cache: 'no-store' }, { toast: false });
-        DOM.tagManagerList.innerHTML = (tags || []).map(item => `
-            <div class="tag-manager-item" data-tag="${escapeHtmlAttribute(item.tag)}">
-                <span class="tag-manager-name">${escapeHtml(item.tag)}</span>
-                <span class="tag-manager-count">${item.count} 个书签</span>
-                <button type="button" class="btn btn-secondary btn-sm tag-manager-rename">重命名</button>
-                <button type="button" class="btn btn-danger btn-sm tag-manager-delete">删除</button>
-            </div>
-        `).join('') || '<span class="setting-hint">暂无标签</span>';
-    } catch (error) {
-        DOM.tagManagerList.textContent = `加载标签失败：${error.message}`;
-    }
-}
-
-export async function handleTagManagerAction(event) {
-    const item = event.target.closest('.tag-manager-item');
-    if (!item) return;
-    const tag = item.dataset.tag;
-    const isDelete = event.target.closest('.tag-manager-delete');
-    const isRename = event.target.closest('.tag-manager-rename');
-    if (!isDelete && !isRename) return;
-    let replacement = '';
-    if (isRename) {
-        replacement = window.prompt(`将标签“${tag}”重命名为：`, tag)?.trim() || '';
-        if (!replacement || replacement === tag) return;
-    } else {
-        const ok = await showConfirm({ title: '删除标签？', message: `将从所有书签中移除标签“${tag}”。`, confirmText: '删除', danger: true });
-        if (!ok) return;
-    }
-    try {
-        await apiRequest('/api/tags', { method: 'POST', json: { action: isRename ? 'rename' : 'delete', tag, replacement } }, { errorPrefix: '更新标签失败' });
-        await loadData();
-        renderAll();
-        await loadTagManager();
-        showToast(isRename ? '标签已重命名' : '标签已删除', 'success');
-    } catch {
-        // apiRequest 已统一提示
-    }
-}
-
 export async function loadOffsiteStatus() {
     if (!DOM.offsiteBackupStatus) return;
     try {

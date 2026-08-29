@@ -122,8 +122,6 @@ export function cacheDOMElements() {
         healthCheckBtn: document.getElementById('healthCheckBtn'),
         healthSummary: document.getElementById('healthSummary'),
         healthDetails: document.getElementById('healthDetails'),
-        tagManagerList: document.getElementById('tagManagerList'),
-        tagManagerRefreshBtn: document.getElementById('tagManagerRefreshBtn'),
         linkCheckBtn: document.getElementById('linkCheckBtn'),
         linkCheckPauseBtn: document.getElementById('linkCheckPauseBtn'),
         linkHealthSummary: document.getElementById('linkHealthSummary'),

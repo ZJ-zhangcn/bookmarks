@@ -92,7 +92,6 @@ const importBrowserBookmarks = event => withSettings('importBrowserBookmarks', e
 const setTheme = theme => withSettings('setTheme', theme);
 const saveAiClientSettingsFromUi = () => withAi('saveAiClientSettingsFromUi');
 const clearAiClientSettings = () => withAi('clearAiClientSettings');
-const loadTagManager = () => withSettings('loadTagManager');
 
 function initCategoryQuickSwitcher() {
     updateCategoryFabLabel();
@@ -240,8 +239,6 @@ export function bindAllEvents() {
     DOM.webdavSaveBtn.addEventListener('click', saveWebdavSettings);
     DOM.webdavUploadBtn.addEventListener('click', webdavUpload);
     DOM.webdavDownloadBtn.addEventListener('click', webdavDownload);
-    DOM.tagManagerRefreshBtn?.addEventListener('click', loadTagManager);
-    DOM.tagManagerList?.addEventListener('click', event => withSettings('handleTagManagerAction', event));
 
     if (DOM.aiSaveSettingsBtn) DOM.aiSaveSettingsBtn.addEventListener('click', saveAiClientSettingsFromUi);
     if (DOM.aiClearSettingsBtn) DOM.aiClearSettingsBtn.addEventListener('click', clearAiClientSettings);
@@ -259,8 +256,6 @@ export function bindAllEvents() {
                 bindIconLibraryManageEvents();
             } else if (activePanel === 'about') {
                 withSettings('loadReleaseInfo');
-            } else if (activePanel === 'sync') {
-                loadTagManager();
             }
         });
     });

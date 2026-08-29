@@ -4,7 +4,6 @@
 module.exports = function(db, options = {}) {
     return {
         categories: require('./categories')(db),
-        tags: require('./tags')(db),
         bookmarks: require('./bookmarks')(db, options.bookmarks),
         todos: require('./todos')(db),
         engines: require('./engines')(db),

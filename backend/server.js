@@ -60,7 +60,6 @@ app.use((req, res, next) => {
             '/api/todos',
             '/api/bootstrap-v2',
             '/api/categories',
-            '/api/tags',
             '/api/config'
         ];
         const isDynamic = noStorePaths.some(p => req.path.startsWith(p));
@@ -181,7 +180,6 @@ const routes = require('./routes')(db, {
 
 // 主路由（新路径）
 app.use('/api/categories', routes.categories);
-app.use('/api/tags', routes.tags);
 app.use('/api/bookmarks', routes.bookmarks);
 app.use('/api/engines', routes.engines);
 app.use('/api', routes.iconUnified);  // 统一图标服务（包含 /proxy-icon 路由）
