@@ -1940,7 +1940,9 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    justify-content: center;
+    width: 100%;
+    justify-content: flex-start;
+    align-content: flex-start;
 }
 
 .tag-chip {
