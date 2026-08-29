@@ -6,7 +6,7 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderAll } from './render.js';
 import { renderCategoryList } from './category.js';
-import { preloadImage, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
+import { preloadImage, toSafeImageUrl } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { showToast, showConfirm } from './ux.js';
 import { apiRequest, runWithButton } from './api-client.js';
@@ -18,9 +18,6 @@ const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
 const WALLPAPER_TONE_ATTR = 'data-wallpaper-tone';
 let wallpaperLoadSeq = 0;
 const INITIAL_WALLPAPER_WAIT_MS = 5000;
-let trashEventsBound = false;
-let healthEventsBound = false;
-let linkCheckPollTimer = null;
 
 export function getWallpaperToneFromLuminance(luminance, dimPercent = 30) {
     const value = Number(luminance);
@@ -121,61 +118,10 @@ export { initTheme, applyTheme, setTheme } from './theme.js';
 export function openSettingsModal() {
     renderCategoryList();
     loadPersonalization();
-    bindTrashEvents();
-    loadTrash();
-    bindHealthEvents();
     loadOffsiteStatus();
-    loadLinkHealth();
+    bindOffsiteBackupEvents();
     DOM.settingsModal.classList.add('open');
     document.body.style.overflow = 'hidden';
-}
-
-function renderHealthSummary(result) {
-    if (!DOM.healthSummary) return;
-    const duplicateCount = result?.duplicateUrls?.length || 0;
-    const invalidCount = result?.invalidUrls?.length || 0;
-    const missingIconCount = result?.missingIcons?.length || 0;
-    const untaggedCount = result?.untagged?.length || 0;
-    const staleCount = result?.stale?.length || 0;
-    DOM.healthSummary.textContent = `检查 ${result?.counts?.bookmarks || 0} 个书签：重复网址 ${duplicateCount}，异常 URL ${invalidCount}，缺失图标 ${missingIconCount}，无标签 ${untaggedCount}，长期未访问 ${staleCount}；SQLite ${result?.integrity || '未知'}`;
-    if (!DOM.healthDetails) return;
-    const groups = [
-        ['重复网址', result?.duplicateUrls || [], item => item.items?.map(entry => entry.name).join('、') || item.url],
-        ['异常 URL', result?.invalidUrls || [], item => item.name],
-        ['缺失分类', result?.missingCategories || [], item => item.name],
-        ['缺失图标', result?.missingIcons || [], item => item.name],
-        ['无标签', result?.untagged || [], item => item.name],
-        ['长期未访问', result?.stale || [], item => item.name]
-    ];
-    DOM.healthDetails.innerHTML = groups.filter(([, items]) => items.length > 0).map(([title, items, label]) => `
-        <details class="health-detail-group">
-            <summary>${escapeHtml(title)}（${items.length}）</summary>
-            <div class="health-detail-list">
-                ${items.slice(0, 50).map(item => `<button type="button" class="health-detail-item" data-health-bookmark-id="${escapeHtmlAttribute(item.id || item.items?.[0]?.id || '')}">${escapeHtml(label(item))}</button>`).join('')}
-                ${items.length > 50 ? `<span class="setting-hint">仅显示前 50 项</span>` : ''}
-            </div>
-        </details>
-    `).join('') || '<span class="setting-hint">未发现需要处理的问题</span>';
-}
-
-export async function runHealthCheck() {
-    if (!DOM.healthSummary) return;
-    await runWithButton(DOM.healthCheckBtn, async () => {
-        try {
-            const result = await apiRequest('/api/health/bookmarks?staleDays=180', { cache: 'no-store' }, { toast: false });
-            renderHealthSummary(result);
-            DOM.healthDetails?.querySelectorAll('[data-health-bookmark-id]').forEach(button => {
-                button.addEventListener('click', async () => {
-                    const { openBookmarkModal } = await import('./bookmark.js');
-                    openBookmarkModal(button.dataset.healthBookmarkId);
-                    closeSettingsModal();
-                });
-            });
-            showToast('数据健康检查完成', 'success');
-        } catch (error) {
-            DOM.healthSummary.textContent = `检查失败：${error.message}`;
-        }
-    }, '检查中...');
 }
 
 export async function loadOffsiteStatus() {
@@ -187,7 +133,7 @@ export async function loadOffsiteStatus() {
         } else if (!status.configured) {
             DOM.offsiteBackupStatus.textContent = '已启用但配置不完整，请检查 WebDAV 环境变量';
         } else if (status.state === 'ok') {
-            DOM.offsiteBackupStatus.textContent = `最近成功：${formatTrashDate(status.lastSuccessAt)} · ${status.fileName || ''} · ${status.size || 0} 字节`;
+            DOM.offsiteBackupStatus.textContent = `最近成功：${formatDate(status.lastSuccessAt)} · ${status.fileName || ''} · ${status.size || 0} 字节`;
         } else if (status.state === 'error') {
             DOM.offsiteBackupStatus.textContent = `最近失败：${status.lastError || '未知错误'}`;
         } else {
@@ -198,42 +144,9 @@ export async function loadOffsiteStatus() {
     }
 }
 
-async function loadLinkHealth() {
-    if (!DOM.linkHealthSummary) return null;
-    try {
-        const result = await apiRequest('/api/health/links', { cache: 'no-store' }, { toast: false });
-        const status = result?.status || {};
-        const failed = (result?.results || []).filter(item => item.state === 'failed').length;
-        const warning = (result?.results || []).filter(item => item.state === 'warning').length;
-        DOM.linkHealthSummary.textContent = `状态：${status.state || 'idle'} · ${status.completed || 0}/${status.total || 0} · 正常 ${status.healthy || 0} · 待确认 ${warning} · 失效 ${failed}`;
-        if (['complete', 'paused', 'error', 'idle'].includes(status.state)) {
-            clearInterval(linkCheckPollTimer);
-            linkCheckPollTimer = null;
-        }
-        return result;
-    } catch (error) {
-        DOM.linkHealthSummary.textContent = `链接检查状态读取失败：${error.message}`;
-        return null;
-    }
-}
-
-function bindHealthEvents() {
-    if (healthEventsBound) return;
-    healthEventsBound = true;
-    DOM.healthCheckBtn?.addEventListener('click', runHealthCheck);
-    DOM.linkCheckBtn?.addEventListener('click', async () => {
-        try {
-            await apiRequest('/api/health/links', { method: 'POST' }, { errorPrefix: '链接检查启动失败' });
-            await loadLinkHealth();
-            if (!linkCheckPollTimer) linkCheckPollTimer = setInterval(loadLinkHealth, 1500);
-        } catch {}
-    });
-    DOM.linkCheckPauseBtn?.addEventListener('click', async () => {
-        try {
-            await apiRequest('/api/health/links/pause', { method: 'POST' }, { errorPrefix: '暂停链接检查失败' });
-            await loadLinkHealth();
-        } catch {}
-    });
+function bindOffsiteBackupEvents() {
+    if (DOM.offsiteBackupBtn?.dataset.bound === 'true') return;
+    if (DOM.offsiteBackupBtn) DOM.offsiteBackupBtn.dataset.bound = 'true';
     DOM.offsiteBackupBtn?.addEventListener('click', async () => {
         await runWithButton(DOM.offsiteBackupBtn, async () => {
             try {
@@ -243,101 +156,12 @@ function bindHealthEvents() {
             } catch {}
         }, '备份中...');
     });
-    if (DOM.bookmarkletUrl) {
-        const target = `${window.location.origin}/?action=add`;
-        DOM.bookmarkletUrl.value = `javascript:(()=>{const u=location.href,t=document.title;window.open('${target}&url='+encodeURIComponent(u)+'&title='+encodeURIComponent(t),'_blank')})()`;
-    }
-    DOM.copyBookmarkletBtn?.addEventListener('click', async () => {
-        try {
-            await navigator.clipboard.writeText(DOM.bookmarkletUrl.value);
-            showToast('Bookmarklet 已复制', 'success');
-        } catch {
-            DOM.bookmarkletUrl.select();
-            document.execCommand('copy');
-            showToast('Bookmarklet 已复制', 'success');
-        }
-    });
 }
 
-function formatTrashDate(value) {
+function formatDate(value) {
     if (!value) return '未知时间';
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('zh-CN');
-}
-
-function renderTrash(items = []) {
-    if (!DOM.trashList) return;
-    if (!items.length) {
-        DOM.trashList.innerHTML = '<div class="setting-hint">回收站为空</div>';
-        if (DOM.trashEmptyBtn) DOM.trashEmptyBtn.disabled = true;
-        return;
-    }
-    if (DOM.trashEmptyBtn) DOM.trashEmptyBtn.disabled = false;
-    DOM.trashList.innerHTML = items.map(item => `
-        <div class="trash-item" data-trash-id="${escapeHtml(item.id)}">
-            <div class="trash-item-info">
-                <strong>${escapeHtml(item.name)}</strong>
-                <span>${escapeHtml(item.categoryName || '未分类')} · 删除于 ${escapeHtml(formatTrashDate(item.deletedAt))}</span>
-            </div>
-            <div class="trash-item-actions">
-                <button type="button" class="btn btn-secondary btn-sm" data-trash-action="restore">恢复</button>
-                <button type="button" class="btn btn-danger btn-sm" data-trash-action="delete">永久删除</button>
-            </div>
-        </div>
-    `).join('');
-}
-
-export async function loadTrash() {
-    if (!DOM.trashList) return;
-    try {
-        const result = await apiRequest('/api/bookmarks/trash', { cache: 'no-store' }, { toast: false });
-        renderTrash(result?.items || []);
-    } catch (error) {
-        DOM.trashList.innerHTML = `<div class="setting-hint">回收站加载失败：${escapeHtml(error.message)}</div>`;
-    }
-}
-
-function bindTrashEvents() {
-    if (trashEventsBound || !DOM.trashList) return;
-    trashEventsBound = true;
-    DOM.trashRefreshBtn?.addEventListener('click', loadTrash);
-    DOM.trashEmptyBtn?.addEventListener('click', async () => {
-        const confirmed = await showConfirm({
-            title: '清空回收站？',
-            message: '清空后无法恢复这些书签。',
-            confirmText: '清空',
-            danger: true
-        });
-        if (!confirmed) return;
-        try {
-            await apiRequest('/api/bookmarks/trash', { method: 'DELETE' }, { errorPrefix: '清空回收站失败' });
-            await loadTrash();
-            showToast('回收站已清空', 'success');
-        } catch {}
-    });
-    DOM.trashList.addEventListener('click', async event => {
-        const button = event.target.closest('[data-trash-action]');
-        const item = button?.closest('[data-trash-id]');
-        if (!button || !item) return;
-        const trashId = item.dataset.trashId;
-        if (button.dataset.trashAction === 'restore') {
-            try {
-                const restored = await apiRequest(`/api/bookmarks/${encodeURIComponent(trashId)}/restore`, { method: 'POST' }, { errorPrefix: '恢复书签失败' });
-                state.upsertBookmark(restored);
-                renderAll();
-                await loadTrash();
-                showToast('书签已恢复', 'success');
-            } catch {}
-            return;
-        }
-        const confirmed = await showConfirm({ title: '永久删除书签？', message: '永久删除后无法恢复。', confirmText: '永久删除', danger: true });
-        if (!confirmed) return;
-        try {
-            await apiRequest(`/api/bookmarks/trash/${encodeURIComponent(trashId)}`, { method: 'DELETE' }, { errorPrefix: '永久删除失败' });
-            await loadTrash();
-            showToast('书签已永久删除', 'success');
-        } catch {}
-    });
 }
 
 export function closeSettingsModal() {

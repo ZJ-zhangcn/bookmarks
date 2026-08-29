@@ -492,39 +492,6 @@ body {
     margin-top: 2px;
 }
 
-.health-details {
-    display: grid;
-    gap: 0.45rem;
-    margin-top: 0.7rem;
-}
-
-.health-detail-group {
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 0.45rem 0.65rem;
-}
-
-.health-detail-group summary {
-    cursor: pointer;
-    color: var(--text-secondary);
-}
-
-.health-detail-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    padding-top: 0.55rem;
-}
-
-.health-detail-item {
-    border: 1px solid var(--border-color);
-    background: transparent;
-    color: var(--text-primary);
-    border-radius: 5px;
-    padding: 0.25rem 0.5rem;
-    cursor: pointer;
-}
-
 @media (max-width: 768px) {
     .header-title-row {
         flex-direction: column;

@@ -6,14 +6,11 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('PWA manifest exposes a GET share target and quick-add opens a confirmation modal', () => {
+test('PWA manifest no longer exposes the removed share target', () => {
     const manifest = JSON.parse(read('frontend/manifest.webmanifest'));
-    assert.equal(manifest.share_target.action, '/?action=share');
-    assert.equal(manifest.share_target.method, 'GET');
+    assert.equal(manifest.share_target, undefined);
     const main = read('frontend/main.js');
-    assert.match(main, /openBookmarkFromUrlParams/);
-    assert.match(main, /openBookmarkModal\(null, null, \{ name: title, url: sharedUrl \}\)/);
-    assert.equal(main.includes('saveBookmark()'), false);
+    assert.doesNotMatch(main, /openBookmarkFromUrlParams/);
 });
 
 test('R7 uses a precomputed search index, IndexedDB fallback and binary-search virtual rows', () => {

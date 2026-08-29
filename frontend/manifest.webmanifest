@@ -5,12 +5,6 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "share_target": {
-    "action": "/?action=share",
-    "method": "GET",
-    "enctype": "application/x-www-form-urlencoded",
-    "params": { "title": "title", "text": "text", "url": "url" }
-  },
   "background_color": "#0b0f14",
   "theme_color": "#0b0f14",
   "icons": [

@@ -119,7 +119,7 @@ test('exports data and shows traceable release information', async ({ page }) =>
     await expect(page.locator('#aboutBuildInfo')).toContainText('SQLite schema v3');
 });
 
-test('batch organizes bookmarks, runs local health checks and prefills quick add', async ({ page }) => {
+test('batch organizes bookmarks and keeps offsite backup status available', async ({ page }) => {
     const firstSection = page.locator('.category-section').first();
     const selectedIds = await firstSection.locator('.bookmark-card').evaluateAll(nodes => nodes.slice(0, 2).map(node => node.dataset.id));
     expect(selectedIds).toHaveLength(2);
@@ -138,15 +138,8 @@ test('batch organizes bookmarks, runs local health checks and prefills quick add
 
     await page.locator('#settingsBtn').click();
     await page.locator('.settings-tab[data-tab="sync"]').click();
-    await page.locator('#healthCheckBtn').click();
-    await expect(page.locator('#healthSummary')).toContainText('SQLite ok');
     await expect(page.locator('#offsiteBackupStatus')).toContainText('未启用');
     await page.locator('#settingsModalClose').click();
-
-    await page.goto('/?action=add&url=https%3A%2F%2Fquick.example%2Fpage&title=Quick%20Example');
-    await expect(page.locator('#bookmarkModal')).toHaveClass(/open/);
-    await expect(page.locator('#bookmarkInputName')).toHaveValue('Quick Example');
-    await expect(page.locator('#bookmarkInputUrl')).toHaveValue('https://quick.example/page');
 });
 
 test('restores a validated snapshot and refreshes AI tags immediately', async ({ page }) => {
