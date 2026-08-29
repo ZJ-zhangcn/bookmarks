@@ -252,16 +252,6 @@ function renderBookmarkIconImage(src, name, fallbackIcon = '🌐') {
 export function createBookmarkCard(item, searchTerm) {
     const name = highlightText(item.name, searchTerm);
     const desc = highlightText(item.description || '', searchTerm);
-    const tagsArray = Array.isArray(item.tags)
-        ? item.tags.map(t => String(t || '').trim()).filter(Boolean)
-        : String(item.tags || '').split(/[,\n，;；|/]+/g).map(t => t.trim()).filter(Boolean);
-    const matchedTags = searchTerm
-        ? tagsArray.filter(t => t.toLowerCase().includes(searchTerm))
-        : [];
-    const displayTags = searchTerm ? matchedTags : tagsArray.slice(0, 4);
-    const tagsHtml = displayTags.length > 0
-        ? `<div class="bookmark-tags" title="点击标签筛选">${displayTags.map(t => `<button type="button" class="tag-chip" data-tag="${escapeHtmlAttribute(t)}">${highlightText(t, searchTerm)}</button>`).join('')}</div>`
-        : '';
 
     let iconHtml;
     const cachedIcon = state.iconCache.get(item.id);
@@ -317,7 +307,6 @@ export function createBookmarkCard(item, searchTerm) {
             <div class="bookmark-info">
                 <div class="bookmark-name">${name}</div>
                 <div class="bookmark-desc" title="${escapeHtmlAttribute(rawDesc)}">${desc}</div>
-                ${tagsHtml}
                 ${statsHtml}
             </div>
         </a>

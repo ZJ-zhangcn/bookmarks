@@ -27,18 +27,6 @@ function refreshAiUiVisibility() {
 }
 
 export function handleBookmarkClick(e) {
-    const tagChip = e.target.closest('.tag-chip');
-    if (tagChip) {
-        e.preventDefault();
-        e.stopPropagation();
-        const tag = tagChip.dataset.tag || '';
-        if (tag) {
-            DOM.searchInput.value = tag;
-            state.setCurrentSearch(tag);
-            renderBookmarks();
-        }
-        return;
-    }
     const batchSelect = e.target.closest('.batch-select');
     if (batchSelect) {
         e.preventDefault();

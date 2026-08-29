@@ -179,18 +179,74 @@
         </div>
 
         <div class="batch-toolbar" id="batchToolbar" hidden>
-            <button class="btn btn-secondary btn-sm" id="batchSelectAllBtn" type="button">全选当前结果</button>
-            <span class="batch-selection-count" id="batchSelectionCount">已选 0</span>
-            <select class="setting-select batch-category-select" id="batchCategorySelect" aria-label="目标分类">
-                <option value="">移动到分类...</option>
-            </select>
-            <input class="batch-tags-input" id="batchTagsInput" type="text" placeholder="标签，用逗号分隔" aria-label="批量标签">
-            <button class="btn btn-primary btn-sm" id="batchMoveBtn" type="button">移动</button>
-            <button class="btn btn-secondary btn-sm" id="batchAddTagsBtn" type="button">添加标签</button>
-            <button class="btn btn-secondary btn-sm" id="batchRemoveTagsBtn" type="button">删除标签</button>
-            <button class="btn btn-secondary btn-sm" id="batchRefreshIconsBtn" type="button">刷新图标</button>
-            <button class="btn btn-danger btn-sm" id="batchTrashBtn" type="button">移入回收站</button>
-            <button class="btn btn-secondary btn-sm" id="batchCancelBtn" type="button">退出</button>
+            <div class="batch-toolbar-summary">
+                <button class="batch-tool-btn batch-tool-btn-accent" id="batchSelectAllBtn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="4" y="4" width="16" height="16" rx="2" />
+                        <path d="m8 12 2.5 2.5L16 9" />
+                    </svg>
+                    <span>全选当前</span>
+                </button>
+                <span class="batch-selection-count" id="batchSelectionCount">已选 0</span>
+            </div>
+
+            <div class="batch-tool-group batch-move-group">
+                <select class="batch-control batch-category-select" id="batchCategorySelect" aria-label="目标分类">
+                    <option value="">移动到分类...</option>
+                </select>
+                <button class="batch-tool-btn" id="batchMoveBtn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M5 12h14M13 6l6 6-6 6" />
+                    </svg>
+                    <span>移动</span>
+                </button>
+            </div>
+
+            <div class="batch-tool-group batch-tag-group">
+                <input class="batch-control batch-tags-input" id="batchTagsInput" type="text"
+                    placeholder="输入标签，用逗号分隔" aria-label="批量标签">
+                <button class="batch-tool-btn" id="batchAddTagsBtn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    <span>添加</span>
+                </button>
+                <button class="batch-tool-btn" id="batchRemoveTagsBtn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M5 12h14" />
+                    </svg>
+                    <span>删除</span>
+                </button>
+            </div>
+
+            <div class="batch-toolbar-utilities">
+                <button class="batch-tool-btn" id="batchRefreshIconsBtn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 11a8 8 0 1 0-2.34 5.66" />
+                        <path d="M20 4v7h-7" />
+                    </svg>
+                    <span>刷新图标</span>
+                </button>
+                <button class="batch-tool-btn batch-tool-btn-danger" id="batchTrashBtn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                    </svg>
+                    <span>回收站</span>
+                </button>
+                <button class="batch-tool-btn batch-tool-btn-icon" id="batchCancelBtn" type="button"
+                    title="退出选择模式" aria-label="退出选择模式">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="m6 6 12 12M18 6 6 18" />
+                    </svg>
+                </button>
+            </div>
         </div>
 
         <!-- 书签网格 -->
@@ -226,8 +282,10 @@
             </svg>
         </button>
         <button class="fixed-btn" id="batchModeBtn" title="选择书签" aria-label="批量整理">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+                <path d="m8 12 2.5 2.5L16 9" />
             </svg>
         </button>
         <button class="fixed-btn" id="settingsBtn" title="设置">
