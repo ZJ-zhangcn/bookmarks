@@ -507,5 +507,6 @@ module.exports = {
     purgeTrash,
     sortBookmarks,
     batchUpdateBookmarks,
-    recordBookmarkVisit
+    recordBookmarkVisit,
+    normalizeTagList
 };

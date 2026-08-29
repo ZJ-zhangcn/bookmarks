@@ -142,7 +142,7 @@ function buildCommandItems(query) {
         command: `bookmark-${bookmark.id}`,
         icon: bookmark.icon || '🔖',
         title: bookmark.name || '未命名书签',
-        subtitle: bookmark.url || '',
+        subtitle: [bookmark.url, bookmark.description, ...(Array.isArray(bookmark.tags) ? bookmark.tags : [])].filter(Boolean).join(' · '),
         type: '书签',
         run: () => window.open(toSafeExternalUrl(bookmark.url), '_blank', 'noopener')
     }));

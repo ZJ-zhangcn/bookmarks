@@ -74,9 +74,10 @@ module.exports = function(db) {
 
     /**
      * POST /api/icon/convert
-     * 将 URL 图标转换为 base64
+     * 将 URL 图标转换为 base64（兼容旧客户端，已废弃）
      */
     router.post('/icon/convert', requireStrictAdmin, asyncHandler(async (req, res) => {
+        res.setHeader('Deprecation', 'true');
         const { url } = req.body;
         if (!url) {
             throw new AppError('缺少 URL', 400);
@@ -87,17 +88,19 @@ module.exports = function(db) {
 
     /**
      * POST /api/icon/fix-all
-     * 批量修复所有 URL 类型的图标为 base64
+     * 批量修复所有 URL 类型的图标为 base64（兼容旧客户端，已废弃）
      */
     router.post('/icon/fix-all', requireStrictAdmin, asyncHandler(async (req, res) => {
+        res.setHeader('Deprecation', 'true');
         res.json(success(await bookmarkIconService.convertUrlIconsToBase64()));
     }));
 
     /**
      * POST /api/icon/fetch-all
-     * 批量获取所有书签的图标
+     * 批量获取所有书签的图标（兼容旧客户端，已废弃）
      */
     router.post('/icon/fetch-all', requireStrictAdmin, asyncHandler(async (req, res) => {
+        res.setHeader('Deprecation', 'true');
         res.json(success(await bookmarkIconService.fetchMissingBookmarkIcons()));
     }));
 

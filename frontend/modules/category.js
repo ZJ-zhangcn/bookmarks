@@ -55,19 +55,27 @@ export async function saveCategory() {
 }
 
 export async function deleteCategory(id) {
+    const category = state.categories.find(item => item.id === id);
+    const bookmarkCount = state.bookmarks.filter(item => item.category_id === id).length;
     const ok = await showConfirm({
         title: '删除分类？',
-        message: '确定删除此分类？分类下的书签也将被删除。',
-        confirmText: '删除',
+        message: bookmarkCount > 0
+            ? `分类“${category?.name || ''}”下有 ${bookmarkCount} 个书签。删除后书签会移动到其他分类，不会进入回收站。`
+            : `确定删除分类“${category?.name || ''}”？`,
+        confirmText: '删除并迁移书签',
         danger: true
     });
     if (!ok) return;
 
     try {
-        await apiRequest(`/api/categories?id=${encodeURIComponent(id)}`, { method: 'DELETE' }, { errorPrefix: '删除分类失败' });
+        const target = state.categories.find(item => item.id !== id && item.type !== 'todo');
+        const query = new URLSearchParams({ id, mode: 'move' });
+        if (target?.id) query.set('targetCategoryId', target.id);
+        const result = await apiRequest(`/api/categories?${query.toString()}`, { method: 'DELETE' }, { errorPrefix: '删除分类失败' });
         await loadData();
         renderAll();
         renderCategoryList();
+        showToast(result?.moved ? `分类已删除，${result.moved} 个书签已迁移` : '分类已删除', 'success');
     } catch {
         // apiRequest 已统一提示
     }

@@ -797,6 +797,16 @@
                                 <button class="btn btn-secondary" id="browserImportBtn">导入</button>
                             </div>
                         </div>
+                        <div class="setting-card" id="tagManagerCard">
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <div class="setting-label">标签管理</div>
+                                    <div class="setting-desc">统一查看、重命名或删除标签</div>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" id="tagManagerRefreshBtn" type="button">刷新</button>
+                            </div>
+                            <div class="tag-manager-list" id="tagManagerList"><span class="setting-hint">打开此页面后加载</span></div>
+                        </div>
                         <div class="setting-card">
                             <h5 class="card-subtitle">☁️ WebDAV 云同步</h5>
                             <div class="setting-row checkbox-row">
@@ -825,6 +835,10 @@
                             <div class="setting-row">
                                 <button class="btn btn-secondary" id="webdavSaveBtn">保存设置</button>
                                 <button class="btn btn-secondary" id="webdavUploadBtn">上传</button>
+                                <select id="webdavDownloadMode" class="setting-select" aria-label="WebDAV 下载模式">
+                                    <option value="merge">下载并合并</option>
+                                    <option value="restore">下载并完整恢复</option>
+                                </select>
                                 <button class="btn btn-primary" id="webdavDownloadBtn">下载</button>
                             </div>
                             <div class="webdav-status" id="webdavStatus"></div>
@@ -853,6 +867,7 @@
                                 <button class="btn btn-secondary btn-sm" id="linkCheckPauseBtn" type="button">暂停</button>
                             </div>
                             <div class="health-summary" id="healthSummary"><span class="setting-hint">尚未检查</span></div>
+                            <div class="health-details" id="healthDetails"></div>
                             <div class="health-summary" id="linkHealthSummary"><span class="setting-hint">链接检查尚未启动</span></div>
                         </div>
                         <div class="setting-card" id="offsiteBackupCard">

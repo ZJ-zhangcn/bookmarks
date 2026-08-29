@@ -16,8 +16,9 @@ import { openBookmarkModal } from './modules/bookmark.js';
 function openBookmarkFromUrlParams() {
     const params = new URLSearchParams(window.location.search);
     if (!['add', 'share'].includes(params.get('action'))) return;
-    const sharedUrl = params.get('url') || (/^https?:\/\//i.test(params.get('text') || '') ? params.get('text') : '');
-    const title = params.get('title') || '';
+    const rawText = params.get('text') || '';
+    const sharedUrl = params.get('url') || rawText.match(/https?:\/\/[^\s]+/i)?.[0] || '';
+    const title = params.get('title') || rawText.replace(sharedUrl, '').trim();
     if (!sharedUrl) return;
     requestAnimationFrame(() => {
         openBookmarkModal(null, null, { name: title, url: sharedUrl });

@@ -32,8 +32,12 @@ module.exports = function(db) {
         if (!id) {
             throw new AppError('缺少分类 ID', 400);
         }
-        await categoriesService.deleteCategory(db, id);
-        res.json(success());
+        const mode = req.query.mode === 'delete' ? 'delete' : 'move';
+        const result = await categoriesService.deleteCategory(db, id, {
+            mode,
+            targetCategoryId: String(req.query.targetCategoryId || '')
+        });
+        res.json(success(result));
     }));
 
     // PUT /api/categories (排序)

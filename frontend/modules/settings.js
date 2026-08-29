@@ -6,7 +6,7 @@ import * as state from './state.js';
 import { loadData } from './api.js';
 import { renderAll } from './render.js';
 import { renderCategoryList } from './category.js';
-import { preloadImage, toSafeImageUrl, escapeHtml } from './utils.js';
+import { preloadImage, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { showToast, showConfirm } from './ux.js';
 import { apiRequest, runWithButton } from './api-client.js';
@@ -138,6 +138,24 @@ function renderHealthSummary(result) {
     const untaggedCount = result?.untagged?.length || 0;
     const staleCount = result?.stale?.length || 0;
     DOM.healthSummary.textContent = `检查 ${result?.counts?.bookmarks || 0} 个书签：重复网址 ${duplicateCount}，异常 URL ${invalidCount}，缺失图标 ${missingIconCount}，无标签 ${untaggedCount}，长期未访问 ${staleCount}；SQLite ${result?.integrity || '未知'}`;
+    if (!DOM.healthDetails) return;
+    const groups = [
+        ['重复网址', result?.duplicateUrls || [], item => item.items?.map(entry => entry.name).join('、') || item.url],
+        ['异常 URL', result?.invalidUrls || [], item => item.name],
+        ['缺失分类', result?.missingCategories || [], item => item.name],
+        ['缺失图标', result?.missingIcons || [], item => item.name],
+        ['无标签', result?.untagged || [], item => item.name],
+        ['长期未访问', result?.stale || [], item => item.name]
+    ];
+    DOM.healthDetails.innerHTML = groups.filter(([, items]) => items.length > 0).map(([title, items, label]) => `
+        <details class="health-detail-group">
+            <summary>${escapeHtml(title)}（${items.length}）</summary>
+            <div class="health-detail-list">
+                ${items.slice(0, 50).map(item => `<button type="button" class="health-detail-item" data-health-bookmark-id="${escapeHtmlAttribute(item.id || item.items?.[0]?.id || '')}">${escapeHtml(label(item))}</button>`).join('')}
+                ${items.length > 50 ? `<span class="setting-hint">仅显示前 50 项</span>` : ''}
+            </div>
+        </details>
+    `).join('') || '<span class="setting-hint">未发现需要处理的问题</span>';
 }
 
 export async function runHealthCheck() {
@@ -146,11 +164,61 @@ export async function runHealthCheck() {
         try {
             const result = await apiRequest('/api/health/bookmarks?staleDays=180', { cache: 'no-store' }, { toast: false });
             renderHealthSummary(result);
+            DOM.healthDetails?.querySelectorAll('[data-health-bookmark-id]').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const { openBookmarkModal } = await import('./bookmark.js');
+                    openBookmarkModal(button.dataset.healthBookmarkId);
+                    closeSettingsModal();
+                });
+            });
             showToast('数据健康检查完成', 'success');
         } catch (error) {
             DOM.healthSummary.textContent = `检查失败：${error.message}`;
         }
     }, '检查中...');
+}
+
+export async function loadTagManager() {
+    if (!DOM.tagManagerList) return;
+    try {
+        const tags = await apiRequest('/api/tags', { cache: 'no-store' }, { toast: false });
+        DOM.tagManagerList.innerHTML = (tags || []).map(item => `
+            <div class="tag-manager-item" data-tag="${escapeHtmlAttribute(item.tag)}">
+                <span class="tag-manager-name">${escapeHtml(item.tag)}</span>
+                <span class="tag-manager-count">${item.count} 个书签</span>
+                <button type="button" class="btn btn-secondary btn-sm tag-manager-rename">重命名</button>
+                <button type="button" class="btn btn-danger btn-sm tag-manager-delete">删除</button>
+            </div>
+        `).join('') || '<span class="setting-hint">暂无标签</span>';
+    } catch (error) {
+        DOM.tagManagerList.textContent = `加载标签失败：${error.message}`;
+    }
+}
+
+export async function handleTagManagerAction(event) {
+    const item = event.target.closest('.tag-manager-item');
+    if (!item) return;
+    const tag = item.dataset.tag;
+    const isDelete = event.target.closest('.tag-manager-delete');
+    const isRename = event.target.closest('.tag-manager-rename');
+    if (!isDelete && !isRename) return;
+    let replacement = '';
+    if (isRename) {
+        replacement = window.prompt(`将标签“${tag}”重命名为：`, tag)?.trim() || '';
+        if (!replacement || replacement === tag) return;
+    } else {
+        const ok = await showConfirm({ title: '删除标签？', message: `将从所有书签中移除标签“${tag}”。`, confirmText: '删除', danger: true });
+        if (!ok) return;
+    }
+    try {
+        await apiRequest('/api/tags', { method: 'POST', json: { action: isRename ? 'rename' : 'delete', tag, replacement } }, { errorPrefix: '更新标签失败' });
+        await loadData();
+        renderAll();
+        await loadTagManager();
+        showToast(isRename ? '标签已重命名' : '标签已删除', 'success');
+    } catch {
+        // apiRequest 已统一提示
+    }
 }
 
 export async function loadOffsiteStatus() {
@@ -605,13 +673,23 @@ export async function webdavDownload() {
     return runWithButton(DOM.webdavDownloadBtn, async () => {
       try {
         showWebdavStatus('正在下载...', 'info', { operation: '下载', path: filePath, includeIcons });
+        const mode = DOM.webdavDownloadMode?.value === 'restore' ? 'restore' : 'merge';
+        if (mode === 'restore') {
+            const ok = await showConfirm({
+                title: '完整恢复 WebDAV 备份？',
+                message: '远端备份会替换当前书签、分类、搜索引擎、TODO、图标库和个性化设置。恢复前服务器会自动创建快照。',
+                confirmText: '完整恢复',
+                danger: true
+            });
+            if (!ok) return;
+        }
         const data = await apiRequest('/api/webdav?action=download', {
             method: 'POST',
             json: { url, username: user, password: pass, path: filePath },
             timeoutMs: 60000
         }, { toast: false });
         if (!data) throw new Error('下载内容为空');
-        await apiRequest('/api/data', {
+        await apiRequest(`/api/data?mode=${mode}`, {
                 method: 'POST',
                 json: data,
                 timeoutMs: 60000
@@ -620,7 +698,7 @@ export async function webdavDownload() {
         renderAll();
         await loadPersonalization();
         refreshIconLibraryCache();
-        showWebdavStatus('下载成功！', 'success', { operation: '下载', path: filePath, includeIcons });
+        showWebdavStatus(mode === 'restore' ? '下载并完整恢复成功！' : '下载并合并成功！', 'success', { operation: '下载', path: filePath, includeIcons });
       } catch (err) {
           showWebdavStatus('下载错误: ' + err.message, 'error', { operation: '下载', path: filePath, includeIcons });
       }

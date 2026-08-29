@@ -492,6 +492,52 @@ body {
     margin-top: 2px;
 }
 
+.health-details,
+.tag-manager-list {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+}
+
+.health-detail-group {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.45rem 0.65rem;
+}
+
+.health-detail-group summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.health-detail-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding-top: 0.55rem;
+}
+
+.health-detail-item {
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-primary);
+    border-radius: 5px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+}
+
+.tag-manager-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tag-manager-name { font-weight: 600; }
+.tag-manager-count { color: var(--text-secondary); font-size: 0.85rem; }
+
 @media (max-width: 768px) {
     .header-title-row {
         flex-direction: column;
