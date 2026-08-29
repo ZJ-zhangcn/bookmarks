@@ -31,7 +31,7 @@ test('empty SQLite database migrates to the current schema version', () => {
 
         assert.equal(result.fromVersion, 0);
         assert.equal(result.toVersion, CURRENT_SCHEMA_VERSION);
-        assert.deepEqual(result.applied.map(item => item.version), [1, 2]);
+        assert.deepEqual(result.applied.map(item => item.version), [1, 2, 3]);
         assert.equal(getSchemaVersion(connection), CURRENT_SCHEMA_VERSION);
 
         for (const [tableName, expectedColumns] of Object.entries(REQUIRED_COLUMNS)) {
@@ -41,6 +41,10 @@ test('empty SQLite database migrates to the current schema version', () => {
         assert.deepEqual(
             connection.prepare('PRAGMA table_info("bookmark_trash")').all().map(row => row.name),
             ['id', 'snapshot_json', 'deleted_at', 'expires_at']
+        );
+        assert.deepEqual(
+            connection.prepare('PRAGMA table_info("bookmark_link_health")').all().map(row => row.name),
+            ['url', 'state', 'status_code', 'consecutive_failures', 'error', 'checked_at']
         );
     });
 });
@@ -70,6 +74,24 @@ test('migration is idempotent after reaching the current schema version', () => 
         assert.equal(result.fromVersion, CURRENT_SCHEMA_VERSION);
         assert.equal(result.toVersion, CURRENT_SCHEMA_VERSION);
         assert.deepEqual(result.applied, []);
+    });
+});
+
+test('version two database upgrades to link health schema without changing bookmarks', () => {
+    withDatabase(connection => {
+        migrateDatabase(connection);
+        connection.prepare('INSERT INTO categories (id, name) VALUES (?, ?)').run('cat-v2', '现有分类');
+        connection.prepare('INSERT INTO bookmarks (id, category_id, name, url) VALUES (?, ?, ?, ?)').run('bm-v2', 'cat-v2', '现有书签', 'https://example.com');
+        connection.exec('DROP TABLE bookmark_link_health');
+        connection.pragma('user_version = 2');
+
+        const result = migrateDatabase(connection);
+        assert.deepEqual(result.applied.map(item => item.version), [3]);
+        assert.equal(connection.prepare('SELECT name FROM bookmarks WHERE id = ?').get('bm-v2').name, '现有书签');
+        assert.deepEqual(
+            connection.prepare('PRAGMA table_info("bookmark_link_health")').all().map(row => row.name),
+            ['url', 'state', 'status_code', 'consecutive_failures', 'error', 'checked_at']
+        );
     });
 });
 

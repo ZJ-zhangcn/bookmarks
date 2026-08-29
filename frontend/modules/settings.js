@@ -19,6 +19,8 @@ const WALLPAPER_TONE_ATTR = 'data-wallpaper-tone';
 let wallpaperLoadSeq = 0;
 const INITIAL_WALLPAPER_WAIT_MS = 5000;
 let trashEventsBound = false;
+let healthEventsBound = false;
+let linkCheckPollTimer = null;
 
 export function getWallpaperToneFromLuminance(luminance, dimPercent = 30) {
     const value = Number(luminance);
@@ -121,8 +123,115 @@ export function openSettingsModal() {
     loadPersonalization();
     bindTrashEvents();
     loadTrash();
+    bindHealthEvents();
+    loadOffsiteStatus();
+    loadLinkHealth();
     DOM.settingsModal.classList.add('open');
     document.body.style.overflow = 'hidden';
+}
+
+function renderHealthSummary(result) {
+    if (!DOM.healthSummary) return;
+    const duplicateCount = result?.duplicateUrls?.length || 0;
+    const invalidCount = result?.invalidUrls?.length || 0;
+    const missingIconCount = result?.missingIcons?.length || 0;
+    const untaggedCount = result?.untagged?.length || 0;
+    const staleCount = result?.stale?.length || 0;
+    DOM.healthSummary.textContent = `检查 ${result?.counts?.bookmarks || 0} 个书签：重复网址 ${duplicateCount}，异常 URL ${invalidCount}，缺失图标 ${missingIconCount}，无标签 ${untaggedCount}，长期未访问 ${staleCount}；SQLite ${result?.integrity || '未知'}`;
+}
+
+export async function runHealthCheck() {
+    if (!DOM.healthSummary) return;
+    await runWithButton(DOM.healthCheckBtn, async () => {
+        try {
+            const result = await apiRequest('/api/health/bookmarks?staleDays=180', { cache: 'no-store' }, { toast: false });
+            renderHealthSummary(result);
+            showToast('数据健康检查完成', 'success');
+        } catch (error) {
+            DOM.healthSummary.textContent = `检查失败：${error.message}`;
+        }
+    }, '检查中...');
+}
+
+export async function loadOffsiteStatus() {
+    if (!DOM.offsiteBackupStatus) return;
+    try {
+        const status = await apiRequest('/api/backup/offsite', { cache: 'no-store' }, { toast: false });
+        if (!status?.enabled) {
+            DOM.offsiteBackupStatus.textContent = '未启用（在服务端 .env 配置 DB_OFFSITE_* 后生效）';
+        } else if (!status.configured) {
+            DOM.offsiteBackupStatus.textContent = '已启用但配置不完整，请检查 WebDAV 环境变量';
+        } else if (status.state === 'ok') {
+            DOM.offsiteBackupStatus.textContent = `最近成功：${formatTrashDate(status.lastSuccessAt)} · ${status.fileName || ''} · ${status.size || 0} 字节`;
+        } else if (status.state === 'error') {
+            DOM.offsiteBackupStatus.textContent = `最近失败：${status.lastError || '未知错误'}`;
+        } else {
+            DOM.offsiteBackupStatus.textContent = '已配置，尚未执行';
+        }
+    } catch (error) {
+        DOM.offsiteBackupStatus.textContent = `状态读取失败：${error.message}`;
+    }
+}
+
+async function loadLinkHealth() {
+    if (!DOM.linkHealthSummary) return null;
+    try {
+        const result = await apiRequest('/api/health/links', { cache: 'no-store' }, { toast: false });
+        const status = result?.status || {};
+        const failed = (result?.results || []).filter(item => item.state === 'failed').length;
+        const warning = (result?.results || []).filter(item => item.state === 'warning').length;
+        DOM.linkHealthSummary.textContent = `状态：${status.state || 'idle'} · ${status.completed || 0}/${status.total || 0} · 正常 ${status.healthy || 0} · 待确认 ${warning} · 失效 ${failed}`;
+        if (['complete', 'paused', 'error', 'idle'].includes(status.state)) {
+            clearInterval(linkCheckPollTimer);
+            linkCheckPollTimer = null;
+        }
+        return result;
+    } catch (error) {
+        DOM.linkHealthSummary.textContent = `链接检查状态读取失败：${error.message}`;
+        return null;
+    }
+}
+
+function bindHealthEvents() {
+    if (healthEventsBound) return;
+    healthEventsBound = true;
+    DOM.healthCheckBtn?.addEventListener('click', runHealthCheck);
+    DOM.linkCheckBtn?.addEventListener('click', async () => {
+        try {
+            await apiRequest('/api/health/links', { method: 'POST' }, { errorPrefix: '链接检查启动失败' });
+            await loadLinkHealth();
+            if (!linkCheckPollTimer) linkCheckPollTimer = setInterval(loadLinkHealth, 1500);
+        } catch {}
+    });
+    DOM.linkCheckPauseBtn?.addEventListener('click', async () => {
+        try {
+            await apiRequest('/api/health/links/pause', { method: 'POST' }, { errorPrefix: '暂停链接检查失败' });
+            await loadLinkHealth();
+        } catch {}
+    });
+    DOM.offsiteBackupBtn?.addEventListener('click', async () => {
+        await runWithButton(DOM.offsiteBackupBtn, async () => {
+            try {
+                await apiRequest('/api/backup/offsite', { method: 'POST' }, { errorPrefix: '异地备份失败' });
+                await loadOffsiteStatus();
+                showToast('异地备份完成', 'success');
+            } catch {}
+        }, '备份中...');
+    });
+    if (DOM.bookmarkletUrl) {
+        const target = `${window.location.origin}/?action=add`;
+        DOM.bookmarkletUrl.value = `javascript:(()=>{const u=location.href,t=document.title;window.open('${target}&url='+encodeURIComponent(u)+'&title='+encodeURIComponent(t),'_blank')})()`;
+    }
+    DOM.copyBookmarkletBtn?.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(DOM.bookmarkletUrl.value);
+            showToast('Bookmarklet 已复制', 'success');
+        } catch {
+            DOM.bookmarkletUrl.select();
+            document.execCommand('copy');
+            showToast('Bookmarklet 已复制', 'success');
+        }
+    });
 }
 
 function formatTrashDate(value) {

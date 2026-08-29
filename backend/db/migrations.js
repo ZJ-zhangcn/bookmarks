@@ -1,4 +1,4 @@
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 const TABLE_SCHEMA_SQL = `
     CREATE TABLE IF NOT EXISTS categories (
@@ -108,6 +108,10 @@ const V2_REQUIRED_COLUMNS = {
     bookmark_trash: ['id', 'snapshot_json', 'deleted_at', 'expires_at']
 };
 
+const V3_REQUIRED_COLUMNS = {
+    bookmark_link_health: ['url', 'state', 'status_code', 'consecutive_failures', 'error', 'checked_at']
+};
+
 function quoteIdentifier(value) {
     return `"${String(value).replace(/"/g, '""')}"`;
 }
@@ -140,6 +144,10 @@ function ensureCurrentSchema(connection) {
         assertRequiredColumns(connection, V2_REQUIRED_COLUMNS);
         connection.exec('CREATE INDEX IF NOT EXISTS idx_bookmark_trash_deleted_at ON bookmark_trash(deleted_at DESC);');
     }
+    if (getSchemaVersion(connection) >= 3) {
+        assertRequiredColumns(connection, V3_REQUIRED_COLUMNS);
+        connection.exec('CREATE INDEX IF NOT EXISTS idx_bookmark_link_health_checked ON bookmark_link_health(checked_at DESC);');
+    }
     connection.exec(INDEX_SCHEMA_SQL);
 }
 
@@ -164,6 +172,23 @@ const MIGRATIONS = [
                 );
             `);
             connection.exec('CREATE INDEX IF NOT EXISTS idx_bookmark_trash_deleted_at ON bookmark_trash(deleted_at DESC);');
+        }
+    },
+    {
+        version: 3,
+        name: 'add_bookmark_link_health',
+        up(connection) {
+            connection.exec(`
+                CREATE TABLE IF NOT EXISTS bookmark_link_health (
+                    url TEXT PRIMARY KEY,
+                    state TEXT NOT NULL,
+                    status_code INTEGER,
+                    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+                    error TEXT,
+                    checked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+            `);
+            connection.exec('CREATE INDEX IF NOT EXISTS idx_bookmark_link_health_checked ON bookmark_link_health(checked_at DESC);');
         }
     }
 ];

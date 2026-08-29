@@ -34,6 +34,14 @@ services:
       # - DB_DAILY_BACKUP_ENABLED=true
       # - DB_DAILY_BACKUP_LIMIT=14
       # - DB_RESTORE_BACKUP_LIMIT=5
+      # 可选：启用服务端 WebDAV 异地 SQLite 备份
+      # - DB_OFFSITE_BACKUP_ENABLED=true
+      # - DB_OFFSITE_BACKUP_PROVIDER=webdav
+      # - DB_OFFSITE_WEBDAV_URL=https://dav.example.com/dav/
+      # - DB_OFFSITE_WEBDAV_USERNAME=your-user
+      # - DB_OFFSITE_WEBDAV_PASSWORD=your-app-password
+      # - DB_OFFSITE_WEBDAV_PATH=bookmarks/sqlite-backups/
+      # - DB_OFFSITE_BACKUP_LIMIT=30
       # =====================
       # AI（可选，默认关闭）
       # =====================

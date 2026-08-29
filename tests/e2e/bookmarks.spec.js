@@ -116,7 +116,37 @@ test('exports data and shows traceable release information', async ({ page }) =>
     await page.locator('.settings-tab[data-tab="about"]').click();
     await expect(page.locator('#aboutVersion')).toHaveText('版本 e2e');
     await expect(page.locator('#aboutBuildInfo')).toContainText('playwright');
-    await expect(page.locator('#aboutBuildInfo')).toContainText('SQLite schema v2');
+    await expect(page.locator('#aboutBuildInfo')).toContainText('SQLite schema v3');
+});
+
+test('batch organizes bookmarks, runs local health checks and prefills quick add', async ({ page }) => {
+    const firstSection = page.locator('.category-section').first();
+    const selectedIds = await firstSection.locator('.bookmark-card').evaluateAll(nodes => nodes.slice(0, 2).map(node => node.dataset.id));
+    expect(selectedIds).toHaveLength(2);
+    const targetCategory = await page.locator('.category-section').nth(1).getAttribute('data-category-id');
+
+    await page.locator('#batchModeBtn').click();
+    await firstSection.locator('.batch-select').nth(0).click();
+    await expect(page.locator('#batchSelectionCount')).toHaveText('已选 1');
+    await firstSection.locator('.batch-select').nth(1).click();
+    await expect(page.locator('#batchSelectionCount')).toHaveText('已选 2');
+    await page.locator('#batchCategorySelect').selectOption(targetCategory);
+    await page.locator('#batchMoveBtn').click();
+    await expect(page.locator('.toast-message')).toContainText('已处理 2 个书签');
+    const bootstrap = await (await page.request.get('/api/bootstrap-v2')).json();
+    expect(bootstrap.data.bookmarks.filter(item => selectedIds.includes(item.id)).every(item => item.category_id === targetCategory)).toBeTruthy();
+
+    await page.locator('#settingsBtn').click();
+    await page.locator('.settings-tab[data-tab="sync"]').click();
+    await page.locator('#healthCheckBtn').click();
+    await expect(page.locator('#healthSummary')).toContainText('SQLite ok');
+    await expect(page.locator('#offsiteBackupStatus')).toContainText('未启用');
+    await page.locator('#settingsModalClose').click();
+
+    await page.goto('/?action=add&url=https%3A%2F%2Fquick.example%2Fpage&title=Quick%20Example');
+    await expect(page.locator('#bookmarkModal')).toHaveClass(/open/);
+    await expect(page.locator('#bookmarkInputName')).toHaveValue('Quick Example');
+    await expect(page.locator('#bookmarkInputUrl')).toHaveValue('https://quick.example/page');
 });
 
 test('restores a validated snapshot and refreshes AI tags immediately', async ({ page }) => {

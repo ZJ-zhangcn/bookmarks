@@ -6,6 +6,7 @@ import * as state from './state.js';
 import { toIconDisplayUrl, iconImageHtml } from './icon-display.js';
 import { apiRequest } from './api-client.js';
 import iconLoadQueueModule from './icon-load-queue.cjs';
+import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
 
 const { createIconLoadQueue } = iconLoadQueueModule;
 
@@ -13,6 +14,14 @@ export async function loadCoreData() {
     let payload = null;
     try {
         payload = await apiRequest('/api/bootstrap-v2', { cache: 'no-store' }, { toast: false });
+        writeBootstrapCache(payload).catch(() => {});
+    } catch (error) {
+        const cached = await readBootstrapCache();
+        payload = cached?.data || null;
+        if (!payload) console.error('加载核心数据失败:', error);
+    }
+
+    if (payload) {
         state.setCategories(payload?.categories || []);
         state.setBookmarks(payload?.bookmarks || []);
         state.setEngines(payload?.engines || []);
@@ -37,8 +46,6 @@ export async function loadCoreData() {
             DOM.webdavPass.value = localStorage.getItem('webdavPass') || '';
             DOM.webdavPath.value = localStorage.getItem('webdavPath') || 'bookmarks/config.json';
         }
-    } catch (e) {
-        console.error('加载核心数据失败:', e);
     }
 
     return payload;

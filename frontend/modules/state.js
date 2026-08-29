@@ -22,6 +22,8 @@ export const AI_CLICK_COOLDOWN_MS = 2500;
 export let collapsedCategories = new Set();
 export let aiStatus = { enabled: false, provider: null, model: null, note: null };
 export let sortingCategory = null;
+export let batchMode = false;
+export const batchSelectedIds = new Set();
 export let personalizationConfig = undefined;
 export let editingTodoId = null;
 export let todoShowCompleted = true; // 是否显示已完成区域
@@ -50,7 +52,20 @@ export const scrollPositions = new Map();
 
 // 状态更新函数
 export function setCategories(val) { categories = val; dataVersion++; }
-export function setBookmarks(val) { bookmarks = val; dataVersion++; }
+function normalizeSearchText(bookmark) {
+    return [bookmark?.name, bookmark?.description, bookmark?.url, bookmark?.tags, bookmark?.category_name]
+        .map(value => Array.isArray(value) ? value.join(' ') : String(value || ''))
+        .join(' ')
+        .toLocaleLowerCase();
+}
+
+export function setBookmarks(val) {
+    bookmarks = (Array.isArray(val) ? val : []).map(bookmark => ({
+        ...bookmark,
+        searchText: normalizeSearchText(bookmark)
+    }));
+    dataVersion++;
+}
 export function setTodos(val) { todos = val; dataVersion++; }
 export function setEngines(val) { engines = val; }
 export function setCurrentCategory(val) { currentCategory = val; }
@@ -66,6 +81,11 @@ export function setAiRequestInFlight(val) { aiRequestInFlight = val; }
 export function setAiLastActionAt(val) { aiLastActionAt = val; }
 export function setAiStatus(val) { aiStatus = val; }
 export function setSortingCategory(val) { sortingCategory = val; }
+export function setBatchMode(val) {
+    batchMode = Boolean(val);
+    if (!batchMode) batchSelectedIds.clear();
+    dataVersion++;
+}
 export function setPersonalizationConfig(val) { personalizationConfig = val; }
 export function setEditingTodoId(val) { editingTodoId = val; }
 export function setTodoShowCompleted(val) { todoShowCompleted = val; }
@@ -88,8 +108,9 @@ function compareBookmarks(a, b) {
 export function upsertBookmark(bookmark) {
     if (!bookmark?.id) return null;
     const index = bookmarks.findIndex(item => item.id === bookmark.id);
-    if (index >= 0) bookmarks = bookmarks.map((item, itemIndex) => itemIndex === index ? { ...item, ...bookmark } : item);
-    else bookmarks = [...bookmarks, bookmark];
+    const nextBookmark = { ...bookmark, searchText: normalizeSearchText(bookmark) };
+    if (index >= 0) bookmarks = bookmarks.map((item, itemIndex) => itemIndex === index ? { ...item, ...nextBookmark } : item);
+    else bookmarks = [...bookmarks, nextBookmark];
     bookmarks.sort(compareBookmarks);
     dataVersion++;
     return bookmarks.find(item => item.id === bookmark.id) || null;

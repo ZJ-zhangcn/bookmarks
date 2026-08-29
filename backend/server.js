@@ -13,6 +13,7 @@ const { registerAiRoutes } = require('./ai');
 const { errorHandler } = require('./utils');
 const bootstrapV2Module = require('./bootstrap-v2');
 const { getReleaseInfo } = require('./release-info');
+const offsiteBackup = require('./services/offsite-backup-service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -172,7 +173,9 @@ const routes = require('./routes')(db, {
     bookmarks: {
         onDataChanged: () => bootstrapV2Module.clearBootstrapCache?.(),
         onVisitRecorded: (id, visit) => bootstrapV2Module.updateCachedBookmarkVisit?.(id, visit)
-    }
+    },
+    health: { getOffsiteStatus: () => offsiteBackup.getStatus() },
+    backup: { service: offsiteBackup }
 });
 
 // 主路由（新路径）
@@ -186,6 +189,8 @@ app.use('/api/webdav', routes.webdav);
 app.use('/api/data', routes.data);
 app.use('/api/todos', routes.todos);
 app.use('/api/suggest', routes.suggest);
+app.use('/api/health', routes.health);
+app.use('/api/backup', routes.backup);
 
 // API 未命中时返回 JSON 404，避免被 SPA fallback 兜成首页 HTML
 app.use('/api', (req, res) => {
@@ -307,6 +312,15 @@ async function start() {
             await runDailyBackup();
             const dailyBackupTimer = setInterval(runDailyBackup, 6 * 60 * 60 * 1000);
             dailyBackupTimer.unref();
+        }
+
+        if (offsiteBackup.getConfig().enabled) {
+            const runOffsiteBackup = async () => {
+                await offsiteBackup.run({ db });
+            };
+            void runOffsiteBackup();
+            const offsiteBackupTimer = setInterval(runOffsiteBackup, 24 * 60 * 60 * 1000);
+            offsiteBackupTimer.unref();
         }
 
         app.listen(PORT, () => {

@@ -12,6 +12,8 @@ module.exports = function(db, options = {}) {
         config: require('./config')(db),
         webdav: require('./webdav')(db),
         data: require('./data')(db),
-        suggest: require('./suggest')(db)
+        suggest: require('./suggest')(db),
+        health: require('./health')(db, options.health),
+        backup: require('./backup')(db, options.backup)
     };
 };

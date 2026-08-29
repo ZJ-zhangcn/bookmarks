@@ -12,6 +12,7 @@ import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js
 import { showToast, showActionToast, showConfirm, showPrompt } from './ux.js';
 import sortHelpers from './sort-helpers.cjs';
 import { apiRequest, runWithButton } from './api-client.js';
+import { toggleBatchSelection } from './batch.js';
 
 const { moveItemInList } = sortHelpers;
 
@@ -26,6 +27,25 @@ function refreshAiUiVisibility() {
 }
 
 export function handleBookmarkClick(e) {
+    const tagChip = e.target.closest('.tag-chip');
+    if (tagChip) {
+        e.preventDefault();
+        e.stopPropagation();
+        const tag = tagChip.dataset.tag || '';
+        if (tag) {
+            DOM.searchInput.value = tag;
+            state.setCurrentSearch(tag);
+            renderBookmarks();
+        }
+        return;
+    }
+    const batchSelect = e.target.closest('.batch-select');
+    if (batchSelect) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleBatchSelection(batchSelect.dataset.id, !state.batchSelectedIds.has(batchSelect.dataset.id));
+        return;
+    }
     const editBtn = e.target.closest('.bookmark-action-btn.edit');
     const deleteBtn = e.target.closest('.bookmark-action-btn.delete');
     const addBtn = e.target.closest('.header-action-btn.add-btn');
@@ -54,7 +74,7 @@ export function recordBookmarkVisit(bookmarkId) {
     }, { toast: false }).catch(() => {});
 }
 
-export function openBookmarkModal(bookmarkId = null, categoryId = null) {
+export function openBookmarkModal(bookmarkId = null, categoryId = null, prefill = {}) {
     state.setEditingBookmarkId(bookmarkId);
     const existingBookmark = bookmarkId ? state.bookmarks.find(b => b.id === bookmarkId) : null;
 
@@ -111,8 +131,8 @@ export function openBookmarkModal(bookmarkId = null, categoryId = null) {
     } else {
         state.setEditingBookmark(null);
         DOM.bookmarkModalTitle.textContent = '添加书签';
-        DOM.bookmarkInputName.value = '';
-        DOM.bookmarkInputUrl.value = '';
+        DOM.bookmarkInputName.value = String(prefill.name || '');
+        DOM.bookmarkInputUrl.value = String(prefill.url || '');
         DOM.bookmarkInputDesc.value = '';
         if (DOM.bookmarkInputTags) DOM.bookmarkInputTags.value = '';
         state.setCurrentIconType('auto');

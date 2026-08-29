@@ -79,6 +79,33 @@ module.exports = function(db, options = {}) {
         return res.json(success(iconMap));
     }));
 
+    // POST /api/bookmarks/batch - 批量整理（单事务，最多 500 条）
+    router.post('/batch', requireAdmin, asyncHandler(async (req, res) => {
+        const { ids, action, payload } = req.body || {};
+        if (!Array.isArray(ids) || ids.length === 0) {
+            throw new AppError('至少选择一个书签', 400);
+        }
+        if (ids.length > 500) {
+            throw new AppError('一次最多整理 500 个书签', 400);
+        }
+        const safeIds = ids.map(id => String(id || '').trim());
+        if (safeIds.some(id => !id || id.length > 128)) {
+            throw new AppError('书签 ID 格式无效', 400);
+        }
+        const allowedActions = ['move', 'add-tags', 'remove-tags', 'trash', 'refresh-icons'];
+        if (!allowedActions.includes(action)) {
+            throw new AppError(`批量操作必须是 ${allowedActions.join('、')}`, 400);
+        }
+        let result;
+        try {
+            result = await bookmarksService.batchUpdateBookmarks(db, { ids: safeIds, action, payload: payload || {} });
+        } catch (error) {
+            throw new AppError(error.message, 400);
+        }
+        if (result.processed > 0) onDataChanged();
+        res.json(success(result));
+    }));
+
     // POST /api/bookmarks/:id/visit
     router.post('/:id/visit', asyncHandler(async (req, res) => {
         const { id } = req.params;

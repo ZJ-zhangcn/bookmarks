@@ -178,6 +178,21 @@
             </div>
         </div>
 
+        <div class="batch-toolbar" id="batchToolbar" hidden>
+            <button class="btn btn-secondary btn-sm" id="batchSelectAllBtn" type="button">全选当前结果</button>
+            <span class="batch-selection-count" id="batchSelectionCount">已选 0</span>
+            <select class="setting-select batch-category-select" id="batchCategorySelect" aria-label="目标分类">
+                <option value="">移动到分类...</option>
+            </select>
+            <input class="batch-tags-input" id="batchTagsInput" type="text" placeholder="标签，用逗号分隔" aria-label="批量标签">
+            <button class="btn btn-primary btn-sm" id="batchMoveBtn" type="button">移动</button>
+            <button class="btn btn-secondary btn-sm" id="batchAddTagsBtn" type="button">添加标签</button>
+            <button class="btn btn-secondary btn-sm" id="batchRemoveTagsBtn" type="button">删除标签</button>
+            <button class="btn btn-secondary btn-sm" id="batchRefreshIconsBtn" type="button">刷新图标</button>
+            <button class="btn btn-danger btn-sm" id="batchTrashBtn" type="button">移入回收站</button>
+            <button class="btn btn-secondary btn-sm" id="batchCancelBtn" type="button">退出</button>
+        </div>
+
         <!-- 书签网格 -->
         <main class="bookmarks-container" id="bookmarksContainer">
             <!-- 书签将通过 JavaScript 动态渲染 -->
@@ -208,6 +223,11 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
                 <path d="m21 21-4.35-4.35"></path>
+            </svg>
+        </button>
+        <button class="fixed-btn" id="batchModeBtn" title="选择书签" aria-label="批量整理">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
             </svg>
         </button>
         <button class="fixed-btn" id="settingsBtn" title="设置">
@@ -763,6 +783,39 @@
                             <div class="trash-list" id="trashList">
                                 <div class="setting-hint">正在加载...</div>
                             </div>
+                        </div>
+                        <div class="setting-card" id="healthCard">
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <div class="setting-label">数据健康</div>
+                                    <div class="setting-desc">检查重复网址、异常链接、缺失图标和长期未访问书签</div>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" id="healthCheckBtn" type="button">立即检查</button>
+                                <button class="btn btn-secondary btn-sm" id="linkCheckBtn" type="button">检查链接</button>
+                                <button class="btn btn-secondary btn-sm" id="linkCheckPauseBtn" type="button">暂停</button>
+                            </div>
+                            <div class="health-summary" id="healthSummary"><span class="setting-hint">尚未检查</span></div>
+                            <div class="health-summary" id="linkHealthSummary"><span class="setting-hint">链接检查尚未启动</span></div>
+                        </div>
+                        <div class="setting-card" id="offsiteBackupCard">
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <div class="setting-label">异地备份</div>
+                                    <div class="setting-desc">使用服务端环境变量配置 WebDAV 后自动上传 SQLite 快照</div>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" id="offsiteBackupBtn" type="button">立即备份</button>
+                            </div>
+                            <div class="health-summary" id="offsiteBackupStatus"><span class="setting-hint">正在加载...</span></div>
+                        </div>
+                        <div class="setting-card" id="quickAddCard">
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <div class="setting-label">快速收藏</div>
+                                    <div class="setting-desc">Bookmarklet 和移动端分享会打开新增书签窗口，由你确认后保存</div>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" id="copyBookmarkletBtn" type="button">复制 Bookmarklet</button>
+                            </div>
+                            <input class="setting-input" id="bookmarkletUrl" type="text" readonly aria-label="Bookmarklet">
                         </div>
                     </div>
 

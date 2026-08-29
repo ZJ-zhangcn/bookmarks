@@ -338,6 +338,143 @@ async function sortBookmarks(db, order) {
     });
 }
 
+function normalizeTagList(value) {
+    const values = Array.isArray(value)
+        ? value
+        : String(value || '').split(/[,\n，;；|/]+/g);
+    const tags = [];
+    const seen = new Set();
+    for (const raw of values) {
+        const tag = String(raw || '').trim();
+        if (!tag || tag.length > 40) continue;
+        const key = tag.toLocaleLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        tags.push(tag);
+    }
+    return tags.slice(0, 50);
+}
+
+function parseStoredTags(value) {
+    try {
+        return normalizeTagList(JSON.parse(value || '[]'));
+    } catch {
+        return [];
+    }
+}
+
+async function batchUpdateBookmarks(db, { ids, action, payload = {} }) {
+    const normalizedIds = (ids || []).map(id => String(id || '').trim()).filter(Boolean);
+    const uniqueIds = [...new Set(normalizedIds)];
+    const duplicateCount = normalizedIds.length - uniqueIds.length;
+    const rows = uniqueIds.length > 0
+        ? await db.queryAll(
+            `SELECT b.id, b.category_id, b.name, b.url, b.description, b.icon, b.icon_type,
+                    b.icon_data, b.sort_order, b.visit_count, b.last_visited_at, b.created_at,
+                    c.id AS category_id_ref, c.name AS category_name, c.icon AS category_icon,
+                    c.type AS category_type, c.sort_order AS category_sort_order,
+                    ba.tags AS ai_tags, ba.summary AS ai_summary, ba.provider AS ai_provider,
+                    ba.model AS ai_model, ba.updated_at AS ai_updated_at
+             FROM bookmarks b
+             LEFT JOIN categories c ON c.id = b.category_id
+             LEFT JOIN bookmark_ai ba ON ba.bookmark_id = b.id
+             WHERE b.id IN (${uniqueIds.map(() => '?').join(',')})
+               AND COALESCE(b.item_type, 'bookmark') <> 'component'`,
+            uniqueIds
+        )
+        : [];
+    const found = new Set(rows.map(row => row.id));
+    const skippedIds = uniqueIds.filter(id => !found.has(id));
+    const errors = [];
+
+    if (action === 'move') {
+        const categoryId = String(payload.category_id || '').trim();
+        const category = categoryId ? await db.queryOne(
+            'SELECT id FROM categories WHERE id = ? AND COALESCE(type, \'bookmark\') = \'bookmark\'',
+            [categoryId]
+        ) : null;
+        if (!category) throw new Error('目标分类不存在');
+        await db.transaction(async conn => {
+            for (const row of rows) {
+                const maxOrder = await db.queryOne('SELECT MAX(sort_order) AS max_order FROM bookmarks WHERE category_id = ?', [categoryId]);
+                const nextOrder = (maxOrder?.max_order ?? -1) + 1;
+                await conn.execute('UPDATE bookmarks SET category_id = ?, sort_order = ? WHERE id = ?', [categoryId, nextOrder, row.id]);
+            }
+        });
+        return { action, processed: rows.length, skipped: skippedIds.length + duplicateCount, skippedIds, errors };
+    }
+
+    if (action === 'add-tags' || action === 'remove-tags') {
+        const requested = normalizeTagList(payload.tags);
+        if (requested.length === 0) throw new Error('至少提供一个标签');
+        await db.transaction(async conn => {
+            for (const row of rows) {
+                const current = parseStoredTags(row.ai_tags);
+                const next = action === 'add-tags'
+                    ? normalizeTagList([...current, ...requested])
+                    : current.filter(tag => !requested.some(remove => remove.toLocaleLowerCase() === tag.toLocaleLowerCase()));
+                await conn.execute(
+                    `INSERT INTO bookmark_ai (bookmark_id, tags, summary, provider, model, updated_at)
+                     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                     ON CONFLICT(bookmark_id) DO UPDATE SET tags = excluded.tags, updated_at = CURRENT_TIMESTAMP`,
+                    [row.id, JSON.stringify(next), row.ai_summary || '', row.ai_provider || '', row.ai_model || '']
+                );
+            }
+        });
+        return { action, processed: rows.length, skipped: skippedIds.length + duplicateCount, skippedIds, errors, tags: requested };
+    }
+
+    if (action === 'refresh-icons') {
+        await db.transaction(async conn => {
+            for (const row of rows) {
+                await conn.execute("UPDATE bookmarks SET icon_type = 'auto', icon_data = '' WHERE id = ?", [row.id]);
+            }
+        });
+        return { action, processed: rows.length, skipped: skippedIds.length + duplicateCount, skippedIds, errors };
+    }
+
+    if (action === 'trash') {
+        const retentionDays = Number.isFinite(Number.parseInt(process.env.TRASH_RETENTION_DAYS, 10))
+            ? Math.min(365, Math.max(1, Number.parseInt(process.env.TRASH_RETENTION_DAYS, 10)))
+            : 30;
+        const expiresAt = new Date(Date.now() + retentionDays * 24 * 60 * 60 * 1000).toISOString();
+        const items = rows.map(row => ({
+            id: newId('trash'),
+            snapshot: {
+                version: 1,
+                bookmark: {
+                    id: row.id, category_id: row.category_id, name: row.name, url: row.url || '',
+                    description: row.description || '', icon: row.icon || '🌐', icon_type: row.icon_type || 'auto',
+                    icon_data: row.icon_data || '', sort_order: row.sort_order ?? 0,
+                    visit_count: row.visit_count ?? 0, last_visited_at: row.last_visited_at || null,
+                    created_at: row.created_at || null
+                },
+                category: row.category_id_ref ? {
+                    id: row.category_id_ref, name: row.category_name, icon: row.category_icon,
+                    type: row.category_type, sort_order: row.category_sort_order
+                } : null,
+                bookmark_ai: {
+                    bookmark_id: row.id, tags: parseStoredTags(row.ai_tags), summary: row.ai_summary || '',
+                    provider: row.ai_provider || '', model: row.ai_model || '', updated_at: row.ai_updated_at || null
+                }
+            }
+        }));
+        await db.transaction(async conn => {
+            for (const item of items) {
+                await conn.execute(
+                    'INSERT INTO bookmark_trash (id, snapshot_json, deleted_at, expires_at) VALUES (?, ?, CURRENT_TIMESTAMP, ?)',
+                    [item.id, JSON.stringify(item.snapshot), expiresAt]
+                );
+                await conn.execute('DELETE FROM bookmark_ai WHERE bookmark_id = ?', [item.snapshot.bookmark.id]);
+                await conn.execute('DELETE FROM bookmarks WHERE id = ?', [item.snapshot.bookmark.id]);
+            }
+        });
+        return { action, processed: items.length, skipped: skippedIds.length + duplicateCount, skippedIds, errors, expiresAt };
+    }
+
+    throw new Error('不支持的批量操作');
+}
+
 async function recordBookmarkVisit(db, id) {
     if (!id) return { changes: 0 };
     const result = await db.execute(
@@ -369,5 +506,6 @@ module.exports = {
     deleteTrash,
     purgeTrash,
     sortBookmarks,
+    batchUpdateBookmarks,
     recordBookmarkVisit
 };

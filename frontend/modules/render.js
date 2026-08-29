@@ -64,11 +64,11 @@ export function renderBookmarks() {
         const catBookmarks = bookmarksByCategory.get(category.id) || [];
         const filteredItems = catBookmarks.filter(item => {
             if (!searchTerm) return true;
-            const tagsText = Array.isArray(item.tags) ? item.tags.join(',') : String(item.tags || '');
-            return item.name.toLowerCase().includes(searchTerm) ||
-                (item.description && item.description.toLowerCase().includes(searchTerm)) ||
-                item.url.toLowerCase().includes(searchTerm) ||
-                (tagsText && tagsText.toLowerCase().includes(searchTerm));
+            const searchText = item.searchText || [item.name, item.description, item.url, item.tags, item.category_name]
+                .map(value => Array.isArray(value) ? value.join(' ') : String(value || ''))
+                .join(' ')
+                .toLowerCase();
+            return searchText.includes(searchTerm);
         });
 
         const shouldShow = isCurrentCategoryActive && (filteredItems.length > 0 || state.currentCategory !== 'all');
@@ -258,8 +258,9 @@ export function createBookmarkCard(item, searchTerm) {
     const matchedTags = searchTerm
         ? tagsArray.filter(t => t.toLowerCase().includes(searchTerm))
         : [];
-    const tagsHtml = matchedTags.length > 0
-        ? `<div class="bookmark-tags" title="标签（匹配）">${matchedTags.map(t => `<span class="tag-chip">${highlightText(t, searchTerm)}</span>`).join('')}</div>`
+    const displayTags = searchTerm ? matchedTags : tagsArray.slice(0, 4);
+    const tagsHtml = displayTags.length > 0
+        ? `<div class="bookmark-tags" title="点击标签筛选">${displayTags.map(t => `<button type="button" class="tag-chip" data-tag="${escapeHtmlAttribute(t)}">${highlightText(t, searchTerm)}</button>`).join('')}</div>`
         : '';
 
     let iconHtml;
@@ -303,6 +304,7 @@ export function createBookmarkCard(item, searchTerm) {
         : '';
     return `
         <a href="${toSafeExternalUrl(item.url)}" class="bookmark-card" target="_blank" rel="noopener" data-id="${escapeHtmlAttribute(item.id)}">
+            ${state.batchMode ? `<input class="batch-select" type="checkbox" data-id="${escapeHtmlAttribute(item.id)}" aria-label="选择 ${escapeHtmlAttribute(item.name)}" ${state.batchSelectedIds.has(item.id) ? 'checked' : ''}>` : ''}
             <div class="bookmark-actions">
                 <button class="bookmark-action-btn edit" data-id="${escapeHtmlAttribute(item.id)}" title="编辑">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -449,4 +451,3 @@ export function createTodoCard(todo, isCompleted = false) {
         </div>
     `;
 }
-

@@ -29,6 +29,7 @@ export class VirtualScroll {
         // 高度缓存（支持动态高度）
         this.itemHeights = new Map();
         this.measuredRows = new Set();
+        this.rowPrefix = [0];
 
         // DOM 节点
         this.wrapper = null;
@@ -139,19 +140,25 @@ export class VirtualScroll {
      */
     updateTotalHeight() {
         const rowCount = Math.ceil(this.items.length / this.columnsCount);
-
-        // 如果有测量过的高度，使用精确值
-        let totalHeight = 0;
+        this.rowPrefix = [0];
         for (let row = 0; row < rowCount; row++) {
-            if (this.measuredRows.has(row)) {
-                totalHeight += this.getRowHeight(row);
-            } else {
-                totalHeight += this.itemHeight;
-            }
+            const rowHeight = this.measuredRows.has(row) ? this.getRowHeight(row) : this.itemHeight;
+            this.rowPrefix.push(this.rowPrefix[row] + rowHeight);
         }
-
-        this.totalHeight = totalHeight;
+        this.totalHeight = this.rowPrefix[rowCount] || 0;
         this.content.style.height = `${this.totalHeight}px`;
+    }
+
+    findRowAtOffset(offset) {
+        const target = Math.max(0, Number(offset) || 0);
+        let low = 0;
+        let high = Math.max(0, this.rowPrefix.length - 1);
+        while (low < high) {
+            const middle = Math.floor((low + high) / 2);
+            if (this.rowPrefix[middle + 1] <= target) low = middle + 1;
+            else high = middle;
+        }
+        return low;
     }
 
     /**
@@ -179,27 +186,8 @@ export class VirtualScroll {
     calculateVisibleRange() {
         const rowCount = Math.ceil(this.items.length / this.columnsCount);
 
-        // 计算可见的行范围
-        let currentTop = 0;
-        let visibleStartRow = 0;
-        let visibleEndRow = 0;
-
-        for (let row = 0; row < rowCount; row++) {
-            const rowHeight = this.getRowHeight(row);
-            const rowBottom = currentTop + rowHeight;
-
-            if (rowBottom >= this.scrollTop && visibleStartRow === 0) {
-                visibleStartRow = row;
-            }
-
-            if (currentTop <= this.scrollTop + this.viewportHeight) {
-                visibleEndRow = row + 1;
-            } else {
-                break;
-            }
-
-            currentTop = rowBottom;
-        }
+        const visibleStartRow = this.findRowAtOffset(this.scrollTop);
+        const visibleEndRow = Math.min(rowCount, this.findRowAtOffset(this.scrollTop + this.viewportHeight) + 1);
 
         // 添加缓冲区
         const renderStartRow = Math.max(0, visibleStartRow - this.bufferSize);
@@ -224,10 +212,7 @@ export class VirtualScroll {
 
         // 计算渲染起始位置的 top 偏移
         const startRow = Math.floor(this.renderStart / this.columnsCount);
-        let offsetTop = 0;
-        for (let row = 0; row < startRow; row++) {
-            offsetTop += this.getRowHeight(row);
-        }
+        const offsetTop = this.rowPrefix[startRow] || 0;
 
         // 创建容器
         const fragment = document.createDocumentFragment();
@@ -324,11 +309,7 @@ export class VirtualScroll {
      */
     scrollToIndex(index, behavior = 'smooth') {
         const row = Math.floor(index / this.columnsCount);
-        let offsetTop = 0;
-
-        for (let r = 0; r < row; r++) {
-            offsetTop += this.getRowHeight(r);
-        }
+        const offsetTop = this.rowPrefix[row] || 0;
 
         this.wrapper.scrollTo({
             top: offsetTop,

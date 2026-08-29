@@ -515,6 +515,38 @@ body {
     }
 }
 
+.batch-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0 0 1rem;
+    padding: 0.75rem;
+    border: 1px solid var(--glass-border);
+    background: var(--bg-secondary, rgba(20, 25, 35, 0.72));
+    border-radius: 8px;
+}
+
+.batch-toolbar[hidden] { display: none; }
+.batch-selection-count { color: var(--text-secondary); font-size: 0.85rem; min-width: 4.5rem; }
+.batch-category-select { min-width: 9rem; }
+.batch-tags-input { min-width: 12rem; flex: 1 1 12rem; }
+.batch-select {
+    position: absolute;
+    top: 0.7rem;
+    left: 0.7rem;
+    width: 1.15rem;
+    height: 1.15rem;
+    z-index: 3;
+    accent-color: var(--primary);
+}
+.batch-mode-active .bookmark-card { outline: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); }
+
+@media (max-width: 600px) {
+    .batch-toolbar > button { flex: 1 1 auto; }
+    .batch-category-select, .batch-tags-input { flex: 1 1 100%; min-width: 0; }
+}
+
 /* ========================================
    模态框
    ======================================== */
@@ -1925,6 +1957,8 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    cursor: pointer;
+    font-family: inherit;
 }
 
 .search-result-tags {

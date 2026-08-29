@@ -16,6 +16,7 @@ import { initSearchSuggestions } from './suggest.js';
 import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { initUxFeedback, renderCategorySheet } from './ux.js';
 import { initCommandPalette } from './command-palette.js';
+import { bindBatchEvents } from './batch.js';
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -120,6 +121,7 @@ export function bindAllEvents() {
     initSearchSuggestions();
     initCategoryQuickSwitcher();
     initCommandPalette({ openBookmarkModal, openSettingsModal });
+    bindBatchEvents();
     DOM.searchInput.addEventListener('input', e => debouncedSearch(e.target.value));
     DOM.searchClear.addEventListener('click', () => { DOM.searchInput.value = ''; state.setCurrentSearch(''); renderBookmarks(); });
 
