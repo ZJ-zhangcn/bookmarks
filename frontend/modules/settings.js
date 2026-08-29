@@ -698,7 +698,7 @@ export async function webdavDownload() {
         renderAll();
         await loadPersonalization();
         refreshIconLibraryCache();
-        showWebdavStatus(mode === 'restore' ? '下载并完整恢复成功！' : '下载并合并成功！', 'success', { operation: '下载', path: filePath, includeIcons });
+        showWebdavStatus(mode === 'restore' ? '下载成功：已完整恢复！' : '下载成功：已合并导入！', 'success', { operation: '下载', path: filePath, includeIcons });
       } catch (err) {
           showWebdavStatus('下载错误: ' + err.message, 'error', { operation: '下载', path: filePath, includeIcons });
       }
