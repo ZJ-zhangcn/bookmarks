@@ -15,6 +15,7 @@ const fs = require('fs');
 const db = require('./db');
 const { registerAiRoutes } = require('./ai');
 const { errorHandler } = require('./utils');
+const bootstrapV2Module = require('./bootstrap-v2');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -99,12 +100,13 @@ app.use(express.static(staticRoot, {
 // ========================================
 // AI（可选功能，不影响现有功能）
 // ========================================
-registerAiRoutes(app, db);
+registerAiRoutes(app, db, {
+    onDataChanged: () => bootstrapV2Module.clearBootstrapCache?.()
+});
 
 // ========================================
 // Bootstrap优化端点（MySQL高延迟优化）
 // ========================================
-const bootstrapV2Module = require('./bootstrap-v2');
 bootstrapV2Module(app, db);
 
 // 写入操作后自动清除缓存中间件

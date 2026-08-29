@@ -55,7 +55,8 @@ function enforceAiRequestSize(body) {
 }
 
 
-function registerAiRoutes(app, db) {
+function registerAiRoutes(app, db, options = {}) {
+    const onDataChanged = typeof options.onDataChanged === 'function' ? options.onDataChanged : () => {};
     app.all('/api/ai', async (req, res) => {
         const action = String(req.query.action || '').toLowerCase();
 
@@ -76,6 +77,7 @@ function registerAiRoutes(app, db) {
                 const id = String(bookmarkId || '').trim();
                 if (!id) return res.status(400).json({ success: false, error: '缺少书签 ID' });
                 await aiService.saveBookmarkAi(db, { bookmarkId: id, tags, summary });
+                onDataChanged();
                 return res.json({ success: true });
             }
 
@@ -83,6 +85,7 @@ function registerAiRoutes(app, db) {
                 enforceAiRateLimit(req);
                 enforceAiRequestSize(req.body);
                 const data = await aiService.generateAi(db, req.body);
+                if (String(req.body?.persist).toLowerCase() === 'true') onDataChanged();
                 return res.json({ success: true, data });
             }
 

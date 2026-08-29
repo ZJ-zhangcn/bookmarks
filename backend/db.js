@@ -6,22 +6,75 @@
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
+const { CURRENT_SCHEMA_VERSION, getSchemaVersion, migrateDatabase } = require('./db/migrations');
 
 let db = null;
+let databasePath = null;
+
+const DEFAULT_MIGRATION_BACKUP_LIMIT = 5;
+
+function hasExistingUserTables() {
+    const row = db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM sqlite_master
+        WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+    `).get();
+    return Number(row?.count) > 0;
+}
+
+function migrationBackupLimit() {
+    const parsed = Number.parseInt(process.env.DB_MIGRATION_BACKUP_LIMIT || '', 10);
+    return Number.isFinite(parsed) && parsed >= 1 ? parsed : DEFAULT_MIGRATION_BACKUP_LIMIT;
+}
+
+function migrationBackupFileName(fromVersion) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    return `bookmarks-v${fromVersion}-to-v${CURRENT_SCHEMA_VERSION}-${timestamp}.db`;
+}
+
+function pruneMigrationBackups(backupDir) {
+    const backupFiles = fs.readdirSync(backupDir)
+        .filter(name => name.endsWith('.db'))
+        .map(name => {
+            const filePath = path.join(backupDir, name);
+            return { filePath, mtimeMs: fs.statSync(filePath).mtimeMs };
+        })
+        .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+    for (const backup of backupFiles.slice(migrationBackupLimit())) {
+        fs.unlinkSync(backup.filePath);
+    }
+}
+
+async function backupBeforeMigration(fromVersion) {
+    if (!hasExistingUserTables()) return null;
+
+    const backupDir = path.join(path.dirname(databasePath), 'migration-backups');
+    fs.mkdirSync(backupDir, { recursive: true });
+    const backupPath = path.join(backupDir, migrationBackupFileName(fromVersion));
+    await db.backup(backupPath);
+    pruneMigrationBackups(backupDir);
+    return backupPath;
+}
 
 /**
  * 初始化 SQLite 数据库
  */
-async function initDatabase() {
+async function initDatabase(options = {}) {
     console.log('📦 使用 SQLite 数据库');
 
+    const configuredPath = options.filePath || process.env.DB_PATH;
+    databasePath = configuredPath
+        ? (path.isAbsolute(configuredPath) ? configuredPath : path.resolve(__dirname, configuredPath))
+        : path.join(__dirname, 'data', 'bookmarks.db');
+
     // 确保数据目录存在
-    const dataDir = path.join(__dirname, 'data');
+    const dataDir = path.dirname(databasePath);
     if (!fs.existsSync(dataDir)) {
         fs.mkdirSync(dataDir, { recursive: true });
     }
 
-    db = new Database(path.join(dataDir, 'bookmarks.db'));
+    db = new Database(databasePath);
     db.pragma('journal_mode = WAL'); // 启用 WAL 模式提升并发性能
     db.pragma('foreign_keys = ON');
     db.pragma('synchronous = NORMAL'); // 平衡性能和安全性
@@ -29,109 +82,31 @@ async function initDatabase() {
     console.log('✅ SQLite 连接成功');
 }
 
+function closeDatabase() {
+    if (!db) return;
+    db.close();
+    db = null;
+    databasePath = null;
+}
+
 /**
  * 创建数据表和索引
  */
 async function createTables() {
-    db.exec(`
-        -- 分类表
-        CREATE TABLE IF NOT EXISTS categories (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            icon TEXT DEFAULT '📁',
-            type TEXT DEFAULT 'bookmark',
-            sort_order INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
+    const fromVersion = getSchemaVersion(db);
+    let backupPath = null;
+    if (fromVersion < CURRENT_SCHEMA_VERSION) {
+        backupPath = await backupBeforeMigration(fromVersion);
+    }
 
-        -- 书签表
-        CREATE TABLE IF NOT EXISTS bookmarks (
-            id TEXT PRIMARY KEY,
-            category_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            url TEXT,
-            description TEXT,
-            icon TEXT DEFAULT '🌐',
-            icon_type TEXT DEFAULT 'auto',
-            icon_data TEXT,
-            item_type TEXT DEFAULT 'bookmark',
-            component_type TEXT,
-            sort_order INTEGER DEFAULT 0,
-            visit_count INTEGER DEFAULT 0,
-            last_visited_at DATETIME,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
-        );
-
-        -- 搜索引擎表
-        CREATE TABLE IF NOT EXISTS search_engines (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            icon TEXT DEFAULT '🔍',
-            url TEXT NOT NULL,
-            is_default INTEGER DEFAULT 0,
-            sort_order INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- 配置表
-        CREATE TABLE IF NOT EXISTS config (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        );
-
-        -- 图标库表
-        CREATE TABLE IF NOT EXISTS icon_library (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            data TEXT NOT NULL,
-            type TEXT DEFAULT 'url',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- 图标发现持久缓存表（默认通过 ICON_DISCOVERY_PERSISTENT_CACHE=true 启用）
-        CREATE TABLE IF NOT EXISTS icon_discovery_cache (
-            origin TEXT PRIMARY KEY,
-            result_json TEXT NOT NULL,
-            status TEXT,
-            expires_at DATETIME NOT NULL,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- AI 标签/摘要表
-        CREATE TABLE IF NOT EXISTS bookmark_ai (
-            bookmark_id TEXT PRIMARY KEY,
-            tags TEXT,
-            summary TEXT,
-            provider TEXT,
-            model TEXT,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- TODO 待办表
-        CREATE TABLE IF NOT EXISTS todos (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            is_done INTEGER DEFAULT 0,
-            sort_order INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            completed_at DATETIME,
-            CHECK (is_done IN (0, 1))
-        );
-
-
-        -- 性能优化索引
-        CREATE INDEX IF NOT EXISTS idx_bookmarks_category_sort ON bookmarks(category_id, sort_order, created_at);
-        CREATE INDEX IF NOT EXISTS idx_bookmarks_visits ON bookmarks(visit_count DESC, last_visited_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_categories_sort ON categories(sort_order);
-        CREATE INDEX IF NOT EXISTS idx_engines_sort ON search_engines(sort_order);
-        CREATE INDEX IF NOT EXISTS idx_todos_list ON todos(is_done, sort_order, created_at);
-        CREATE INDEX IF NOT EXISTS idx_bookmark_ai_lookup ON bookmark_ai(bookmark_id);
-        CREATE INDEX IF NOT EXISTS idx_icon_discovery_cache_expires ON icon_discovery_cache(expires_at);
-    `);
-
-    console.log('✅ SQLite 数据表和索引创建完成');
+    const result = migrateDatabase(db);
+    if (result.applied.length > 0) {
+        const versions = result.applied.map(item => `v${item.version}`).join(', ');
+        console.log(`✅ SQLite 迁移完成: v${result.fromVersion} -> v${result.toVersion} (${versions})`);
+        if (backupPath) console.log(`🗄️ 迁移前备份: ${backupPath}`);
+    } else {
+        console.log(`✅ SQLite 数据结构已是最新版本 v${result.toVersion}`);
+    }
 }
 
 /**
@@ -196,5 +171,6 @@ module.exports = {
     execute,
     transaction,
     getDatabaseType,
-    getSqliteDb
+    getSqliteDb,
+    closeDatabase
 };

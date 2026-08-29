@@ -8,6 +8,7 @@ function createMemoryDataDb() {
         categories: [],
         bookmarks: [],
         bookmark_ai: [],
+        icon_library: [],
         search_engines: [],
         todos: [],
         config: []
@@ -22,6 +23,7 @@ function createMemoryDataDb() {
             if (/FROM search_engines/i.test(sql)) return [...tables.search_engines];
             if (/FROM todos/i.test(sql)) return [...tables.todos];
             if (/FROM bookmark_ai/i.test(sql)) return [...tables.bookmark_ai];
+            if (/FROM icon_library/i.test(sql)) return [...tables.icon_library];
             return [];
         },
         async queryOne(sql, params = []) {
@@ -43,7 +45,8 @@ function createMemoryDataDb() {
         if (/INSERT INTO bookmarks/i.test(sql)) {
             upsert(tables.bookmarks, 'id', {
                 id: params[0], category_id: params[1], name: params[2], url: params[3], description: params[4],
-                icon: params[5], icon_type: params[6], icon_data: params[7], sort_order: params[8]
+                icon: params[5], icon_type: params[6], icon_data: params[7], sort_order: params[8],
+                visit_count: params[9], last_visited_at: params[10]
             });
             return { changes: 1 };
         }
@@ -54,7 +57,13 @@ function createMemoryDataDb() {
             return { changes: 1 };
         }
         if (/INSERT INTO search_engines/i.test(sql)) {
-            upsert(tables.search_engines, 'id', { id: params[0], name: params[1], icon: params[2], url: params[3], sort_order: params[4] });
+            upsert(tables.search_engines, 'id', {
+                id: params[0], name: params[1], icon: params[2], url: params[3], is_default: params[4], sort_order: params[5]
+            });
+            return { changes: 1 };
+        }
+        if (/INSERT INTO icon_library/i.test(sql)) {
+            upsert(tables.icon_library, 'id', { id: params[0], name: params[1], data: params[2], type: params[3] });
             return { changes: 1 };
         }
         if (/INSERT INTO todos/i.test(sql)) {
@@ -142,5 +151,33 @@ test('data import restores bookmark AI tags from WebDAV sync payload', async () 
         summary: 'Example summary',
         provider: 'manual',
         model: 'manual'
+    }]);
+});
+
+test('data backup round trip preserves visits, default engine and icon library', async () => {
+    const source = createMemoryDataDb();
+    source.tables.categories.push({ id: 'cat-1', name: '默认', icon: '📁', sort_order: 0 });
+    source.tables.bookmarks.push({
+        id: 'bm-history', category_id: 'cat-1', name: 'History', url: 'https://example.com', description: '',
+        icon: '🌐', icon_type: 'url', icon_data: 'https://example.com/favicon.ico', sort_order: 0,
+        visit_count: 42, last_visited_at: '2026-08-28T12:00:00.000Z'
+    });
+    source.tables.search_engines.push({
+        id: 'eng-default', name: 'Search', icon: '🔍', url: 'https://example.com/?q=', is_default: 1, sort_order: 0
+    });
+    source.tables.icon_library.push({
+        id: 'icon-1', name: 'Example', data: 'data:image/png;base64,AAAA', type: 'base64', created_at: '2026-08-28'
+    });
+
+    const exported = await dataService.exportData(source, true);
+    const restored = createMemoryDataDb();
+    await dataService.importData(restored, exported);
+
+    assert.equal(exported.version, '1.2');
+    assert.equal(restored.tables.bookmarks[0].visit_count, 42);
+    assert.equal(restored.tables.bookmarks[0].last_visited_at, '2026-08-28T12:00:00.000Z');
+    assert.equal(restored.tables.search_engines[0].is_default, 1);
+    assert.deepEqual(restored.tables.icon_library, [{
+        id: 'icon-1', name: 'Example', data: 'data:image/png;base64,AAAA', type: 'base64'
     }]);
 });

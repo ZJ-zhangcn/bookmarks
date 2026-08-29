@@ -1,17 +1,73 @@
 import { defineConfig } from 'vite';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
+
+function toPublicAssetPath(fileName) {
+  return `/${String(fileName || '').replace(/^\/+/, '')}`;
+}
+
+function createPwaServiceWorker(bundle, source, fixedAssets = []) {
+  const appShell = new Set([
+    '/',
+    '/index.html',
+    '/manifest.webmanifest',
+    '/assets/icon-192.png',
+    '/assets/icon-512.png'
+  ]);
+
+  for (const output of Object.values(bundle)) {
+    if (output.type === 'chunk') {
+      appShell.add(toPublicAssetPath(output.fileName));
+      continue;
+    }
+    if (/\.(css|js|png|svg|webmanifest)$/.test(output.fileName)) {
+      appShell.add(toPublicAssetPath(output.fileName));
+    }
+  }
+
+  const sortedAppShell = [...appShell].sort();
+  const cacheHash = crypto.createHash('sha256');
+  cacheHash.update(sortedAppShell.join('|'));
+  for (const output of Object.values(bundle).sort((a, b) => a.fileName.localeCompare(b.fileName))) {
+    cacheHash.update(output.fileName);
+    cacheHash.update(output.type === 'chunk' ? output.code : output.source);
+  }
+  for (const assetPath of fixedAssets.sort()) {
+    cacheHash.update(assetPath);
+    cacheHash.update(fs.readFileSync(assetPath));
+  }
+  const cacheVersion = cacheHash.digest('hex').slice(0, 12);
+
+  return source
+    .replace(
+      /const CACHE_NAME = globalThis\.__PWA_CACHE_NAME__ \|\| '[^']+';/,
+      `const CACHE_NAME = 'bookmark-nav-pwa-${cacheVersion}';`
+    )
+    .replace(
+      /const APP_SHELL = globalThis\.__PWA_APP_SHELL__ \|\| \[[\s\S]*?\n\];/,
+      `const APP_SHELL = ${JSON.stringify(sortedAppShell, null, 4)};`
+    );
+}
 
 function copyPwaAssets() {
   return {
     name: 'copy-pwa-assets',
-    closeBundle() {
+    generateBundle(_options, bundle) {
       const distDir = path.resolve(__dirname, '..', 'dist');
       const distAssetsDir = path.join(distDir, 'assets');
+      const icon192Path = path.resolve(__dirname, 'assets/icon-192.png');
+      const icon512Path = path.resolve(__dirname, 'assets/icon-512.png');
       fs.mkdirSync(distAssetsDir, { recursive: true });
-      fs.copyFileSync(path.resolve(__dirname, 'service-worker.js'), path.join(distDir, 'service-worker.js'));
-      fs.copyFileSync(path.resolve(__dirname, 'assets/icon-192.png'), path.join(distAssetsDir, 'icon-192.png'));
-      fs.copyFileSync(path.resolve(__dirname, 'assets/icon-512.png'), path.join(distAssetsDir, 'icon-512.png'));
+      fs.copyFileSync(icon192Path, path.join(distAssetsDir, 'icon-192.png'));
+      fs.copyFileSync(icon512Path, path.join(distAssetsDir, 'icon-512.png'));
+
+      const serviceWorkerSource = fs.readFileSync(path.resolve(__dirname, 'service-worker.js'), 'utf8');
+      this.emitFile({
+        type: 'asset',
+        fileName: 'service-worker.js',
+        source: createPwaServiceWorker(bundle, serviceWorkerSource, [icon192Path, icon512Path])
+      });
     }
   };
 }

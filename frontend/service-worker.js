@@ -1,5 +1,5 @@
-const CACHE_NAME = 'bookmark-nav-pwa-v16';
-const APP_SHELL = [
+const CACHE_NAME = globalThis.__PWA_CACHE_NAME__ || 'bookmark-nav-pwa-dev-v16';
+const APP_SHELL = globalThis.__PWA_APP_SHELL__ || [
     '/',
     '/index.html',
     '/index.css',
@@ -53,11 +53,8 @@ self.addEventListener('fetch', event => {
 function isStaticAsset(pathname) {
     return pathname === '/'
         || pathname === '/index.html'
-        || pathname === '/index.css'
-        || pathname === '/main.js'
         || pathname === '/manifest.webmanifest'
         || pathname.startsWith('/assets/')
-        || pathname.startsWith('/modules/')
         || pathname.endsWith('.js')
         || pathname.endsWith('.css')
         || pathname.endsWith('.png')

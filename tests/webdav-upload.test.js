@@ -61,18 +61,19 @@ test('webdav route reports blocked private upload URL as operational 400 instead
 });
 
 test('webdav route maps upstream/network upload failures to JSON 424 to avoid Cloudflare replacing the body', async () => {
-    const originalUpload = webdavService.upload;
     await withEnv({ DISABLE_ADMIN_AUTH: 'true', ALLOW_PRIVATE_FETCH: undefined, NODE_ENV: 'production' }, async () => {
-        webdavService.upload = async () => {
+        const failingService = {
+            upload: async () => {
             const err = new Error('WebDAV 上传请求失败: fetch failed');
             err.statusCode = 502;
             err.isOperational = true;
             throw err;
+            }
         };
 
         const app = express();
         app.use(express.json({ limit: '10mb' }));
-        app.use('/api/webdav', createWebdavRoute({}));
+        app.use('/api/webdav', createWebdavRoute({}, { webdavService: failingService }));
         app.use(errorHandler);
 
         const server = await listen(app);
@@ -95,14 +96,12 @@ test('webdav route maps upstream/network upload failures to JSON 424 to avoid Cl
             assert.match(body.error, /WebDAV 上传请求失败: fetch failed/);
         } finally {
             await new Promise(resolve => server.close(resolve));
-            webdavService.upload = originalUpload;
         }
     });
 });
 
 test('webdav upload upstream failures keep their message visible in production error handler', async () => {
-    const originalFetch = global.fetch;
-    global.fetch = async (_url, options = {}) => {
+    const fetchImpl = async (_url, options = {}) => {
         if (options.method === 'MKCOL') return { ok: false, status: 405, text: async () => '' };
         return {
             ok: false,
@@ -111,30 +110,25 @@ test('webdav upload upstream failures keep their message visible in production e
             text: async () => 'quota exceeded'
         };
     };
-    try {
-        await assert.rejects(
+    await assert.rejects(
             () => webdavService.upload({
                 url: 'https://webdav.example.test',
                 username: 'user',
                 password: 'pass',
                 path: 'bookmarks/config.json',
                 data: { ok: true }
-            }),
+            }, { fetchImpl }),
             err => {
                 assert.equal(err.statusCode, 507);
                 assert.equal(err.isOperational, true);
                 assert.match(err.message, /上传失败: 507 quota exceeded/);
                 return true;
             }
-        );
-    } finally {
-        global.fetch = originalFetch;
-    }
+    );
 });
 
 test('webdav upload html upstream errors are summarized instead of dumping an error page', async () => {
-    const originalFetch = global.fetch;
-    global.fetch = async (_url, options = {}) => {
+    const fetchImpl = async (_url, options = {}) => {
         if (options.method === 'MKCOL') return { ok: false, status: 405, text: async () => '' };
         return {
             ok: false,
@@ -143,15 +137,14 @@ test('webdav upload html upstream errors are summarized instead of dumping an er
             text: async () => '<!DOCTYPE html><html><head><title>error code: 502</title></head><body>large cloudflare page</body></html>'
         };
     };
-    try {
-        await assert.rejects(
+    await assert.rejects(
             () => webdavService.upload({
                 url: 'https://webdav.example.test',
                 username: 'user',
                 password: 'pass',
                 path: 'bookmarks/config.json',
                 data: { ok: true }
-            }),
+            }, { fetchImpl }),
             err => {
                 assert.equal(err.statusCode, 502);
                 assert.equal(err.isOperational, true);
@@ -159,35 +152,48 @@ test('webdav upload html upstream errors are summarized instead of dumping an er
                 assert.doesNotMatch(err.message, /DOCTYPE|large cloudflare page/);
                 return true;
             }
-        );
-    } finally {
-        global.fetch = originalFetch;
-    }
+    );
 });
 
 test('webdav upload network failures are operational bad gateway errors', async () => {
-    const originalFetch = global.fetch;
-    global.fetch = async (_url, options = {}) => {
+    const fetchImpl = async (_url, options = {}) => {
         if (options.method === 'MKCOL') return { ok: false, status: 405, text: async () => '' };
         throw new Error('fetch failed');
     };
-    try {
-        await assert.rejects(
+    await assert.rejects(
             () => webdavService.upload({
                 url: 'https://webdav.example.test',
                 username: 'user',
                 password: 'pass',
                 path: 'bookmarks/config.json',
                 data: { ok: true }
-            }),
+            }, { fetchImpl }),
             err => {
                 assert.equal(err.statusCode, 502);
                 assert.equal(err.isOperational, true);
                 assert.match(err.message, /WebDAV 上传请求失败: fetch failed/);
                 return true;
             }
-        );
-    } finally {
-        global.fetch = originalFetch;
-    }
+    );
+});
+
+test('webdav download network failures are operational bad gateway errors', async () => {
+    const fetchImpl = async () => {
+        throw new Error('fetch failed');
+    };
+
+    await assert.rejects(
+        () => webdavService.download({
+            url: 'https://webdav.example.test',
+            username: 'user',
+            password: 'pass',
+            path: 'bookmarks/config.json'
+        }, { fetchImpl }),
+        err => {
+            assert.equal(err.statusCode, 502);
+            assert.equal(err.isOperational, true);
+            assert.match(err.message, /WebDAV 下载请求失败: fetch failed/);
+            return true;
+        }
+    );
 });

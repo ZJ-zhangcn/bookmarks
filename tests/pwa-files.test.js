@@ -43,8 +43,30 @@ test('frontend registers service worker module', () => {
   assert.match(server, /Cache-Control',\s*'no-store, no-cache, must-revalidate, proxy-revalidate'/);
 
   const sw = read('frontend/service-worker.js');
-  assert.match(sw, /const\s+CACHE_NAME\s*=/);
+  assert.match(sw, /globalThis\.__PWA_CACHE_NAME__/);
+  assert.match(sw, /globalThis\.__PWA_APP_SHELL__/);
   assert.match(sw, /\/api\/bootstrap-v2/);
   assert.match(sw, /if\s*\(request\.method\s*!==\s*'GET'\)\s*return;/);
   assert.match(sw, /if\s*\(url\.pathname\s*===\s*BOOTSTRAP_PATH\)\s*{\s*event\.respondWith\(networkFirst\(request\)\)/);
+});
+
+test('production service worker precaches hashed Vite assets', () => {
+  const viteConfig = read('frontend/vite.config.js');
+  assert.match(viteConfig, /createPwaServiceWorker/);
+  assert.match(viteConfig, /this\.emitFile\(\{/);
+  assert.match(viteConfig, /fileName:\s*'service-worker\.js'/);
+
+  const distDir = path.join(root, 'dist');
+  if (!fs.existsSync(path.join(distDir, 'service-worker.js'))) return;
+
+  const distServiceWorker = read('dist/service-worker.js');
+  const builtAssets = fs.readdirSync(path.join(distDir, 'assets'))
+    .filter(name => /\.(js|css)$/.test(name));
+
+  assert.doesNotMatch(distServiceWorker, /globalThis\.__PWA_(CACHE_NAME|APP_SHELL)__/);
+  assert.doesNotMatch(distServiceWorker, /['"]\/main\.js['"]/);
+  assert.doesNotMatch(distServiceWorker, /['"]\/index\.css['"]/);
+  for (const asset of builtAssets) {
+    assert.match(distServiceWorker, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
 });

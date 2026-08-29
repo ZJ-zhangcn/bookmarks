@@ -14,6 +14,18 @@ function createOperationalError(message, statusCode) {
     return err;
 }
 
+const DEFAULT_TIMEOUT_MS = 15000;
+
+async function fetchWithTimeout(fetchImpl, url, options, timeoutMs = DEFAULT_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetchImpl(url, { ...(options || {}), signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 async function readUpstreamError(response) {
     const contentType = String(response.headers?.get?.('content-type') || '').toLowerCase();
     const text = await response.text();
@@ -22,29 +34,31 @@ async function readUpstreamError(response) {
     return title ? title.replace(/\s+/g, ' ').trim() : '';
 }
 
-async function upload({ url, username, password, path: filePath, data }) {
+async function upload({ url, username, password, path: filePath, data }, options = {}) {
+    const fetchImpl = options.fetchImpl || fetch;
+    const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
     const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
 
     // 确保目录存在
     const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
     if (dirPath) {
         const dirUrl = url.endsWith('/') ? url + dirPath : url + '/' + dirPath;
-        await fetch(dirUrl, {
+        await fetchWithTimeout(fetchImpl, dirUrl, {
             method: 'MKCOL',
             headers: { 'Authorization': buildAuthHeader(username, password) }
-        }).catch(() => { });
+        }, timeoutMs).catch(() => { });
     }
 
     let response;
     try {
-        response = await fetch(fullUrl, {
+        response = await fetchWithTimeout(fetchImpl, fullUrl, {
             method: 'PUT',
             headers: {
                 'Authorization': buildAuthHeader(username, password),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(data, null, 2)
-        });
+        }, timeoutMs);
     } catch (e) {
         throw createOperationalError(`WebDAV 上传请求失败: ${e.message}`, 502);
     }
@@ -57,13 +71,20 @@ async function upload({ url, username, password, path: filePath, data }) {
     throw createOperationalError(`上传失败: ${response.status}${text ? ` ${text}` : ''}`, response.status || 502);
 }
 
-async function download({ url, username, password, path: filePath }) {
+async function download({ url, username, password, path: filePath }, options = {}) {
+    const fetchImpl = options.fetchImpl || fetch;
+    const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
     const fullUrl = url.endsWith('/') ? url + filePath : url + '/' + filePath;
 
-    const response = await fetch(fullUrl, {
-        method: 'GET',
-        headers: { 'Authorization': buildAuthHeader(username, password) }
-    });
+    let response;
+    try {
+        response = await fetchWithTimeout(fetchImpl, fullUrl, {
+            method: 'GET',
+            headers: { 'Authorization': buildAuthHeader(username, password) }
+        }, timeoutMs);
+    } catch (e) {
+        throw createOperationalError(`WebDAV 下载请求失败: ${e.message}`, 502);
+    }
 
     if (response.ok) {
         const text = await response.text();
@@ -93,4 +114,4 @@ async function download({ url, username, password, path: filePath }) {
     throw err;
 }
 
-module.exports = { upload, download };
+module.exports = { upload, download, fetchWithTimeout };

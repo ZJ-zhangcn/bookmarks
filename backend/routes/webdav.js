@@ -20,13 +20,14 @@ function toOperationalError(err, fallbackStatusCode = 400) {
     return operational;
 }
 
-module.exports = function(_db) {
+module.exports = function(_db, options = {}) {
+    const service = options.webdavService || webdavService;
     // POST /api/webdav?action=upload/download
     router.post('/', requireAdmin, asyncHandler(async (req, res) => {
-        const { url, username, password, path: filePath, data } = req.body;
+        const { url, username, password, path: filePath, data } = req.body || {};
         const action = req.query.action;
 
-        if (!url || !username || !password) {
+        if (!url || !username || !password || !filePath) {
             throw new AppError('请填写完整的 WebDAV 配置', 400);
         }
 
@@ -39,7 +40,7 @@ module.exports = function(_db) {
 
         if (action === 'upload') {
             try {
-                const result = await webdavService.upload({ url, username, password, path: filePath, data });
+                const result = await service.upload({ url, username, password, path: filePath, data });
                 return res.json(success(null, result.message));
             } catch (err) {
                 throw toOperationalError(err, 424);
@@ -48,7 +49,7 @@ module.exports = function(_db) {
 
         if (action === 'download') {
             try {
-                const downloadedData = await webdavService.download({ url, username, password, path: filePath });
+                const downloadedData = await service.download({ url, username, password, path: filePath });
                 return res.json(success(downloadedData));
             } catch (err) {
                 throw toOperationalError(err, 424);

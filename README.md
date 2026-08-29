@@ -16,6 +16,7 @@
 - 数据同步：支持本地 JSON 导入导出、浏览器书签 HTML 导入和 WebDAV 上传/下载。
 - AI 辅助：可为书签生成摘要、标签和分类建议，支持 OpenAI 兼容接口。
 - 数据库：使用 SQLite（WAL 模式），性能优秀，适合个人部署。
+- 自动迁移：容器升级时会检查 SQLite 结构，并在迁移前生成在线数据库备份。
 
 ## 快速部署
 
@@ -102,6 +103,13 @@ npm run dev:frontend
 | 管理令牌 | `ADMIN_TOKEN` | `AUTH_MODE=token` 时，写接口需要 `Authorization: Bearer ***`。 |
 | 内网访问 | `ALLOW_PRIVATE_NETWORK` | WebDAV、图标抓取或 AI 网关需要访问内网地址时开启。 |
 | 启用 AI | `AI_ENABLED` | 设置为 `true` 后，配置 OpenAI Key 即可。 |
+| 迁移备份数 | `DB_MIGRATION_BACKUP_LIMIT` | 数据库升级前自动备份的保留数量，默认 `5`。 |
+
+### SQLite 升级与迁移
+
+服务启动时会在监听端口前检查数据库版本。首次启用迁移机制时，已有完整数据库会登记为基线版本，不会清空或重建业务数据；数据库中的额外扩展表也会保留。
+
+需要升级结构时，程序会先通过 SQLite 在线备份 API 将完整快照写入数据卷中的 `migration-backups/`，再在事务中执行迁移。迁移失败时服务不会启动，数据库版本标记和结构变更会回滚。
 
 ### AI 配置
 

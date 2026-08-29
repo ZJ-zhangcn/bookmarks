@@ -15,11 +15,19 @@ async function exportData(db, includeIcons) {
         WHERE COALESCE(item_type, 'bookmark') <> 'component'
     `);
     let engines = await db.queryAll('SELECT * FROM search_engines');
+    let iconLibrary = [];
     let bookmarkAi = [];
     try {
         bookmarkAi = await db.queryAll('SELECT bookmark_id, tags, summary, provider, model, updated_at FROM bookmark_ai');
     } catch {
         bookmarkAi = [];
+    }
+    if (includeIcons) {
+        try {
+            iconLibrary = await db.queryAll('SELECT id, name, data, type, created_at FROM icon_library');
+        } catch {
+            iconLibrary = [];
+        }
     }
 
     const todos = await db.queryAll('SELECT id, title, is_done, sort_order, created_at, updated_at, completed_at FROM todos');
@@ -42,12 +50,13 @@ async function exportData(db, includeIcons) {
     }
 
     return {
-        version: '1.1',
+        version: '1.2',
         exportTime: new Date().toISOString(),
         includeIcons,
         categories,
         bookmarks,
         bookmark_ai: bookmarkAi,
+        icon_library: iconLibrary,
         todos,
         engines,
         personalization
@@ -55,7 +64,15 @@ async function exportData(db, includeIcons) {
 }
 
 async function importData(db, data) {
-    const { categories, bookmarks, bookmark_ai: bookmarkAi, todos, engines, personalization } = data;
+    const {
+        categories,
+        bookmarks,
+        bookmark_ai: bookmarkAi,
+        icon_library: iconLibrary,
+        todos,
+        engines,
+        personalization
+    } = data;
 
     await db.transaction(async (conn) => {
         if (categories) {
@@ -94,8 +111,8 @@ async function importData(db, data) {
                     );
                 } else {
                     await conn.execute(
-                        `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, sort_order)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, sort_order, visit_count, last_visited_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                          ON CONFLICT(id) DO UPDATE SET
                            category_id = excluded.category_id,
                            name = excluded.name,
@@ -104,8 +121,39 @@ async function importData(db, data) {
                            icon = excluded.icon,
                            icon_type = excluded.icon_type,
                            icon_data = excluded.icon_data,
-                           sort_order = excluded.sort_order`,
-                        [b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '', b.icon_type || 'auto', b.icon_data || '', b.sort_order ?? i]
+                           sort_order = excluded.sort_order,
+                           visit_count = excluded.visit_count,
+                           last_visited_at = excluded.last_visited_at`,
+                        [
+                            b.id, b.category_id, b.name, b.url, b.description || '', b.icon || '',
+                            b.icon_type || 'auto', b.icon_data || '', b.sort_order ?? i,
+                            Number.isFinite(Number(b.visit_count)) ? Number(b.visit_count) : 0,
+                            b.last_visited_at || null
+                        ]
+                    );
+                }
+            }
+        }
+
+        if (iconLibrary) {
+            for (const icon of iconLibrary) {
+                if (!icon?.id || !icon?.data) continue;
+                if (isMysql(db)) {
+                    await conn.execute(
+                        `INSERT INTO icon_library (id, name, data, type)
+                         VALUES (?, ?, ?, ?)
+                         ON DUPLICATE KEY UPDATE name = VALUES(name), data = VALUES(data), type = VALUES(type)`,
+                        [icon.id, icon.name || '', icon.data, icon.type || 'url']
+                    );
+                } else {
+                    await conn.execute(
+                        `INSERT INTO icon_library (id, name, data, type)
+                         VALUES (?, ?, ?, ?)
+                         ON CONFLICT(id) DO UPDATE SET
+                           name = excluded.name,
+                           data = excluded.data,
+                           type = excluded.type`,
+                        [icon.id, icon.name || '', icon.data, icon.type || 'url']
                     );
                 }
             }
@@ -189,14 +237,15 @@ async function importData(db, data) {
                     );
                 } else {
                     await conn.execute(
-                        `INSERT INTO search_engines (id, name, icon, url, sort_order)
-                         VALUES (?, ?, ?, ?, ?)
+                        `INSERT INTO search_engines (id, name, icon, url, is_default, sort_order)
+                         VALUES (?, ?, ?, ?, ?, ?)
                          ON CONFLICT(id) DO UPDATE SET
                            name = excluded.name,
                            icon = excluded.icon,
                            url = excluded.url,
+                           is_default = excluded.is_default,
                            sort_order = excluded.sort_order`,
-                        [e.id, e.name, e.icon, e.url, e.sort_order ?? i]
+                        [e.id, e.name, e.icon, e.url, e.is_default ? 1 : 0, e.sort_order ?? i]
                     );
                 }
             }
