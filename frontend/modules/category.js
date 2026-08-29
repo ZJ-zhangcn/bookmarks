@@ -7,6 +7,7 @@ import { loadData, saveCollapsedState } from './api.js';
 import { renderAll, renderCategoryNav, renderBookmarks } from './render.js';
 import { escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { showToast, showConfirm } from './ux.js';
+import { apiRequest, runWithButton } from './api-client.js';
 
 export function openCategoryModal(categoryId = null) {
     state.setEditingCategoryId(categoryId);
@@ -39,18 +40,17 @@ export async function saveCategory() {
     if (!name) { showToast('请填写分类名称', 'warning'); return; }
 
     try {
-        await fetch(`${state.API_BASE}/api/categories`, {
+        await runWithButton(DOM.saveCategoryBtn, () => apiRequest('/api/categories', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: state.editingCategoryId, name, icon })
-        });
+            json: { id: state.editingCategoryId, name, icon }
+        }, { errorPrefix: '保存分类失败' }), '保存中...');
         await loadData();
         renderAll();
         renderCategoryList();
         closeCategoryModal();
         showToast('分类已保存', 'success');
-    } catch (e) {
-        showToast('保存失败: ' + e.message, 'error');
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -64,12 +64,12 @@ export async function deleteCategory(id) {
     if (!ok) return;
 
     try {
-        await fetch(`${state.API_BASE}/api/categories?id=${id}`, { method: 'DELETE' });
+        await apiRequest(`/api/categories?id=${encodeURIComponent(id)}`, { method: 'DELETE' }, { errorPrefix: '删除分类失败' });
         await loadData();
         renderAll();
         renderCategoryList();
-    } catch (e) {
-        showToast('删除失败: ' + e.message, 'error');
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -129,16 +129,15 @@ export async function saveCategoryOrder() {
     }));
 
     try {
-        await fetch(`${state.API_BASE}/api/categories`, {
+        await apiRequest('/api/categories', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order })
-        });
+            json: { order }
+        }, { errorPrefix: '保存分类排序失败' });
         await loadData();
         renderCategoryNav();
         renderBookmarks();
-    } catch (e) {
-        console.error('保存排序失败:', e);
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -167,23 +166,21 @@ export function toggleCategoryCollapse(categoryId) {
 
 export async function createCategoryForBookmark(name) {
     try {
-        const res = await fetch(`${state.API_BASE}/api/categories`, {
+        const category = await apiRequest('/api/categories', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, icon: '📁' })
-        });
-        const data = await res.json();
-        if (data.success) {
-            state.categories.push(data.data);
+            json: { name, icon: '📁' }
+        }, { errorPrefix: '创建分类失败' });
+        if (category) {
+            state.categories.push(category);
             renderCategoryNav();
             DOM.bookmarkInputCategory.innerHTML = state.categories.map(c =>
                 `<option value="${escapeHtmlAttribute(c.id)}">${escapeHtml(c.icon)} ${escapeHtml(c.name)}</option>`
             ).join('') + '<option value="__new__">+ 新建分类...</option>';
-            DOM.bookmarkInputCategory.value = data.data.id;
-            return data.data;
+            DOM.bookmarkInputCategory.value = category.id;
+            return category;
         }
-    } catch (e) {
-        showToast('创建分类失败: ' + e.message, 'error');
+    } catch {
+        // apiRequest 已统一提示
     }
     return null;
 }

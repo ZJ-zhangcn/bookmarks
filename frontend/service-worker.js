@@ -1,4 +1,6 @@
-const CACHE_NAME = globalThis.__PWA_CACHE_NAME__ || 'bookmark-nav-pwa-dev-v16';
+const CACHE_NAME = globalThis.__PWA_CACHE_NAME__ || 'bookmark-nav-pwa-dev-v17';
+const CACHE_PREFIX = 'bookmark-nav-pwa-';
+const CACHE_HISTORY_KEY = '/__pwa-cache-history__';
 const APP_SHELL = globalThis.__PWA_APP_SHELL__ || [
     '/',
     '/index.html',
@@ -14,18 +16,18 @@ self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => cache.addAll(APP_SHELL))
-            .then(() => self.skipWaiting())
     );
 });
 
 self.addEventListener('activate', event => {
     event.waitUntil(
-        caches.keys()
-            .then(keys => Promise.all(keys
-                .filter(key => key !== CACHE_NAME)
-                .map(key => caches.delete(key))))
+        rememberAndPruneCaches()
             .then(() => self.clients.claim())
     );
+});
+
+self.addEventListener('message', event => {
+    if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', event => {
@@ -90,4 +92,38 @@ async function cacheFirst(request) {
         cache.put(request, response.clone());
     }
     return response;
+}
+
+async function rememberAndPruneCaches() {
+    const keys = await caches.keys();
+    const existingPwaCaches = keys.filter(key => key.startsWith(CACHE_PREFIX));
+    const remembered = [];
+
+    // CacheStorage.keys() 按创建顺序返回，倒序读取可优先采用最近一版记录的历史。
+    for (const cacheName of [...existingPwaCaches].reverse()) {
+        try {
+            const stored = await (await caches.open(cacheName)).match(CACHE_HISTORY_KEY);
+            const history = stored ? await stored.json() : [];
+            if (Array.isArray(history)) remembered.push(...history);
+        } catch {
+            // 损坏或旧格式的历史记录不应阻止 Service Worker 激活。
+        }
+    }
+
+    const fallbackPrevious = existingPwaCaches
+        .filter(name => name !== CACHE_NAME)
+        .reverse();
+    const history = [CACHE_NAME, ...remembered, ...fallbackPrevious]
+        .filter((name, index, all) => name.startsWith(CACHE_PREFIX)
+            && (name === CACHE_NAME || existingPwaCaches.includes(name))
+            && all.indexOf(name) === index)
+        .slice(0, 2);
+
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(CACHE_HISTORY_KEY, new Response(JSON.stringify(history), {
+        headers: { 'Content-Type': 'application/json' }
+    }));
+    await Promise.all(keys
+        .filter(key => key.startsWith(CACHE_PREFIX) && !history.includes(key))
+        .map(key => caches.delete(key)));
 }

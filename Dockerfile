@@ -20,6 +20,13 @@ RUN npm run build:frontend
 # ============ 阶段二：运行时镜像 ============
 FROM node:22-alpine
 
+ARG APP_VERSION=1.0.0
+ARG GIT_COMMIT=development
+ARG BUILD_TIME
+ENV APP_VERSION=$APP_VERSION \
+    GIT_COMMIT=$GIT_COMMIT \
+    BUILD_TIME=$BUILD_TIME
+
 # 安装 better-sqlite3 编译依赖
 RUN apk add --no-cache python3 make g++ ca-certificates && \
     update-ca-certificates

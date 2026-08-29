@@ -24,30 +24,22 @@ function toInt01(raw, fallback = 0) {
 }
 
 /**
- * Date 对象转换为 MySQL datetime 字符串格式
+ * 将原始日期输入规范化为 SQLite 可保存的 ISO 日期字符串
  */
-function toMysqlDatetimeString(date) {
-    return date.toISOString().slice(0, 19).replace('T', ' ');
-}
-
-/**
- * 将原始日期输入规范化为数据库兼容的日期字符串
- */
-function normalizeDatetime(raw, useMysql) {
+function normalizeDatetime(raw) {
     if (raw == null) return null;
     const s = String(raw).trim();
     if (!s) return null;
     const d = new Date(s);
     if (Number.isNaN(d.getTime())) return null;
-    return useMysql ? toMysqlDatetimeString(d) : d.toISOString();
+    return d.toISOString();
 }
 
 /**
  * 获取当前时间的数据库兼容字符串
  */
-function nowDatetime(useMysql) {
-    const d = new Date();
-    return useMysql ? toMysqlDatetimeString(d) : d.toISOString();
+function nowDatetime() {
+    return new Date().toISOString();
 }
 
-module.exports = { clampInt, toInt01, toMysqlDatetimeString, normalizeDatetime, nowDatetime };
+module.exports = { clampInt, toInt01, normalizeDatetime, nowDatetime };

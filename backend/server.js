@@ -1,10 +1,6 @@
 /**
  * 书签导航后端服务
- * Express + SQLite/MySQL + Favicon 代理
- *
- * 数据库模式：
- * - 默认使用 SQLite（本地文件存储）
- * - 设置 DATABASE_URL 环境变量后使用 MySQL
+ * Express + SQLite + Favicon 代理
  */
 
 const express = require('express');
@@ -16,6 +12,7 @@ const db = require('./db');
 const { registerAiRoutes } = require('./ai');
 const { errorHandler } = require('./utils');
 const bootstrapV2Module = require('./bootstrap-v2');
+const { getReleaseInfo } = require('./release-info');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,7 +48,8 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use((req, res, next) => {
-    const limit = req.path.startsWith('/api/webdav') ? '10mb' : (req.path === '/api/ai' ? '64kb' : '2mb');
+    const isDataImport = req.path === '/api/data' || req.path === '/api/data/browser-import';
+    const limit = req.path.startsWith('/api/webdav') || isDataImport ? '10mb' : (req.path === '/api/ai' ? '64kb' : '2mb');
     express.json({ limit })(req, res, next);
 });
 app.use((req, res, next) => {
@@ -105,7 +103,7 @@ registerAiRoutes(app, db, {
 });
 
 // ========================================
-// Bootstrap优化端点（MySQL高延迟优化）
+// Bootstrap 聚合端点（减少首屏请求数量）
 // ========================================
 bootstrapV2Module(app, db);
 
@@ -147,10 +145,12 @@ app.get('/api/health', async (req, res) => {
     try {
         // 简单检查数据库可用性
         await db.queryOne('SELECT 1 as ok');
+        const database = db.getRuntimeInfo();
         res.json({
             success: true,
             status: 'healthy',
-            database: db.getDatabaseType(),
+            release: getReleaseInfo(),
+            database,
             uptime: Math.floor(process.uptime()),
             timestamp: new Date().toISOString()
         });
@@ -286,6 +286,21 @@ async function start() {
         await db.initDatabase();
         await db.createTables();
         await initDefaultData();
+
+        if (String(process.env.DB_DAILY_BACKUP_ENABLED || 'true').toLowerCase() !== 'false') {
+            const runDailyBackup = async () => {
+                try {
+                    const result = await db.createDailyBackupIfDue();
+                    const action = result.skipped ? '已存在' : '已创建';
+                    console.log(`🗄️ 每日数据库备份${action}: ${result.filePath}`);
+                } catch (error) {
+                    console.error('❌ 每日数据库备份失败:', error.message);
+                }
+            };
+            await runDailyBackup();
+            const dailyBackupTimer = setInterval(runDailyBackup, 6 * 60 * 60 * 1000);
+            dailyBackupTimer.unref();
+        }
 
         app.listen(PORT, () => {
             console.log(`🚀 书签导航服务已启动: http://localhost:${PORT}`);

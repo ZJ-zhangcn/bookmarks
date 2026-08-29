@@ -3,10 +3,6 @@
  */
 const { newId } = require('./ids');
 
-function isMysql(db) {
-    return db.USE_MYSQL || db.getDatabaseType?.() === 'mysql';
-}
-
 
 async function getAllEngines(db) {
     return db.queryAll('SELECT * FROM search_engines ORDER BY sort_order ASC, created_at ASC');
@@ -21,23 +17,16 @@ async function saveEngine(db, { id, name, icon, url, sort_order }) {
         order = (maxOrder?.max ?? 0) + 1;
     }
 
-    if (isMysql(db)) {
-        await db.execute(
-            'INSERT INTO search_engines (id, name, icon, url, sort_order) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), url = VALUES(url), sort_order = VALUES(sort_order)',
-            [engineId, name.trim(), icon || '🔍', url.trim(), order]
-        );
-    } else {
-        await db.execute(
-            `INSERT INTO search_engines (id, name, icon, url, sort_order)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(id) DO UPDATE SET
-               name = excluded.name,
-               icon = excluded.icon,
-               url = excluded.url,
-               sort_order = excluded.sort_order`,
-            [engineId, name.trim(), icon || '🔍', url.trim(), order]
-        );
-    }
+    await db.execute(
+        `INSERT INTO search_engines (id, name, icon, url, sort_order)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           icon = excluded.icon,
+           url = excluded.url,
+           sort_order = excluded.sort_order`,
+        [engineId, name.trim(), icon || '🔍', url.trim(), order]
+    );
 
     return { id: engineId };
 }

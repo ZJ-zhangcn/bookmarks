@@ -9,7 +9,6 @@ const { saveBookmarkAi } = require('../shared/services/ai');
 function createMemoryDb() {
     const bookmarkAi = new Map();
     return {
-        USE_MYSQL: false,
         async execute(sql, params = []) {
             if (/INSERT INTO bookmark_ai/i.test(sql)) {
                 const [bookmarkId, tags, summary, provider, model] = params;

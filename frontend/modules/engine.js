@@ -8,6 +8,7 @@ import { renderEngineDropdown, updateEngineDisplay } from './render.js';
 import { loadIconLibrary } from './icon-library.js';
 import { toSafeDataImageUrl, toSafeImageUrl, escapeHtml, escapeHtmlAttribute } from './utils.js';
 import { showToast, showConfirm } from './ux.js';
+import { apiRequest, runWithButton } from './api-client.js';
 
 export function openEngineModal() {
     renderEngineList();
@@ -93,19 +94,18 @@ export async function saveEngine() {
     if (!name || !url) { showToast('请填写名称和 URL', 'warning'); return; }
 
     try {
-        await fetch(`${state.API_BASE}/api/engines`, {
+        await runWithButton(DOM.saveEngineBtn, () => apiRequest('/api/engines', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: state.editingEngineId, name, icon, url })
-        });
+            json: { id: state.editingEngineId, name, icon, url }
+        }, { errorPrefix: '保存搜索引擎失败' }), '保存中...');
         await loadData();
         renderEngineDropdown();
         renderEngineList();
         resetEngineForm();
         DOM.engineIconLibrary.style.display = 'none';
         showToast('搜索引擎已保存', 'success');
-    } catch (e) {
-        showToast('保存失败: ' + e.message, 'error');
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -113,13 +113,13 @@ export async function deleteEngine(id) {
     const ok = await showConfirm({ title: '删除搜索引擎？', message: '删除后将从搜索引擎列表移除。', confirmText: '删除', danger: true });
     if (!ok) return;
     try {
-        await fetch(`${state.API_BASE}/api/engines?id=${id}`, { method: 'DELETE' });
+        await apiRequest(`/api/engines?id=${encodeURIComponent(id)}`, { method: 'DELETE' }, { errorPrefix: '删除搜索引擎失败' });
         await loadData();
         renderEngineDropdown();
         renderEngineList();
         showToast('搜索引擎已删除', 'success');
-    } catch (e) {
-        showToast('删除失败: ' + e.message, 'error');
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -178,18 +178,17 @@ export async function saveEngineOrder() {
     });
 
     try {
-        await fetch(`${state.API_BASE}/api/engines`, {
+        await apiRequest('/api/engines', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orders })
-        });
+            json: { orders }
+        }, { errorPrefix: '保存搜索引擎排序失败' });
 
         await loadData();
         renderEngineDropdown();
         renderEngineList();
         updateEngineDisplay();
-    } catch (e) {
-        console.error('保存排序失败:', e);
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 

@@ -7,6 +7,7 @@ import { isPrivateOrLocalAddress, toSafeImageUrl, toPreferredIconImageUrl, toSaf
 import { showToast } from './ux.js';
 import { renderIconSelection, renderLocalIconSelection, clearIconCandidates } from './icon-picker.js';
 import { discoverIcons } from './icon-client.js';
+import { apiRequest } from './api-client.js';
 import {
     createFaviconRequestGuard,
     buildLocalFaviconCandidates,
@@ -118,15 +119,13 @@ export async function fetchBookmarkMetadata() {
 
     const request = metadataRequestGuard.start(url);
     try {
-        const res = await fetch(`${state.API_BASE}/api/metadata`, {
+        const result = await apiRequest('/api/metadata', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
-        });
-        const result = await res.json().catch(() => null);
+            json: { url }
+        }, { toast: false });
         if (!metadataRequestGuard.isCurrent(request, DOM.bookmarkInputUrl.value.trim())) return;
-        const title = String(result?.data?.title || '').trim();
-        if (res.ok && result?.success && title && !DOM.bookmarkInputName.value.trim()) {
+        const title = String(result?.title || '').trim();
+        if (title && !DOM.bookmarkInputName.value.trim()) {
             DOM.bookmarkInputName.value = title;
         }
     } catch {}

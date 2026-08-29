@@ -9,9 +9,10 @@ import { renderCategoryList } from './category.js';
 import { preloadImage, toSafeImageUrl } from './utils.js';
 import { refreshIconLibraryCache } from './icon-library.js';
 import { showToast, showConfirm } from './ux.js';
+import { apiRequest, runWithButton } from './api-client.js';
 import webdavHelpers from './webdav-helpers.cjs';
 
-const { buildWebdavStatusPanel, parseJsonResponse } = webdavHelpers;
+const { buildWebdavStatusPanel } = webdavHelpers;
 
 const WALLPAPER_HINT_KEY = 'wallpaper:lastOkUrl';
 const WALLPAPER_TONE_ATTR = 'data-wallpaper-tone';
@@ -131,15 +132,38 @@ export function closeAllModals() {
     document.body.style.overflow = '';
 }
 
+function formatReleaseTime(value) {
+    if (!value) return '未知';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('zh-CN');
+}
+
+export async function loadReleaseInfo() {
+    if (!DOM.aboutVersion || !DOM.aboutBuildInfo) return;
+    try {
+        const health = await apiRequest('/api/health', { cache: 'no-store' }, { toast: false });
+        const release = health?.release || {};
+        const database = health?.database || {};
+        DOM.aboutVersion.textContent = `版本 ${release.version || '未知'}`;
+        DOM.aboutBuildInfo.innerHTML = `
+            <span>Commit</span><strong>${release.commit ? String(release.commit).slice(0, 12) : '未知'}</strong>
+            <span>构建时间</span><strong>${formatReleaseTime(release.buildTime)}</strong>
+            <span>数据库</span><strong>SQLite schema v${database.schemaVersion ?? '未知'}</strong>
+            <span>最近备份</span><strong>${formatReleaseTime(database.latestBackup?.createdAt)}</strong>
+        `;
+    } catch (error) {
+        DOM.aboutVersion.textContent = '版本信息加载失败';
+        DOM.aboutBuildInfo.textContent = error.message;
+    }
+}
+
 export async function loadPersonalization(options = {}) {
     try {
         let config;
         if (state.personalizationConfig !== undefined) {
             config = state.personalizationConfig;
         } else {
-            const res = await fetch(`${state.API_BASE}/api/config`);
-            const result = await res.json();
-            config = result && result.success ? (result.data ?? null) : null;
+            config = await apiRequest('/api/config', {}, { toast: false });
             state.setPersonalizationConfig(config);
         }
 
@@ -179,17 +203,19 @@ export async function savePersonalization() {
         footerText: DOM.footerText ? DOM.footerText.value : '© 2024 书签导航 · 快捷访问常用网站'
     };
 
-    try {
-        await fetch(`${state.API_BASE}/api/config`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(config)
-        });
-        await applyPersonalization(config);
-        showToast('保存成功', 'success');
-    } catch (e) {
-        showToast('保存失败: ' + e.message, 'error');
-    }
+    return runWithButton(DOM.savePersonalization, async () => {
+        try {
+            await apiRequest('/api/config', {
+                method: 'POST',
+                json: config
+            }, { toast: false });
+            state.setPersonalizationConfig(config);
+            await applyPersonalization(config);
+            showToast('保存成功', 'success');
+        } catch (e) {
+            showToast('保存失败: ' + e.message, 'error');
+        }
+    }, '保存中...');
 }
 
 export async function applyPersonalization(config, options = {}) {
@@ -356,26 +382,22 @@ export async function webdavUpload() {
 
     if (!url || !user || !pass) { showWebdavStatus('请填写完整配置', 'error', { operation: '上传', path: filePath, includeIcons }); return; }
 
-    try {
+    return runWithButton(DOM.webdavUploadBtn, async () => {
+      try {
         showWebdavStatus('正在上传...', 'info', { operation: '上传', path: filePath, includeIcons });
-        const exportRes = await fetch(`${state.API_BASE}/api/data?includeIcons=${includeIcons}`);
-        const data = await exportRes.json();
-
-        const response = await fetch(`${state.API_BASE}/api/webdav?action=upload`, {
+        const data = await apiRequest(`/api/data?includeIcons=${includeIcons}`, {
+            timeoutMs: 30000
+        }, { toast: false });
+        await apiRequest('/api/webdav?action=upload', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, username: user, password: pass, path: filePath, data })
-        });
-
-        const result = await parseJsonResponse(response, '上传失败，服务器返回了非 JSON 响应');
-        if (result.success) {
-            showWebdavStatus('上传成功！' + (includeIcons ? '' : '（不含图标）'), 'success', { operation: '上传', path: filePath, includeIcons });
-        } else {
-            showWebdavStatus(result.error || '上传失败', 'error', { operation: '上传', path: filePath, includeIcons });
-        }
-    } catch (err) {
-        showWebdavStatus('上传错误: ' + err.message, 'error', { operation: '上传', path: filePath, includeIcons });
-    }
+            json: { url, username: user, password: pass, path: filePath, data },
+            timeoutMs: 60000
+        }, { toast: false });
+        showWebdavStatus('上传成功！' + (includeIcons ? '' : '（不含图标）'), 'success', { operation: '上传', path: filePath, includeIcons });
+      } catch (err) {
+          showWebdavStatus('上传错误: ' + err.message, 'error', { operation: '上传', path: filePath, includeIcons });
+      }
+    }, '上传中...');
 }
 
 export async function webdavDownload() {
@@ -387,33 +409,29 @@ export async function webdavDownload() {
 
     if (!url || !user || !pass) { showWebdavStatus('请填写完整配置', 'error', { operation: '下载', path: filePath, includeIcons }); return; }
 
-    try {
+    return runWithButton(DOM.webdavDownloadBtn, async () => {
+      try {
         showWebdavStatus('正在下载...', 'info', { operation: '下载', path: filePath, includeIcons });
-
-        const response = await fetch(`${state.API_BASE}/api/webdav?action=download`, {
+        const data = await apiRequest('/api/webdav?action=download', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, username: user, password: pass, path: filePath })
-        });
-
-        const result = await parseJsonResponse(response, '下载失败，服务器返回了非 JSON 响应');
-        if (result.success && result.data) {
-            await fetch(`${state.API_BASE}/api/data`, {
+            json: { url, username: user, password: pass, path: filePath },
+            timeoutMs: 60000
+        }, { toast: false });
+        if (!data) throw new Error('下载内容为空');
+        await apiRequest('/api/data', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(result.data)
-            });
-            await loadData();
-            renderAll();
-            await loadPersonalization();
-            refreshIconLibraryCache();
-            showWebdavStatus('下载成功！', 'success', { operation: '下载', path: filePath, includeIcons });
-        } else {
-            showWebdavStatus(result.error || '下载失败', 'error', { operation: '下载', path: filePath, includeIcons });
-        }
-    } catch (err) {
-        showWebdavStatus('下载错误: ' + err.message, 'error', { operation: '下载', path: filePath, includeIcons });
-    }
+                json: data,
+                timeoutMs: 60000
+        }, { toast: false });
+        await loadData();
+        renderAll();
+        await loadPersonalization();
+        refreshIconLibraryCache();
+        showWebdavStatus('下载成功！', 'success', { operation: '下载', path: filePath, includeIcons });
+      } catch (err) {
+          showWebdavStatus('下载错误: ' + err.message, 'error', { operation: '下载', path: filePath, includeIcons });
+      }
+    }, '下载中...');
 }
 
 function getWebdavMeta(operation, message, status) {
@@ -441,21 +459,24 @@ export function showWebdavStatus(msg, type = 'info', details = {}) {
 }
 
 export async function exportConfig() {
-    try {
-        const includeIcons = DOM.includeIconsExport?.checked ?? true;
-        const res = await fetch(`${state.API_BASE}/api/data?includeIcons=${includeIcons}`);
-        const data = await res.json();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const suffix = includeIcons ? '' : '_lite';
-        a.download = `bookmarks${suffix}_${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    } catch (e) {
-        showToast('导出失败: ' + e.message, 'error');
-    }
+    return runWithButton(DOM.exportBtn, async () => {
+        try {
+            const includeIcons = DOM.includeIconsExport?.checked ?? true;
+            const data = await apiRequest(`/api/data?includeIcons=${includeIcons}`, {
+                timeoutMs: 30000
+            }, { toast: false });
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const suffix = includeIcons ? '' : '_lite';
+            a.download = `bookmarks${suffix}_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            showToast('导出失败: ' + e.message, 'error');
+        }
+    }, '导出中...');
 }
 
 export async function importConfig(e) {
@@ -463,9 +484,10 @@ export async function importConfig(e) {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async () => {
+    reader.onload = () => runWithButton(DOM.importBtn, async () => {
         try {
             const data = JSON.parse(reader.result);
+            const importMode = DOM.importMode?.value === 'restore' ? 'restore' : 'merge';
 
             const jsonStr = JSON.stringify(data);
             const sizeInMB = new Blob([jsonStr]).size / (1024 * 1024);
@@ -515,24 +537,39 @@ export async function importConfig(e) {
                 }
             }
 
-            const res = await fetch(`${state.API_BASE}/api/data`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            const result = await res.json();
-            if (!res.ok || !result.success) {
-                throw new Error(result.error || `HTTP ${res.status}`);
+            if (importMode === 'restore') {
+                const confirmed = await showConfirm({
+                    title: '完整恢复当前数据？',
+                    message: '完整恢复会用备份替换现有书签、分类、搜索引擎、TODO、图标库和个性化设置。服务器会先自动创建恢复前备份。',
+                    confirmText: '完整恢复',
+                    cancelText: '取消',
+                    danger: true
+                });
+                if (!confirmed) {
+                    showToast('恢复已取消', 'info');
+                    return;
+                }
             }
+
+            const result = await apiRequest(`/api/data?mode=${importMode}`, {
+                method: 'POST',
+                json: data,
+                timeoutMs: 60000
+            }, { toast: false });
             await loadData();
             renderAll();
             await loadPersonalization();
             refreshIconLibraryCache();
-            showToast('导入成功', 'success');
+            const restoredCounts = result?.counts;
+            const bookmarkCount = restoredCounts?.bookmarks;
+            const message = importMode === 'restore'
+                ? `完整恢复成功${Number.isFinite(bookmarkCount) ? `：${bookmarkCount} 个书签` : ''}`
+                : '合并导入成功';
+            showToast(message, 'success');
         } catch (err) {
             showToast('导入失败：' + err.message, 'error');
         }
-    };
+    }, '导入中...');
     reader.readAsText(file);
     e.target.value = '';
 }
@@ -542,25 +579,50 @@ export async function importBrowserBookmarks(e) {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async () => {
+    reader.onload = () => runWithButton(DOM.browserImportBtn, async () => {
         try {
             const html = reader.result;
-            const res = await fetch(`${state.API_BASE}/api/data/browser-import`, {
+            const duplicateMode = DOM.browserImportMode?.value === 'update' ? 'update' : 'skip';
+            const preview = await apiRequest(`/api/data/browser-import?preview=true&duplicates=${duplicateMode}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ html })
+                json: { html },
+                timeoutMs: 30000
+            }, { toast: false });
+            const duplicateAction = duplicateMode === 'update' ? '更新' : '跳过';
+            const duplicateSamples = (preview.sampleDuplicates || [])
+                .slice(0, 3)
+                .map(item => item.existingName || item.name)
+                .filter(Boolean);
+            const duplicateHint = duplicateSamples.length > 0
+                ? ` 重复示例：${duplicateSamples.join('、')}。`
+                : '';
+            const confirmed = await showConfirm({
+                title: '确认导入浏览器书签？',
+                message: `解析到 ${preview.parsedBookmarks} 个书签，其中新增 ${preview.newBookmarks} 个、重复 ${preview.duplicateBookmarks} 个（将${duplicateAction}）、文件内重复 ${preview.duplicateInFile} 个；将新建 ${preview.newCategories} 个分类并复用 ${preview.reusedCategories} 个分类。${duplicateHint}`,
+                confirmText: '开始导入',
+                cancelText: '取消'
             });
-            const result = await res.json();
-            if (!res.ok || !result.success) {
-                throw new Error(result.error || `HTTP ${res.status}`);
+            if (!confirmed) {
+                showToast('导入已取消', 'info');
+                return;
             }
+
+            const data = await apiRequest(`/api/data/browser-import?duplicates=${duplicateMode}`, {
+                method: 'POST',
+                json: { html },
+                timeoutMs: 30000
+            }, { toast: false });
             await loadData();
             renderAll();
-            showToast(`导入成功：分类 ${result.data.categories} 个，书签 ${result.data.bookmarks} 个`, 'success', { timeoutMs: 4200 });
+            showToast(
+                `导入成功：新增 ${data.bookmarksAdded} 个，更新 ${data.bookmarksUpdated} 个，跳过 ${data.bookmarksSkipped + data.duplicateInFile} 个`,
+                'success',
+                { timeoutMs: 4600 }
+            );
         } catch (err) {
             showToast('导入失败：' + err.message, 'error');
         }
-    };
+    }, '导入中...');
     reader.readAsText(file);
     e.target.value = '';
 }

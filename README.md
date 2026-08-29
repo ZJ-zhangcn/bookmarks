@@ -10,6 +10,7 @@
 - 搜索入口：可配置多个搜索引擎，也可以在浮层里快速过滤书签。
 - 命令面板：按 `Cmd/Ctrl+K` 或 `/` 快速搜索书签、分类、搜索引擎并执行新增书签、打开设置、查看 TODO 等操作。
 - PWA 入口：支持安装到手机/桌面主屏幕，提供离线应用壳。
+- PWA 更新：发现新版本时提示手动刷新，激活期间保留当前与上一版静态缓存。
 - 个性化界面：支持主题、Logo、壁纸、时钟、页脚、内容宽度和组件显隐。
 - TODO 待办：支持快速添加、编辑、完成、删除和拖拽排序。
 - 图标库：可自动发现 favicon，也可上传、复用、批量获取或修复图标。
@@ -17,6 +18,8 @@
 - AI 辅助：可为书签生成摘要、标签和分类建议，支持 OpenAI 兼容接口。
 - 数据库：使用 SQLite（WAL 模式），性能优秀，适合个人部署。
 - 自动迁移：容器升级时会检查 SQLite 结构，并在迁移前生成在线数据库备份。
+- 自动备份：每天生成并校验一份 SQLite 在线备份，完整恢复前也会自动留存快照。
+- 发布追踪：健康接口和“关于”页显示版本、Git commit、构建时间、数据库 schema 与最近备份时间。
 
 ## 快速部署
 
@@ -92,7 +95,7 @@ npm run dev:frontend
 
 ## 配置说明
 
-大多数个人部署不需要配置很多变量。SQLite 模式下可以直接启动；只有开放公网、WebDAV 内网地址或 AI 时才需要改 `.env`。
+大多数个人部署不需要配置很多变量。数据库固定为 SQLite，可以直接启动；只有开放公网、WebDAV 内网地址或 AI 时才需要改 `.env`。
 
 ### 常用变量
 
@@ -104,6 +107,9 @@ npm run dev:frontend
 | 内网访问 | `ALLOW_PRIVATE_NETWORK` | WebDAV、图标抓取或 AI 网关需要访问内网地址时开启。 |
 | 启用 AI | `AI_ENABLED` | 设置为 `true` 后，配置 OpenAI Key 即可。 |
 | 迁移备份数 | `DB_MIGRATION_BACKUP_LIMIT` | 数据库升级前自动备份的保留数量，默认 `5`。 |
+| 每日备份 | `DB_DAILY_BACKUP_ENABLED` | 是否自动创建每日 SQLite 备份，默认开启。 |
+| 每日备份数 | `DB_DAILY_BACKUP_LIMIT` | 每日备份的保留数量，默认 `14`。 |
+| 恢复前备份数 | `DB_RESTORE_BACKUP_LIMIT` | 完整恢复前快照的保留数量，默认 `5`。 |
 
 ### SQLite 升级与迁移
 
@@ -131,7 +137,7 @@ OPENAI_API_KEY=your-key
 - 个人内网：SQLite 默认部署，保留 compose 中的免鉴权配置即可。
 - 公网访问：设置 `AUTH_MODE=token` 和 `ADMIN_TOKEN`。
 - WebDAV 同步 NAS：在 WebDAV 配置正确的基础上，增加 `ALLOW_PRIVATE_NETWORK=true`。
-- 外部数据库：只增加 `DATABASE_URL`，其余保持默认。
+- 数据库固定使用 SQLite，数据文件和自动备份都保存在 Docker 数据卷中。
 
 旧版变量仍兼容，包括 `ALLOW_ANONYMOUS_WRITE`、`DISABLE_ADMIN_AUTH`、`ALLOW_PRIVATE_FETCH`、`AI_ALLOW_CLIENT_KEY`、`AI_ALLOW_CLIENT_BASE_URL`、`AI_ALLOW_CLIENT_PROVIDER`、`AI_ALLOW_CLIENT_PARAMS` 和 `AI_ALLOW_PRIVATE_BASE_URL`。新部署建议优先使用上表里的合并变量。
 
@@ -142,10 +148,22 @@ OPENAI_API_KEY=your-key
 在页面右上角打开设置，进入“数据同步”：
 
 - 导出配置：下载当前分类、书签、搜索引擎、设置、TODO 和图标数据。
-- 导入配置：上传 JSON 恢复数据。
-- 导入浏览器书签：支持 Chrome、Firefox、Edge 导出的 Netscape HTML 书签文件。
+- 导入配置：可选择“合并导入”，或用“完整恢复”替换当前应用数据。
+- 导入浏览器书签：支持 Chrome、Firefox、Edge 导出的 Netscape HTML 文件；导入前会预览新增、重复和分类复用数量，可选择跳过或更新重复书签。
 
 导出时可以选择是否包含图标。包含图标更完整，但文件会更大。
+
+浏览器书签导入会对 HTTP(S) URL 做保守归一化后去重：忽略页面片段并统一主机、默认端口等标准形式，但不会删除查询参数或自动改写协议。重复导入时默认跳过已有书签；选择“更新重复书签”时，只更新名称、URL 和所属分类，保留原有描述、图标、访问次数与 AI 数据。
+
+完整恢复会先校验备份内容，再将当前分类、书签、搜索引擎、TODO、图标库和个性化设置替换为备份内容。恢复前会在数据卷的 `restore-backups/` 中自动生成并校验 SQLite 快照；项目以外的扩展表和配置不会被清理。
+
+服务启动后会创建当天的在线备份，并每 6 小时检查一次。每日备份位于数据卷的 `daily-backups/`，按 UTC 日期每天最多创建一份，默认保留最近 14 份。备份创建后必须通过 SQLite `integrity_check`，损坏的当日文件会在下次检查时自动重建。
+
+## 版本追踪与性能基线
+
+`GET /api/health` 返回应用版本、Git commit、镜像构建时间、SQLite schema 版本和最近备份信息。同样的信息可在设置的“关于”页面查看，方便确认 VPS 当前实际运行的镜像。
+
+浏览器性能基线使用 10 个分类、5000 条书签，并验证响应体积、JSON 解析、首屏加载、搜索耗时和虚拟滚动后的 DOM 数量。2026-08-29 本机 Chrome 基线：响应约 `1.23 MB`、解析约 `1.5 ms`、首屏约 `466 ms`、搜索约 `332 ms`、页面实际渲染约 `60` 张卡片。CI 使用较宽松的回归阈值，避免机器波动导致误报。
 
 ### WebDAV
 
@@ -166,6 +184,8 @@ npm run preview         # 预览前端构建产物
 npm run lint            # 运行 ESLint
 npm run lint:fix        # 自动修复 ESLint 可修复问题
 npm test                # 运行 node:test 测试
+npm run test:e2e        # 运行 Playwright 浏览器 E2E 与性能基线
+npm run test:e2e:ui     # 交互式调试 Playwright 测试
 npm run audit:high      # 检查高危依赖问题
 ```
 
@@ -189,7 +209,7 @@ bookmarks/
 │   ├── assets/           # PWA 图标等静态资源
 │   └── modules/          # 前端功能模块
 ├── shared/services/      # 前后端复用的业务服务
-├── tests/                # node:test 测试
+├── tests/                # node:test 与 Playwright E2E 测试
 ├── Dockerfile
 └── docker-compose.yml
 ```

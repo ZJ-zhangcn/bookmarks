@@ -7,6 +7,7 @@ import * as state from './state.js';
 import { loadTodos } from './api.js';
 import { renderTodos } from './render.js';
 import { showToast, showConfirm } from './ux.js';
+import { apiRequest, runWithButton } from './api-client.js';
 
 // 拖拽状态
 let draggedTodo = null;
@@ -60,21 +61,16 @@ export function handleQuickInputKeydown(e) {
  */
 async function quickAddTodo(title) {
     try {
-        const res = await fetch(`${state.API_BASE}/api/todos`, {
+        await apiRequest('/api/todos', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title })
-        });
-        const result = await res.json().catch(() => null);
-
-        if (res.ok && result && result.success) {
-            await loadTodos();
-            renderTodos();
-            bindQuickInputEvent();
-            bindTodoDragEvents();
-        }
-    } catch (e) {
-        console.error('添加失败:', e);
+            json: { title }
+        }, { errorPrefix: '添加待办失败' });
+        await loadTodos();
+        renderTodos();
+        bindQuickInputEvent();
+        bindTodoDragEvents();
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -135,25 +131,17 @@ export async function saveTodo() {
     }
 
     try {
-        const res = await fetch(`${state.API_BASE}/api/todos`, {
+        await runWithButton(DOM.saveTodoBtn, () => apiRequest('/api/todos', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        const result = await res.json().catch(() => null);
-
-        if (res.ok && result && result.success) {
-            await loadTodos();
-            renderTodos();
-            closeTodoModal();
-            bindQuickInputEvent();
-            bindTodoDragEvents();
-        } else {
-            const errMsg = result?.error || `HTTP ${res.status}`;
-            showToast('保存失败: ' + errMsg, 'error');
-        }
-    } catch (e) {
-        showToast('保存失败: ' + e.message, 'error');
+            json: data
+        }, { errorPrefix: '保存待办失败' }), '保存中...');
+        await loadTodos();
+        renderTodos();
+        closeTodoModal();
+        bindQuickInputEvent();
+        bindTodoDragEvents();
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -167,20 +155,16 @@ async function toggleTodoComplete(id) {
     const newIsDone = todo.is_done ? 0 : 1;
 
     try {
-        const res = await fetch(`${state.API_BASE}/api/todos`, {
+        await apiRequest('/api/todos', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, is_done: newIsDone })
-        });
-
-        if (res.ok) {
-            await loadTodos();
-            renderTodos();
-            bindQuickInputEvent();
-            bindTodoDragEvents();
-        }
-    } catch (e) {
-        console.error('更新失败:', e);
+            json: { id, is_done: newIsDone }
+        }, { errorPrefix: '更新待办失败' });
+        await loadTodos();
+        renderTodos();
+        bindQuickInputEvent();
+        bindTodoDragEvents();
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -215,19 +199,13 @@ async function clearCompletedTodos() {
     if (!ok) return;
 
     try {
-        const res = await fetch(`${state.API_BASE}/api/todos/completed/all`, { method: 'DELETE' });
-        const result = await res.json().catch(() => null);
-
-        if (res.ok && result && result.success) {
-            await loadTodos();
-            renderTodos();
-            bindQuickInputEvent();
-            bindTodoDragEvents();
-        } else {
-            showToast('清除失败: ' + (result?.error || `HTTP ${res.status}`), 'error');
-        }
-    } catch (e) {
-        showToast('清除失败: ' + e.message, 'error');
+        await apiRequest('/api/todos/completed/all', { method: 'DELETE' }, { errorPrefix: '清除待办失败' });
+        await loadTodos();
+        renderTodos();
+        bindQuickInputEvent();
+        bindTodoDragEvents();
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -236,13 +214,13 @@ export async function deleteTodo(id) {
     if (!ok) return;
 
     try {
-        await fetch(`${state.API_BASE}/api/todos?id=${id}`, { method: 'DELETE' });
+        await apiRequest(`/api/todos?id=${encodeURIComponent(id)}`, { method: 'DELETE' }, { errorPrefix: '删除待办失败' });
         await loadTodos();
         renderTodos();
         bindQuickInputEvent();
         bindTodoDragEvents();
-    } catch (e) {
-        showToast('删除失败: ' + e.message, 'error');
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -349,18 +327,12 @@ async function handleDrop(e) {
  */
 async function saveTodoOrder(order) {
     try {
-        const res = await fetch(`${state.API_BASE}/api/todos`, {
+        await apiRequest('/api/todos', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order })
-        });
-        
-        if (res.ok) {
-            // 更新本地 state 中的排序
-            await loadTodos();
-        }
-    } catch (e) {
-        console.error('保存排序失败:', e);
+            json: { order }
+        }, { errorPrefix: '保存待办排序失败' });
+        await loadTodos();
+    } catch {
         // 失败时重新渲染恢复原状
         renderTodos();
         bindQuickInputEvent();

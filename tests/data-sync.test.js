@@ -15,7 +15,6 @@ function createMemoryDataDb() {
     };
 
     const db = {
-        USE_MYSQL: false,
         tables,
         async queryAll(sql) {
             if (/FROM categories/i.test(sql)) return [...tables.categories];
@@ -33,11 +32,27 @@ function createMemoryDataDb() {
             return null;
         },
         async transaction(fn) {
-            await fn({ execute });
+            const snapshot = structuredClone(tables);
+            try {
+                await fn({ execute });
+            } catch (error) {
+                for (const key of Object.keys(tables)) tables[key] = snapshot[key];
+                throw error;
+            }
         }
     };
 
     async function execute(sql, params = []) {
+        const deleteMatch = sql.match(/DELETE FROM\s+([a-z_]+)/i);
+        if (deleteMatch) {
+            const tableName = deleteMatch[1];
+            if (tableName === 'config' && /WHERE key/i.test(sql)) {
+                tables.config = tables.config.filter(row => row.key !== params[0]);
+            } else if (tables[tableName]) {
+                tables[tableName] = [];
+            }
+            return { changes: 1 };
+        }
         if (/INSERT INTO categories/i.test(sql)) {
             upsert(tables.categories, 'id', { id: params[0], name: params[1], icon: params[2], sort_order: params[3] });
             return { changes: 1 };
@@ -180,4 +195,115 @@ test('data backup round trip preserves visits, default engine and icon library',
     assert.deepEqual(restored.tables.icon_library, [{
         id: 'icon-1', name: 'Example', data: 'data:image/png;base64,AAAA', type: 'base64'
     }]);
+});
+
+test('restore mode replaces application data while preserving unrelated config rows', async () => {
+    const db = createMemoryDataDb();
+    db.tables.categories.push({ id: 'old-cat', name: '旧分类' });
+    db.tables.bookmarks.push({ id: 'old-bm', category_id: 'old-cat', name: '旧书签' });
+    db.tables.config.push({ key: 'personalization', value: '{"old":true}' });
+    db.tables.config.push({ key: 'extension-setting', value: 'keep-me' });
+
+    const result = await dataService.importData(db, {
+        version: '1.2',
+        categories: [{ id: 'new-cat', name: '新分类', icon: '📁', sort_order: 0 }],
+        bookmarks: [{
+            id: 'new-bm', category_id: 'new-cat', name: '新书签', url: 'https://example.com', sort_order: 0
+        }],
+        engines: [{ id: 'new-engine', name: '搜索', url: 'https://example.com?q=', sort_order: 0 }],
+        todos: [],
+        bookmark_ai: [],
+        icon_library: [],
+        personalization: { theme: 'dark' }
+    }, { mode: 'restore' });
+
+    assert.equal(result.mode, 'restore');
+    assert.deepEqual(db.tables.categories.map(row => row.id), ['new-cat']);
+    assert.deepEqual(db.tables.bookmarks.map(row => row.id), ['new-bm']);
+    assert.equal(db.tables.config.find(row => row.key === 'extension-setting').value, 'keep-me');
+    assert.deepEqual(JSON.parse(db.tables.config.find(row => row.key === 'personalization').value), { theme: 'dark' });
+});
+
+test('invalid restore payload is rejected before changing existing data', async () => {
+    const db = createMemoryDataDb();
+    db.tables.categories.push({ id: 'existing', name: '保留分类' });
+
+    await assert.rejects(
+        () => dataService.importData(db, {
+            version: '1.2',
+            categories: [{ id: 'new-cat', name: '新分类' }],
+            bookmarks: [{ id: 'bad-bm', category_id: 'missing-cat', name: '错误书签' }],
+            engines: []
+        }, { mode: 'restore' }),
+        /引用了不存在的分类/
+    );
+    assert.deepEqual(db.tables.categories, [{ id: 'existing', name: '保留分类' }]);
+});
+
+test('future backup versions and duplicate ids are rejected', () => {
+    assert.throws(
+        () => dataService.validateBackupPayload({ version: '9.0', categories: [], bookmarks: [], engines: [] }, { mode: 'restore' }),
+        /高于当前支持版本/
+    );
+    assert.throws(
+        () => dataService.validateBackupPayload({ version: '1.10', categories: [], bookmarks: [], engines: [] }, { mode: 'restore' }),
+        /高于当前支持版本/
+    );
+    assert.throws(
+        () => dataService.validateBackupPayload({
+            version: '1.2',
+            categories: [{ id: 'dup', name: '一' }, { id: 'dup', name: '二' }],
+            bookmarks: [],
+            engines: []
+        }, { mode: 'restore' }),
+        /与前面的记录重复/
+    );
+});
+
+test('backup validation reports indexed URL, object and reference errors', () => {
+    const base = {
+        version: '1.2',
+        categories: [{ id: 'cat-1', name: '分类' }],
+        bookmarks: [{ id: 'bm-1', category_id: 'cat-1', name: '书签', url: 'https://example.com' }],
+        engines: []
+    };
+    assert.throws(
+        () => dataService.validateBackupPayload({ ...base, bookmarks: [{ ...base.bookmarks[0], url: 'javascript:alert(1)' }] }, { mode: 'restore' }),
+        /bookmarks\[0\]\.url 必须是有效的 HTTP\(S\) URL/
+    );
+    assert.throws(
+        () => dataService.validateBackupPayload({ ...base, categories: ['bad'] }, { mode: 'restore' }),
+        /categories\[0\] 必须是对象/
+    );
+    assert.throws(
+        () => dataService.validateBackupPayload({
+            ...base,
+            bookmark_ai: [{ bookmark_id: 'missing', tags: [] }]
+        }, { mode: 'restore' }),
+        /bookmark_ai\[0\]\.bookmark_id 引用了不存在的书签/
+    );
+});
+
+test('backup validation limits individual and total icon data size', () => {
+    const base = {
+        version: '1.2',
+        categories: [{ id: 'cat-1', name: '分类' }],
+        bookmarks: [],
+        engines: []
+    };
+    assert.throws(
+        () => dataService.validateBackupPayload({
+            ...base,
+            icon_library: [{ id: 'large', data: 'x'.repeat(dataService.MAX_ICON_ITEM_BYTES + 1) }]
+        }, { mode: 'restore' }),
+        /超过单项 2MB 限制/
+    );
+    const chunk = 'x'.repeat(1024 * 1024);
+    assert.throws(
+        () => dataService.validateBackupPayload({
+            ...base,
+            icon_library: Array.from({ length: 9 }, (_, index) => ({ id: `icon-${index}`, data: chunk }))
+        }, { mode: 'restore' }),
+        /图标数据总量超过 8MB 限制/
+    );
 });

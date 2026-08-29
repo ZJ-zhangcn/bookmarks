@@ -11,6 +11,8 @@
     "lint": "eslint frontend/modules backend shared",
     "lint:fix": "eslint frontend/modules backend shared --fix",
     "test": "node --test tests/*.test.js",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "audit:high": "npm audit --audit-level=high"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^8.57.1",
+    "@playwright/test": "^1.55.0",
     "esbuild": "^0.28.1",
     "eslint": "^8.57.1",
     "globals": "^15.15.0",

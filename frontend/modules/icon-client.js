@@ -1,6 +1,6 @@
-import * as state from './state.js';
 import { normalizeFaviconResponse } from './favicon-helpers.cjs';
 import iconPolicy from '../../shared/icon-policy.cjs';
+import { apiRequest } from './api-client.js';
 
 function unwrapFaviconData(raw) {
     if (raw?.success && raw.data !== undefined) return raw.data;
@@ -47,14 +47,13 @@ export function normalizeIconCandidates(raw) {
 }
 
 export async function discoverIcons(url) {
-    const res = await fetch(`${state.API_BASE}/api/favicon`, {
+    const data = await apiRequest('/api/favicon', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-    });
-    const raw = await res.json().catch(() => null);
+        json: { url }
+    }, { toast: false });
+    const raw = { success: true, data };
     return {
-        ok: res.ok && raw?.success === true,
+        ok: true,
         raw,
         icons: normalizeFaviconResponse(raw),
         candidates: normalizeIconCandidates(raw)

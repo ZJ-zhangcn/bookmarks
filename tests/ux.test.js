@@ -106,6 +106,46 @@ test('createNotifier appends toast messages and limits visible queue', async () 
     assert.equal(children[1].dataset.type, 'error');
 });
 
+test('createNotifier supports a persistent action toast', async () => {
+    const { createNotifier } = await importUxModule('action-notifier');
+    const children = [];
+    const makeNode = tagName => {
+        const nodeChildren = [];
+        const listeners = {};
+        return {
+            tagName,
+            className: '',
+            textContent: '',
+            dataset: {},
+            children: nodeChildren,
+            classList: { add() {}, remove() {} },
+            appendChild(node) { nodeChildren.push(node); },
+            addEventListener(type, fn) { listeners[type] = fn; },
+            click() { listeners.click?.(); },
+            remove() {}
+        };
+    };
+    const container = {
+        appendChild(node) { children.push(node); },
+        querySelectorAll() { return children; }
+    };
+    const documentStub = { createElement: makeNode };
+    let clicked = false;
+    const notifier = createNotifier({ container, document: documentStub, timeoutMs: 0 });
+
+    const toast = notifier.showToast('发现新版本', 'info', {
+        actionText: '立即刷新',
+        onAction: () => { clicked = true; }
+    });
+    assert.equal(toast.className, 'toast-message toast-info');
+    assert.equal(children.length, 1);
+    assert.equal(toast.children[0].textContent, '发现新版本');
+    const action = toast.children[1];
+    assert.equal(action.textContent, '立即刷新');
+    action.click();
+    assert.equal(clicked, true);
+});
+
 test('showConfirm falls back to window.confirm when dialog DOM is unavailable', async () => {
     let prompt = '';
     const { showConfirm } = await importUxModule('confirm-fallback');

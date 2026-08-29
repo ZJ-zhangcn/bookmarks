@@ -6,11 +6,11 @@ const bookmarksService = require('../shared/services/bookmarks');
 function createMemoryBookmarkDb() {
     const tables = {
         categories: [{ id: 'cat-1', name: '默认', icon: '📁', sort_order: 0, created_at: '2026-01-01' }],
-        bookmarks: []
+        bookmarks: [],
+        bookmarkAi: []
     };
 
     const db = {
-        USE_MYSQL: false,
         getDatabaseType: () => 'sqlite',
         tables,
         async queryAll(sql, params = []) {
@@ -61,6 +61,14 @@ function createMemoryBookmarkDb() {
                 }
                 return { changes: row ? 1 : 0 };
             }
+            if (/DELETE FROM bookmark_ai/i.test(sql)) {
+                tables.bookmarkAi = tables.bookmarkAi.filter(row => row.bookmark_id !== params[0]);
+                return { changes: 1 };
+            }
+            if (/DELETE FROM bookmarks/i.test(sql)) {
+                tables.bookmarks = tables.bookmarks.filter(row => row.id !== params[0]);
+                return { changes: 1 };
+            }
             throw new Error(`unexpected SQL in test: ${sql}`);
         },
         async transaction(fn) {
@@ -87,4 +95,15 @@ test('recordBookmarkVisit increments visit count and last visited timestamp', as
 
     assert.equal(db.tables.bookmarks[0].visit_count, 1);
     assert.equal(db.tables.bookmarks[0].last_visited_at, 'now');
+});
+
+test('deleting a bookmark removes its AI metadata in the same transaction', async () => {
+    const db = createMemoryBookmarkDb();
+    db.tables.bookmarks.push({ id: 'bm-delete' });
+    db.tables.bookmarkAi.push({ bookmark_id: 'bm-delete', tags: '["AI"]' });
+
+    await bookmarksService.deleteBookmark(db, 'bm-delete');
+
+    assert.equal(db.tables.bookmarks.length, 0);
+    assert.equal(db.tables.bookmarkAi.length, 0);
 });

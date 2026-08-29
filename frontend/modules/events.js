@@ -252,6 +252,8 @@ export function bindAllEvents() {
             if (activePanel === 'icons') {
                 renderIconLibrary();
                 bindIconLibraryManageEvents();
+            } else if (activePanel === 'about') {
+                withSettings('loadReleaseInfo');
             }
         });
     });

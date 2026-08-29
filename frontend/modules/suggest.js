@@ -4,8 +4,8 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 import { escapeHtml } from './utils.js';
+import { apiRequest } from './api-client.js';
 
-const API_BASE = window.location.origin;
 let suggestionsEl = null;
 let currentSuggestions = [];
 let selectedIndex = -1;
@@ -42,22 +42,22 @@ async function fetchSuggestions(q) {
         if (engineName.includes('google')) engine = 'google';
         else if (engineName.includes('bing')) engine = 'bing';
 
-        const res = await fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(q)}&engine=${engine}`, {
-            signal: abortController.signal
-        });
-        if (!res.ok) { hide(); return; }
-        const data = await res.json();
+        const data = await apiRequest(`/api/suggest?q=${encodeURIComponent(q)}&engine=${engine}`, {
+            signal: abortController.signal,
+            retries: 0,
+            timeoutMs: 5000
+        }, { toast: false });
 
         if (DOM.webSearchInput.value.trim() !== q) return;
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-            currentSuggestions = data.data;
+        if (Array.isArray(data) && data.length > 0) {
+            currentSuggestions = data;
             selectedIndex = -1;
             render();
         } else {
             hide();
         }
     } catch (e) {
-        if (e.name !== 'AbortError') hide();
+        if (e.code !== 'REQUEST_ABORTED') hide();
     }
 }
 
@@ -120,4 +120,3 @@ function select(index) {
         DOM.webSearchInput.value = '';
     }
 }
-

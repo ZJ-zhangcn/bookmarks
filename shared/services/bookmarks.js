@@ -3,10 +3,6 @@
  */
 const { newId } = require('./ids');
 
-function isMysql(db) {
-    return db.USE_MYSQL || db.getDatabaseType?.() === 'mysql';
-}
-
 
 async function attachBookmarkAi(db, bookmarks) {
     if (!Array.isArray(bookmarks) || bookmarks.length === 0) return;
@@ -144,34 +140,29 @@ async function saveBookmark(db, { id, category_id, name, url, description, icon,
 
     const params = [bookmarkId, finalCategoryId, (name || '').trim(), url || '', description || '', icon || '🌐', icon_type || 'auto', icon_data || '', sortOrder];
 
-    if (isMysql(db)) {
-        await db.execute(
-            `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE category_id = VALUES(category_id), name = VALUES(name), url = VALUES(url), description = VALUES(description), icon = VALUES(icon), icon_type = VALUES(icon_type), icon_data = VALUES(icon_data), sort_order = VALUES(sort_order)`,
-            params
-        );
-    } else {
-        await db.execute(
-            `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, sort_order)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT(id) DO UPDATE SET
-               category_id = excluded.category_id,
-               name = excluded.name,
-               url = excluded.url,
-               description = excluded.description,
-               icon = excluded.icon,
-               icon_type = excluded.icon_type,
-               icon_data = excluded.icon_data,
-               sort_order = excluded.sort_order`,
-            params
-        );
-    }
+    await db.execute(
+        `INSERT INTO bookmarks (id, category_id, name, url, description, icon, icon_type, icon_data, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           category_id = excluded.category_id,
+           name = excluded.name,
+           url = excluded.url,
+           description = excluded.description,
+           icon = excluded.icon,
+           icon_type = excluded.icon_type,
+           icon_data = excluded.icon_data,
+           sort_order = excluded.sort_order`,
+        params
+    );
 
     return { id: bookmarkId };
 }
 
 async function deleteBookmark(db, id) {
-    await db.execute('DELETE FROM bookmarks WHERE id = ?', [id]);
+    await db.transaction(async (conn) => {
+        await conn.execute('DELETE FROM bookmark_ai WHERE bookmark_id = ?', [id]);
+        await conn.execute('DELETE FROM bookmarks WHERE id = ?', [id]);
+    });
 }
 
 async function sortBookmarks(db, order) {
@@ -186,11 +177,10 @@ async function sortBookmarks(db, order) {
 
 async function recordBookmarkVisit(db, id) {
     if (!id) return { changes: 0 };
-    const timestampExpr = isMysql(db) ? 'CURRENT_TIMESTAMP' : 'CURRENT_TIMESTAMP';
     return db.execute(
         `UPDATE bookmarks
          SET visit_count = COALESCE(visit_count, 0) + 1,
-             last_visited_at = ${timestampExpr}
+             last_visited_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         [id]
     );

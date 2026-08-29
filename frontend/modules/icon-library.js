@@ -5,6 +5,7 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 import { toSafeImageUrl, escapeHtmlAttribute, bindImageFallbacks } from './utils.js';
 import { showToast, showConfirm } from './ux.js';
+import { apiRequest } from './api-client.js';
 
 export async function loadIconLibrary(target = 'bookmark') {
     const gridElement = target === 'bookmark' ? DOM.iconLibraryGrid : DOM.engineIconLibraryGrid;
@@ -13,11 +14,8 @@ export async function loadIconLibrary(target = 'bookmark') {
 
     try {
         if (!state.iconLibraryCache) {
-            const res = await fetch(`${state.API_BASE}/api/icons`);
-            const data = await res.json();
-            if (data.success) {
-                state.setIconLibraryCache(data.data);
-            }
+            const data = await apiRequest('/api/icons', {}, { toast: false });
+            state.setIconLibraryCache(data || []);
         }
 
         if (!state.iconLibraryCache || state.iconLibraryCache.length === 0) {
@@ -69,11 +67,8 @@ export async function renderIconLibrary() {
     DOM.settingsIconLibraryGrid.innerHTML = '<div class="icon-library-loading">加载中...</div>';
 
     try {
-        const res = await fetch(`${state.API_BASE}/api/icons`);
-        const data = await res.json();
-        if (data.success) {
-            state.setIconLibraryCache(data.data);
-        }
+        const data = await apiRequest('/api/icons', {}, { toast: false });
+        state.setIconLibraryCache(data || []);
 
         updateIconLibraryCount();
 
@@ -155,19 +150,13 @@ async function handleIconDelete(iconId, isTemp) {
         const iconData = decodeURIComponent(item.dataset.icon);
 
         try {
-            const res = await fetch(`${state.API_BASE}/api/icons?action=clear-from-bookmarks`, {
+            await apiRequest('/api/icons?action=clear-from-bookmarks', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ iconData })
-            });
-            const data = await res.json();
-            if (data.success) {
-                state.selectedIcons.delete(iconId);
-                await renderIconLibrary();
-                updateBatchDeleteButton();
-            } else {
-                showToast('删除失败: ' + data.error, 'error');
-            }
+                json: { iconData }
+            }, { toast: false });
+            state.selectedIcons.delete(iconId);
+            await renderIconLibrary();
+            updateBatchDeleteButton();
         } catch (e) {
             showToast('删除失败: ' + e.message, 'error');
         }
@@ -236,14 +225,11 @@ export function updateBatchDeleteButton() {
 
 export async function deleteIconFromLibrary(iconId) {
     try {
-        const res = await fetch(`${state.API_BASE}/api/icons?id=${iconId}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (data.success) {
-            state.selectedIcons.delete(iconId);
-            await renderIconLibrary();
-        } else {
-            showToast('删除失败: ' + data.error, 'error');
-        }
+        await apiRequest(`/api/icons?id=${encodeURIComponent(iconId)}`, {
+            method: 'DELETE'
+        }, { toast: false });
+        state.selectedIcons.delete(iconId);
+        await renderIconLibrary();
     } catch (e) {
         showToast('删除失败: ' + e.message, 'error');
     }
@@ -279,28 +265,26 @@ export async function batchDeleteIcons() {
         let hasError = false;
 
         if (realIds.length > 0) {
-            const res = await fetch(`${state.API_BASE}/api/icons?action=batch-delete`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids: realIds })
-            });
-            const data = await res.json();
-            if (!data.success) {
+            try {
+                await apiRequest('/api/icons?action=batch-delete', {
+                    method: 'POST',
+                    json: { ids: realIds }
+                }, { toast: false });
+            } catch (error) {
                 hasError = true;
-                showToast('删除图标库图标失败: ' + data.error, 'error');
+                showToast('删除图标库图标失败: ' + error.message, 'error');
             }
         }
 
         if (tempIconsData.length > 0) {
-            const res = await fetch(`${state.API_BASE}/api/icons?action=batch-clear-from-bookmarks`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ iconDataList: tempIconsData })
-            });
-            const data = await res.json();
-            if (!data.success) {
+            try {
+                await apiRequest('/api/icons?action=batch-clear-from-bookmarks', {
+                    method: 'POST',
+                    json: { iconDataList: tempIconsData }
+                }, { toast: false });
+            } catch (error) {
                 hasError = true;
-                showToast('清除书签图标失败: ' + data.error, 'error');
+                showToast('清除书签图标失败: ' + error.message, 'error');
             }
         }
 
@@ -319,21 +303,15 @@ export async function uploadIconToLibrary(file) {
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
-                const res = await fetch(`${state.API_BASE}/api/icons`, {
+                const data = await apiRequest('/api/icons', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                    json: {
                         name: file.name.replace(/\.[^/.]+$/, ''),
                         data: e.target.result,
                         type: 'base64'
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    resolve(data.data);
-                } else {
-                    reject(new Error(data.error));
-                }
+                    }
+                }, { toast: false });
+                resolve(data);
             } catch (err) {
                 reject(err);
             }
@@ -344,16 +322,10 @@ export async function uploadIconToLibrary(file) {
 }
 
 export async function uploadIconFromUrl(url) {
-    const res = await fetch(`${state.API_BASE}/api/icons?action=from-url`, {
+    return apiRequest('/api/icons?action=from-url', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-    });
-    const data = await res.json();
-    if (data.success) {
-        return data.data;
-    }
-    throw new Error(data.error);
+        json: { url }
+    }, { toast: false });
 }
 
 export function bindIconLibraryManageEvents() {

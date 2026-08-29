@@ -697,16 +697,24 @@
                             <div class="setting-row">
                                 <div class="setting-info">
                                     <div class="setting-label">导入配置</div>
-                                    <div class="setting-desc">从 JSON 恢复</div>
+                                    <div class="setting-desc">从 JSON 合并或完整恢复</div>
                                 </div>
+                                <select id="importMode" class="setting-select">
+                                    <option value="merge">合并导入</option>
+                                    <option value="restore">完整恢复</option>
+                                </select>
                                 <input type="file" id="importFile" accept=".json" style="display:none;">
                                 <button class="btn btn-secondary" id="importBtn">导入</button>
                             </div>
                             <div class="setting-row">
                                 <div class="setting-info">
                                     <div class="setting-label">导入浏览器书签</div>
-                                    <div class="setting-desc">从 Chrome/Firefox/Edge 导入</div>
+                                    <div class="setting-desc">先预览，按 URL 识别重复项</div>
                                 </div>
+                                <select id="browserImportMode" class="setting-select">
+                                    <option value="skip">跳过重复书签</option>
+                                    <option value="update">更新重复书签</option>
+                                </select>
                                 <input type="file" id="browserImportFile" accept=".html,.htm" style="display:none;">
                                 <button class="btn btn-secondary" id="browserImportBtn">导入</button>
                             </div>
@@ -794,7 +802,8 @@
                         <div class="about-card">
                             <div class="about-logo">🔖</div>
                             <h3>书签导航</h3>
-                            <p class="about-version">版本 1.0.0</p>
+                            <p class="about-version" id="aboutVersion">版本加载中...</p>
+                            <div class="about-build-info" id="aboutBuildInfo"></div>
                             <p class="about-desc">一个简洁美观的书签导航页面，支持自定义分类、搜索引擎、TODO 和数据同步。</p>
                             <div class="about-links">
                                 <a href="https://github.com" target="_blank" class="about-link">📦 GitHub</a>

@@ -4,14 +4,12 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 import { toIconDisplayUrl, iconImageHtml } from './icon-display.js';
+import { apiRequest } from './api-client.js';
 
 export async function loadCoreData() {
     let payload = null;
     try {
-        const res = await fetch(`${state.API_BASE}/api/bootstrap-v2`, { cache: 'no-store' });
-        const result = await res.json();
-
-        payload = result && result.success ? result.data : null;
+        payload = await apiRequest('/api/bootstrap-v2', { cache: 'no-store' }, { toast: false });
         state.setCategories(payload?.categories || []);
         state.setBookmarks(payload?.bookmarks || []);
         state.setEngines(payload?.engines || []);
@@ -54,11 +52,8 @@ export async function loadData() {
 
 export async function loadAiStatus() {
     try {
-        const res = await fetch(`${state.API_BASE}/api/ai?action=status`);
-        const result = await res.json();
-        if (result && result.success && result.data) {
-            state.setAiStatus(result.data);
-        }
+        const result = await apiRequest('/api/ai?action=status', {}, { toast: false });
+        if (result) state.setAiStatus(result);
     } catch (e) {
         state.setAiStatus({ enabled: false, provider: null, model: null, note: null });
     }
@@ -76,21 +71,19 @@ export async function loadIconsBatch(ids) {
     }
 
     try {
-        const res = await fetch(`${state.API_BASE}/api/bookmarks/icons`, {
+        const data = await apiRequest('/api/bookmarks/icons', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids: idsToLoad })
-        });
-        const data = await res.json();
+            json: { ids: idsToLoad }
+        }, { toast: false });
 
-        if (data.success) {
-            Object.entries(data.data).forEach(([id, iconInfo]) => {
+        if (data) {
+            Object.entries(data).forEach(([id, iconInfo]) => {
                 state.iconCache.set(id, iconInfo);
                 updateBookmarkIcon(id, iconInfo);
             });
 
             idsToLoad.forEach(id => {
-                if (!data.data[id]) {
+                if (!data[id]) {
                     state.iconCache.set(id, null);
                 }
             });
@@ -214,14 +207,10 @@ export function saveCollapsedState() {
 
 export async function loadTodos() {
     try {
-        const res = await fetch(`${state.API_BASE}/api/todos?status=all`, { cache: 'no-store' });
-        const result = await res.json();
-        if (result && result.success) {
-            state.setTodos(result.data || []);
-        }
+        const result = await apiRequest('/api/todos?status=all', { cache: 'no-store' }, { toast: false });
+        state.setTodos(result || []);
     } catch (e) {
         console.error('加载 TODO 失败:', e);
     }
 }
-
 

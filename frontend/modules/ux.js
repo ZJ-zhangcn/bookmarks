@@ -50,7 +50,20 @@ export function createNotifier({ container, document: doc = document, maxToasts 
         const toast = doc.createElement('div');
         toast.className = `toast-message toast-${type}`;
         toast.dataset.type = type;
-        toast.textContent = String(message || '');
+        if (options.actionText && typeof options.onAction === 'function') {
+            const messageEl = doc.createElement('span');
+            messageEl.className = 'toast-text';
+            messageEl.textContent = String(message || '');
+            toast.appendChild(messageEl);
+            const action = doc.createElement('button');
+            action.type = 'button';
+            action.className = 'toast-action';
+            action.textContent = options.actionText;
+            action.addEventListener('click', () => options.onAction(toast));
+            toast.appendChild(action);
+        } else {
+            toast.textContent = String(message || '');
+        }
         container.appendChild(toast);
         trimQueue();
 
@@ -77,6 +90,15 @@ export function initUxFeedback() {
 export function showToast(message, type = 'info', options = {}) {
     if (!notifier) initUxFeedback();
     return notifier?.showToast(message, type, options) || null;
+}
+
+export function showActionToast(message, actionText, onAction, options = {}) {
+    return showToast(message, options.type || 'info', {
+        ...options,
+        actionText,
+        onAction,
+        timeoutMs: options.timeoutMs ?? 0
+    });
 }
 
 export function showConfirm({

@@ -11,6 +11,7 @@ import { getSelectedIconUrl } from './icon-picker.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 import { showToast, showConfirm, showPrompt } from './ux.js';
 import sortHelpers from './sort-helpers.cjs';
+import { apiRequest, runWithButton } from './api-client.js';
 
 const { moveItemInList } = sortHelpers;
 
@@ -47,11 +48,10 @@ export function recordBookmarkVisit(bookmarkId) {
         bookmark.visit_count = (Number(bookmark.visit_count) || 0) + 1;
         bookmark.last_visited_at = new Date().toISOString();
     }
-    fetch(`${state.API_BASE}/api/bookmarks/${encodeURIComponent(bookmarkId)}/visit`, {
+    apiRequest(`/api/bookmarks/${encodeURIComponent(bookmarkId)}/visit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         keepalive: true
-    }).catch(() => {});
+    }, { toast: false }).catch(() => {});
 }
 
 export function openBookmarkModal(bookmarkId = null, categoryId = null) {
@@ -159,15 +159,14 @@ export async function loadBookmarkAi(bookmarkId) {
     if (!DOM.bookmarkInputTags) return;
     if (!bookmarkId) return;
     try {
-        const res = await fetch(`${state.API_BASE}/api/ai?action=bookmark&id=${encodeURIComponent(bookmarkId)}`);
-        const result = await res.json();
-        if (result && result.success && result.data) {
-            const tags = Array.isArray(result.data.tags) ? result.data.tags : [];
+        const result = await apiRequest(`/api/ai?action=bookmark&id=${encodeURIComponent(bookmarkId)}`, {}, { toast: false });
+        if (result) {
+            const tags = Array.isArray(result.tags) ? result.tags : [];
             if (tags.length > 0 || !DOM.bookmarkInputTags.value.trim()) {
                 DOM.bookmarkInputTags.value = tags.join(',');
             }
-            if (result.data.summary && !DOM.bookmarkInputDesc.value) {
-                DOM.bookmarkInputDesc.value = result.data.summary;
+            if (result.summary && !DOM.bookmarkInputDesc.value) {
+                DOM.bookmarkInputDesc.value = result.summary;
             }
         }
     } catch (e) {}
@@ -177,11 +176,10 @@ export async function saveBookmarkAi(bookmarkId) {
     if (!DOM.bookmarkInputTags) return;
     const tagsText = DOM.bookmarkInputTags.value.trim();
     try {
-        await fetch(`${state.API_BASE}/api/ai?action=bookmark`, {
+        await apiRequest('/api/ai?action=bookmark', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bookmarkId, tags: tagsText })
-        });
+            json: { bookmarkId, tags: tagsText }
+        }, { toast: false });
     } catch (e) {}
 }
 
@@ -250,18 +248,16 @@ export async function saveBookmark() {
 
     try {
         const nameForSave = DOM.bookmarkInputName.value.trim();
-        const res = await fetch(`${state.API_BASE}/api/bookmarks`, {
+        const result = await runWithButton(DOM.saveBookmarkBtn, () => apiRequest('/api/bookmarks', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            json: {
                 id: state.editingBookmarkId,
                 category_id, name: nameForSave, url, description, icon, icon_type, icon_data
-            })
-        });
-        const result = await res.json().catch(() => null);
+            }
+        }, { errorPrefix: '保存书签失败' }), '保存中...');
 
-        if (res.ok && result && result.success) {
-            const savedId = result?.data?.id || state.editingBookmarkId;
+        if (result) {
+            const savedId = result?.id || state.editingBookmarkId;
 
             // 清除该书签的图标缓存，确保显示最新图标
             if (savedId) {
@@ -274,12 +270,9 @@ export async function saveBookmark() {
             refreshIconLibraryCache();
             closeBookmarkModal();
             showToast('书签已保存', 'success');
-        } else {
-            const errMsg = result?.error || `HTTP ${res.status}`;
-            showToast('保存失败: ' + errMsg, 'error');
         }
-    } catch (e) {
-        showToast('保存失败: ' + e.message, 'error');
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -293,12 +286,12 @@ export async function deleteBookmark(id) {
     if (!ok) return;
 
     try {
-        await fetch(`${state.API_BASE}/api/bookmarks?id=${id}`, { method: 'DELETE' });
+        await apiRequest(`/api/bookmarks?id=${encodeURIComponent(id)}`, { method: 'DELETE' }, { errorPrefix: '删除书签失败' });
         await loadData();
         renderAll();
         showToast('书签已删除', 'success');
-    } catch (e) {
-        showToast('删除失败: ' + e.message, 'error');
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -412,18 +405,17 @@ export async function saveBookmarkOrder(categoryId) {
     }));
 
     try {
-        await fetch(`${state.API_BASE}/api/bookmarks`, {
+        await apiRequest('/api/bookmarks', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order })
-        });
+            json: { order }
+        }, { errorPrefix: '保存书签排序失败' });
 
         toggleBookmarkSorting(categoryId);
 
         await loadData();
         renderAll();
-    } catch (e) {
-        showToast('保存排序失败: ' + e.message, 'error');
+    } catch {
+        // apiRequest 已统一提示
     }
 }
 
@@ -491,18 +483,10 @@ export async function handleAiGenerate({ mode }) {
 
         payload.categories = state.categories.map(c => c.name);
 
-        const res = await fetch(`${state.API_BASE}/api/ai?action=generate`, {
+        const data = await apiRequest('/api/ai?action=generate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        console.log('[AI] full API response:', result);
-        if (!res.ok || !result.success) {
-            throw new Error(result.error || `HTTP ${res.status}`);
-        }
-
-        const data = result.data || {};
+            json: payload
+        }, { errorPrefix: 'AI 生成失败' });
         const tags = Array.isArray(data.tags) ? data.tags : [];
         const summary = String(data.summary || '').trim();
 
@@ -541,8 +525,8 @@ export async function handleAiGenerate({ mode }) {
         const suggestedNewCategory = String(data.newCategory || '').trim();
         console.log('[AI] category recommendation:', { recommendedCategory, suggestedNewCategory, allCategories: state.categories.map(c => c.name) });
         showCategoryRecommendations(recommendedCategory, suggestedNewCategory);
-    } catch (e) {
-        showToast('AI 生成失败: ' + e.message, 'error');
+    } catch {
+        // apiRequest 已统一提示
     } finally {
         state.setAiRequestInFlight(false);
         ai.setAiButtonsDisabled(false);

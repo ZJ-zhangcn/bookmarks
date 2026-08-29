@@ -83,7 +83,7 @@ module.exports = function(db) {
         }
 
         let completedAt = (body.completed_at !== undefined)
-            ? normalizeDatetime(body.completed_at, db.USE_MYSQL)
+            ? normalizeDatetime(body.completed_at)
             : (existing?.completed_at ?? null);
 
         if (isDone === 0) {
@@ -92,7 +92,7 @@ module.exports = function(db) {
             if (existing && toInt01(existing.is_done, 0) === 1 && existing.completed_at) {
                 completedAt = existing.completed_at;
             } else {
-                completedAt = nowDatetime(db.USE_MYSQL);
+                completedAt = nowDatetime();
             }
         }
 
@@ -104,30 +104,17 @@ module.exports = function(db) {
             completedAt
         ];
 
-        if (db.USE_MYSQL) {
-            await db.execute(
-                `INSERT INTO todos (id, title, is_done, sort_order, completed_at)
-                 VALUES (?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE
-                    title = VALUES(title),
-                    is_done = VALUES(is_done),
-                    sort_order = VALUES(sort_order),
-                    completed_at = VALUES(completed_at)`,
-                params
-            );
-        } else {
-            await db.execute(
-                `INSERT INTO todos (id, title, is_done, sort_order, completed_at)
-                 VALUES (?, ?, ?, ?, ?)
-                 ON CONFLICT(id) DO UPDATE SET
-                    title = excluded.title,
-                    is_done = excluded.is_done,
-                    sort_order = excluded.sort_order,
-                    completed_at = excluded.completed_at,
-                    updated_at = CURRENT_TIMESTAMP`,
-                params
-            );
-        }
+        await db.execute(
+            `INSERT INTO todos (id, title, is_done, sort_order, completed_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+                title = excluded.title,
+                is_done = excluded.is_done,
+                sort_order = excluded.sort_order,
+                completed_at = excluded.completed_at,
+                updated_at = CURRENT_TIMESTAMP`,
+            params
+        );
 
         res.json(success({ id: todoId }));
     }));

@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 
@@ -35,8 +36,12 @@ test('frontend registers service worker module', () => {
   assert.match(main, /registerServiceWorker\(\)/);
 
   const pwa = read('frontend/modules/pwa.js');
-  assert.match(pwa, /const\s+SERVICE_WORKER_VERSION\s*=\s*'v16'/);
+  assert.match(pwa, /const\s+SERVICE_WORKER_VERSION\s*=\s*'v17'/);
   assert.match(pwa, /navigator\.serviceWorker\.register\(`\/service-worker\.js\?\$\{SERVICE_WORKER_VERSION\}`\)/);
+  assert.match(pwa, /发现新版本/);
+  assert.match(pwa, /立即刷新/);
+  assert.match(pwa, /worker\.postMessage\(\{ type: 'SKIP_WAITING' \}\)/);
+  assert.match(pwa, /controllerchange/);
 
   const server = read('backend/server.js');
   assert.match(server, /path\.basename\(filePath\)\s*===\s*'service-worker\.js'/);
@@ -48,6 +53,77 @@ test('frontend registers service worker module', () => {
   assert.match(sw, /\/api\/bootstrap-v2/);
   assert.match(sw, /if\s*\(request\.method\s*!==\s*'GET'\)\s*return;/);
   assert.match(sw, /if\s*\(url\.pathname\s*===\s*BOOTSTRAP_PATH\)\s*{\s*event\.respondWith\(networkFirst\(request\)\)/);
+  assert.doesNotMatch(sw, /\.then\(\(\)\s*=>\s*self\.skipWaiting\(\)\)/);
+  assert.match(sw, /event\.data\?\.type === 'SKIP_WAITING'/);
+  assert.match(sw, /slice\(0, 2\)/);
+  assert.match(sw, /await \(await caches\.open\(cacheName\)\)\.match\(CACHE_HISTORY_KEY\)/);
+});
+
+test('service worker retains the current and immediately previous PWA cache', async () => {
+  const source = read('frontend/service-worker.js');
+  const stores = new Map();
+  const deleted = [];
+  const makeCache = entries => ({
+    async match(key) { return entries.get(key); },
+    async put(key, value) { entries.set(key, value); },
+    async addAll() {}
+  });
+  const addCache = (name, history) => {
+    const entries = new Map();
+    if (history) entries.set('/__pwa-cache-history__', new Response(JSON.stringify(history)));
+    stores.set(name, makeCache(entries));
+  };
+  addCache('bookmark-nav-pwa-oldest', ['bookmark-nav-pwa-oldest']);
+  addCache('bookmark-nav-pwa-previous', ['bookmark-nav-pwa-previous', 'bookmark-nav-pwa-oldest']);
+
+  const context = vm.createContext({
+    URL,
+    Response,
+    globalThis: {
+      __PWA_CACHE_NAME__: 'bookmark-nav-pwa-current',
+      __PWA_APP_SHELL__: []
+    },
+    self: {
+      addEventListener() {},
+      clients: { claim: async () => {} },
+      location: { origin: 'https://example.test' },
+      skipWaiting() {}
+    },
+    caches: {
+      async keys() { return [...stores.keys()]; },
+      async open(name) {
+        if (!stores.has(name)) stores.set(name, makeCache(new Map()));
+        return stores.get(name);
+      },
+      async delete(name) {
+        deleted.push(name);
+        return stores.delete(name);
+      }
+    },
+    fetch: async () => new Response('{}')
+  });
+  vm.runInContext(source, context);
+  await vm.runInContext('rememberAndPruneCaches()', context);
+
+  assert.deepEqual([...stores.keys()].sort(), [
+    'bookmark-nav-pwa-current',
+    'bookmark-nav-pwa-previous'
+  ]);
+  assert.deepEqual(deleted, ['bookmark-nav-pwa-oldest']);
+  const historyResponse = await stores.get('bookmark-nav-pwa-current').match('/__pwa-cache-history__');
+  assert.deepEqual(await historyResponse.json(), [
+    'bookmark-nav-pwa-current',
+    'bookmark-nav-pwa-previous'
+  ]);
+});
+
+test('frontend business modules use the unified API client instead of raw fetch', () => {
+  const modulesDir = path.join(root, 'frontend', 'modules');
+  const allowed = new Set(['api-client-core.cjs']);
+  const violations = fs.readdirSync(modulesDir)
+    .filter(name => /\.(?:js|cjs)$/.test(name) && !allowed.has(name))
+    .filter(name => /\bfetch\s*\(/.test(read(path.join('frontend/modules', name))));
+  assert.deepEqual(violations, []);
 });
 
 test('production service worker precaches hashed Vite assets', () => {

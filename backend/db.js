@@ -1,12 +1,13 @@
 /**
  * SQLite 数据库层（简化版）
- * 移除 MySQL 支持，专注于 SQLite 的性能和稳定性
+ * 专注于 SQLite 的性能和稳定性
  */
 
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
 const { CURRENT_SCHEMA_VERSION, getSchemaVersion, migrateDatabase } = require('./db/migrations');
+const backupService = require('./services/database-backup-service');
 
 let db = null;
 let databasePath = null;
@@ -163,6 +164,32 @@ function getSqliteDb() {
     return db;
 }
 
+function getRuntimeInfo() {
+    return {
+        type: 'sqlite',
+        schemaVersion: db ? getSchemaVersion(db) : null,
+        latestBackup: databasePath ? backupService.getLatestBackupInfo(databasePath) : null
+    };
+}
+
+async function createRestoreBackup(options = {}) {
+    return backupService.createRestoreBackup({
+        connection: db,
+        databasePath,
+        retention: options.retention || process.env.DB_RESTORE_BACKUP_LIMIT,
+        now: options.now
+    });
+}
+
+async function createDailyBackupIfDue(options = {}) {
+    return backupService.createDailyBackupIfDue({
+        connection: db,
+        databasePath,
+        retention: options.retention || process.env.DB_DAILY_BACKUP_LIMIT,
+        now: options.now
+    });
+}
+
 module.exports = {
     initDatabase,
     createTables,
@@ -172,5 +199,8 @@ module.exports = {
     transaction,
     getDatabaseType,
     getSqliteDb,
+    getRuntimeInfo,
+    createRestoreBackup,
+    createDailyBackupIfDue,
     closeDatabase
 };

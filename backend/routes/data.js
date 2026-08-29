@@ -2,100 +2,11 @@
  * 数据导入导出路由模块
  */
 const express = require('express');
-const { newId } = require('../../shared/services/ids');
-const cheerio = require('cheerio');
 const router = express.Router();
 const { success, asyncHandler, AppError } = require('../utils');
 const { requireAdmin } = require('../middleware/security');
 const dataService = require('../../shared/services/data');
-
-function parseNetscapeBookmarks(html) {
-    const $ = cheerio.load(html, { xmlMode: false });
-    const result = { categories: [], bookmarks: [] };
-    const categoryMap = new Map();
-    let catOrder = 0;
-    let bmOrder = 0;
-
-    function processFolder(element, parentName = null) {
-        const $el = $(element);
-        const folderName = $el.children('h3').first().text().trim() || parentName || '未分类';
-
-        if (folderName && !categoryMap.has(folderName)) {
-            const catId = newId('cat_import');
-            categoryMap.set(folderName, catId);
-            result.categories.push({
-                id: catId,
-                name: folderName,
-                icon: '📁',
-                sort_order: catOrder++
-            });
-        }
-
-        const catId = categoryMap.get(folderName);
-
-        $el.children('dl').children('dt').each((_, dt) => {
-            const $dt = $(dt);
-            const $a = $dt.children('a').first();
-
-            if ($a.length > 0) {
-                const url = $a.attr('href') || '';
-                const name = $a.text().trim();
-                if (name && url && url.startsWith('http')) {
-                    result.bookmarks.push({
-                        id: newId('bm_import'),
-                        category_id: catId,
-                        name: name,
-                        url: url,
-                        description: '',
-                        icon: '🌐',
-                        icon_type: 'auto',
-                        icon_data: '',
-                        sort_order: bmOrder++
-                    });
-                }
-            } else if ($dt.children('h3').length > 0) {
-                processFolder(dt, folderName);
-            }
-        });
-    }
-
-    $('dl').first().children('dt').each((_, dt) => {
-        processFolder(dt);
-    });
-
-    if (result.bookmarks.length === 0) {
-        $('a').each((_, a) => {
-            const $a = $(a);
-            const url = $a.attr('href') || '';
-            const name = $a.text().trim();
-            if (name && url && url.startsWith('http')) {
-                if (!categoryMap.has('导入的书签')) {
-                    const catId = newId('cat_import');
-                    categoryMap.set('导入的书签', catId);
-                    result.categories.push({
-                        id: catId,
-                        name: '导入的书签',
-                        icon: '📁',
-                        sort_order: 0
-                    });
-                }
-                result.bookmarks.push({
-                    id: newId('bm_import'),
-                    category_id: categoryMap.get('导入的书签'),
-                    name: name,
-                    url: url,
-                    description: '',
-                    icon: '🌐',
-                    icon_type: 'auto',
-                    icon_data: '',
-                    sort_order: bmOrder++
-                });
-            }
-        });
-    }
-
-    return result;
-}
+const browserImportService = require('../services/browser-import-service');
 
 module.exports = function(db) {
     // GET /api/data
@@ -107,8 +18,25 @@ module.exports = function(db) {
 
     // POST /api/data
     router.post('/', requireAdmin, asyncHandler(async (req, res) => {
-        await dataService.importData(db, req.body);
-        res.json(success());
+        const mode = req.query.mode || 'merge';
+        if (!['merge', 'restore'].includes(mode)) {
+            throw new AppError('导入模式必须是 merge 或 restore', 400);
+        }
+        let validation;
+        try {
+            validation = dataService.validateBackupPayload(req.body, { mode });
+        } catch (error) {
+            throw new AppError(error.message, 400);
+        }
+        let backup = null;
+        if (mode === 'restore') {
+            if (typeof db.createRestoreBackup !== 'function') {
+                throw new AppError('当前数据库不支持完整恢复前备份', 500);
+            }
+            backup = await db.createRestoreBackup();
+        }
+        await dataService.importData(db, req.body, { mode });
+        res.json(success({ mode, counts: validation.counts, backup: backup?.fileName || null }));
     }));
 
     // POST /api/data/browser-import - 导入浏览器书签 (Netscape HTML 格式)
@@ -118,16 +46,27 @@ module.exports = function(db) {
             throw new AppError('缺少书签数据', 400);
         }
 
-        const parsed = parseNetscapeBookmarks(html);
-        if (parsed.bookmarks.length === 0) {
-            throw new AppError('未能解析出任何书签', 400);
+        let plan;
+        try {
+            plan = await browserImportService.buildBrowserImportPlan(db, html);
+        } catch (error) {
+            throw new AppError(error.message, 400);
         }
-
-        await dataService.importData(db, parsed);
-        res.json(success({
-            categories: parsed.categories.length,
-            bookmarks: parsed.bookmarks.length
-        }));
+        if (req.query.preview === 'true') {
+            try {
+                return res.json(success(browserImportService.publicPreview(plan, req.query.duplicates || 'skip')));
+            } catch (error) {
+                throw new AppError(error.message, 400);
+            }
+        }
+        const duplicateMode = req.query.duplicates || 'skip';
+        let result;
+        try {
+            result = await browserImportService.applyBrowserImport(db, plan, duplicateMode);
+        } catch (error) {
+            throw new AppError(error.message, 400);
+        }
+        res.json(success(result));
     }));
 
     return router;

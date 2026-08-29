@@ -82,6 +82,8 @@ export function cacheDOMElements() {
         exportBtn: document.getElementById('exportBtn'),
         importBtn: document.getElementById('importBtn'),
         importFile: document.getElementById('importFile'),
+        importMode: document.getElementById('importMode'),
+        browserImportMode: document.getElementById('browserImportMode'),
         includeIconsExport: document.getElementById('includeIconsExport'),
         includeIconsWebdav: document.getElementById('includeIconsWebdav'),
         aiSettingsServerHint: document.getElementById('aiSettingsServerHint'),
@@ -132,6 +134,8 @@ export function cacheDOMElements() {
         browserImportFile: document.getElementById('browserImportFile'),
         browserImportBtn: document.getElementById('browserImportBtn'),
         themeSelect: document.getElementById('themeSelect'),
+        aboutVersion: document.getElementById('aboutVersion'),
+        aboutBuildInfo: document.getElementById('aboutBuildInfo'),
         // TODO 相关
         todosContainer: document.getElementById('todosContainer'),
         todoQuickInput: document.getElementById('todoQuickInput'),

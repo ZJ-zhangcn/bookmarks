@@ -5,7 +5,7 @@
 const { success, error, paginated } = require('./response');
 const { AppError, asyncHandler, errorHandler, notFoundHandler } = require('./error');
 const { requestLogger } = require('./logger');
-const { clampInt, toInt01, toMysqlDatetimeString, normalizeDatetime, nowDatetime } = require('./params');
+const { clampInt, toInt01, normalizeDatetime, nowDatetime } = require('./params');
 
 module.exports = {
     success,
@@ -18,7 +18,6 @@ module.exports = {
     requestLogger,
     clampInt,
     toInt01,
-    toMysqlDatetimeString,
     normalizeDatetime,
     nowDatetime
 };

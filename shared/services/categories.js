@@ -3,10 +3,6 @@
  */
 const { newId } = require('./ids');
 
-function isMysql(db) {
-    return db.USE_MYSQL || db.getDatabaseType?.() === 'mysql';
-}
-
 
 async function getAllCategories(db, type) {
     let sql = 'SELECT * FROM categories';
@@ -35,30 +31,29 @@ async function saveCategory(db, { id, name, icon, type }) {
         sortOrder = existing?.sort_order ?? 0;
     }
 
-    if (isMysql(db)) {
-        await db.execute(
-            'INSERT INTO categories (id, name, icon, type, sort_order) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), icon = VALUES(icon), type = VALUES(type), sort_order = VALUES(sort_order)',
-            [categoryId, name.trim(), categoryIcon, categoryType, sortOrder]
-        );
-    } else {
-        await db.execute(
-            `INSERT INTO categories (id, name, icon, type, sort_order)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(id) DO UPDATE SET
-               name = excluded.name,
-               icon = excluded.icon,
-               type = excluded.type,
-               sort_order = excluded.sort_order`,
-            [categoryId, name.trim(), categoryIcon, categoryType, sortOrder]
-        );
-    }
+    await db.execute(
+        `INSERT INTO categories (id, name, icon, type, sort_order)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           icon = excluded.icon,
+           type = excluded.type,
+           sort_order = excluded.sort_order`,
+        [categoryId, name.trim(), categoryIcon, categoryType, sortOrder]
+    );
 
     return { id: categoryId, name: name.trim(), icon: categoryIcon, type: categoryType };
 }
 
 async function deleteCategory(db, id) {
-    await db.execute('DELETE FROM bookmarks WHERE category_id = ?', [id]);
-    await db.execute('DELETE FROM categories WHERE id = ?', [id]);
+    await db.transaction(async (conn) => {
+        await conn.execute(
+            'DELETE FROM bookmark_ai WHERE bookmark_id IN (SELECT id FROM bookmarks WHERE category_id = ?)',
+            [id]
+        );
+        await conn.execute('DELETE FROM bookmarks WHERE category_id = ?', [id]);
+        await conn.execute('DELETE FROM categories WHERE id = ?', [id]);
+    });
 }
 
 async function sortCategories(db, order) {
