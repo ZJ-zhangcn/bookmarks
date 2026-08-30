@@ -12,6 +12,7 @@ import { apiRequest, runWithButton } from './api-client.js';
 // 拖拽状态
 let draggedTodo = null;
 let dragOverTodo = null;
+let quickAddPending = false;
 
 export function handleTodoClick(e) {
     const checkBtn = e.target.closest('.todo-check');
@@ -46,20 +47,23 @@ export function handleTodoClick(e) {
  * 快速输入框回车添加待办
  */
 export function handleQuickInputKeydown(e) {
-    if (e.key === 'Enter') {
-        const input = e.target;
-        const title = input.value.trim();
-        if (title) {
-            quickAddTodo(title);
-            input.value = '';
-        }
-    }
+    if (e.isComposing || e.key !== 'Enter' || e.repeat || quickAddPending) return;
+
+    e.preventDefault();
+    const input = e.target;
+    const title = input.value.trim();
+    if (!title) return;
+
+    quickAddPending = true;
+    input.disabled = true;
+    input.setAttribute('aria-busy', 'true');
+    quickAddTodo(title, input);
 }
 
 /**
  * 快速添加待办（只有标题）
  */
-async function quickAddTodo(title) {
+async function quickAddTodo(title, input) {
     try {
         await apiRequest('/api/todos', {
             method: 'POST',
@@ -69,8 +73,15 @@ async function quickAddTodo(title) {
         renderTodos();
         bindQuickInputEvent();
         bindTodoDragEvents();
+        document.getElementById('todoQuickInput')?.focus();
     } catch {
         // apiRequest 已统一提示
+    } finally {
+        quickAddPending = false;
+        if (input?.isConnected) {
+            input.disabled = false;
+            input.removeAttribute('aria-busy');
+        }
     }
 }
 

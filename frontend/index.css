@@ -4361,7 +4361,8 @@ select:focus {
 
 .todo-quick-input {
     width: 100%;
-    padding: 10px 16px;
+    min-height: 40px;
+    padding: 9px 12px;
     font-size: 0.95rem;
     font-family: inherit;
     color: var(--text-primary);
@@ -4379,6 +4380,11 @@ select:focus {
     box-shadow: 0 0 0 3px hsla(var(--primary-hue), 100%, 65%, 0.15);
 }
 
+.todo-quick-input:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
 .todo-quick-input::placeholder {
     color: var(--text-tertiary);
 }
@@ -4393,9 +4399,10 @@ select:focus {
 /* 待办卡片 */
 .todo-card {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
-    padding: 8px 12px;
+    min-height: 40px;
+    padding: 6px 12px;
     background: transparent;
     border-radius: var(--radius-md);
     transition: background var(--transition-fast);
@@ -4486,10 +4493,10 @@ select:focus {
 /* 空状态 */
 .todos-empty {
     text-align: center;
-    padding: 2rem;
+    padding: 0.5rem 0.75rem;
     color: var(--text-tertiary);
     font-size: 0.9rem;
-    font-style: italic;
+    line-height: 1.4;
 }
 
 /* 拖拽手柄 */
