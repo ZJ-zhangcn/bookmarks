@@ -56,6 +56,24 @@
         <div class="loading-text">加载中...</div>
     </div>
 
+    <section class="auth-overlay" id="authOverlay" hidden>
+        <form class="auth-panel" id="authForm" autocomplete="on">
+            <img class="auth-logo" src="/assets/icon-192.png" alt="">
+            <h1>登录书签导航</h1>
+            <p class="auth-subtitle">登录后查看和管理你的书签</p>
+            <label class="auth-field">
+                <span>账号</span>
+                <input id="authUsername" name="username" type="text" autocomplete="username" required autofocus>
+            </label>
+            <label class="auth-field">
+                <span>密码</span>
+                <input id="authPassword" name="password" type="password" autocomplete="current-password" required>
+            </label>
+            <p class="auth-error" id="authError" role="alert" hidden></p>
+            <button class="auth-submit" id="authSubmit" type="submit">登录</button>
+        </form>
+    </section>
+
     <!-- 壁纸层 -->
     <div class="wallpaper-layer" id="wallpaperLayer">
         <div class="wallpaper-image" id="wallpaperImage"></div>
@@ -595,6 +613,15 @@
                                     <option value="light">浅色</option>
                                     <option value="system">跟随系统</option>
                                 </select>
+                            </div>
+                        </div>
+                        <div class="setting-card" id="authSettingsCard">
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <div class="setting-label">登录状态</div>
+                                    <small class="setting-hint">退出后需要重新登录才能查看书签</small>
+                                </div>
+                                <button class="btn btn-secondary" id="logoutBtn" type="button">退出登录</button>
                             </div>
                         </div>
                     </div>

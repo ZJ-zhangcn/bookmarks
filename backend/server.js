@@ -14,6 +14,7 @@ const { errorHandler } = require('./utils');
 const bootstrapV2Module = require('./bootstrap-v2');
 const { getReleaseInfo } = require('./release-info');
 const offsiteBackup = require('./services/offsite-backup-service');
+const { isSessionAuthEnabled, requireSession, registerAuthRoutes } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -53,8 +54,23 @@ app.use((req, res, next) => {
     const limit = req.path.startsWith('/api/webdav') || isDataImport ? '10mb' : (req.path === '/api/ai' ? '64kb' : '2mb');
     express.json({ limit })(req, res, next);
 });
+
+// 内置单用户登录：认证接口公开，其余 API 在会话模式下必须携带 HttpOnly Cookie。
+registerAuthRoutes(app);
+app.use('/api', (req, res, next) => {
+    if (req.method === 'OPTIONS') return next();
+    if (req.path.startsWith('/auth')) return next();
+    if (req.path === '/health' && req.method === 'GET') return next();
+    return requireSession(req, res, next);
+});
 app.use((req, res, next) => {
     if (req.method === 'GET' && req.path.startsWith('/api/')) {
+        if (isSessionAuthEnabled()) {
+            res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+            return next();
+        }
         // 动态数据不缓存
         const noStorePaths = [
             '/api/todos',
@@ -271,6 +287,14 @@ app.get('*', (req, res) => {
 // ========================================
 function validateEnv() {
     const warnings = [];
+
+    if (isSessionAuthEnabled()) {
+        if (!String(process.env.AUTH_PASSWORD || '')) warnings.push('AUTH_MODE=session 但 AUTH_PASSWORD 未配置');
+        if (!String(process.env.AUTH_SESSION_SECRET || process.env.ADMIN_TOKEN || '')) warnings.push('AUTH_MODE=session 但 AUTH_SESSION_SECRET 未配置');
+        if (String(process.env.AUTH_COOKIE_SECURE || '').toLowerCase() === 'true' && String(process.env.NODE_ENV || '').toLowerCase() !== 'production') {
+            warnings.push('AUTH_COOKIE_SECURE=true 需要通过 HTTPS 访问，否则浏览器不会发送会话 Cookie');
+        }
+    }
 
     // AI 配置校验
     if (String(process.env.AI_ENABLED || '').toLowerCase() === 'true') {

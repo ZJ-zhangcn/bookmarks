@@ -78,6 +78,7 @@ async function requestJson(url, options = {}) {
                 method,
                 headers,
                 body,
+                credentials: fetchOptions.credentials || 'same-origin',
                 signal: controller.signal
             });
             const payload = await parseJsonResponse(response);

@@ -138,6 +138,40 @@ body {
     overflow-x: hidden;
 }
 
+.auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: var(--bg-primary, #0b0f14);
+}
+
+.auth-overlay[hidden] { display: none; }
+
+.auth-panel {
+    width: min(100%, 380px);
+    box-sizing: border-box;
+    padding: 36px 32px;
+    border: 1px solid var(--glass-border, rgba(255,255,255,.12));
+    border-radius: 16px;
+    background: rgba(20, 26, 36, .92);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .38);
+    color: var(--text-primary, #fff);
+}
+
+.auth-logo { display: block; width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 14px; }
+.auth-panel h1 { margin: 0; text-align: center; font-size: 1.5rem; }
+.auth-subtitle { margin: 8px 0 26px; color: var(--text-secondary, #aab3c2); text-align: center; }
+.auth-field { display: block; margin-top: 16px; }
+.auth-field span { display: block; margin-bottom: 7px; font-size: .9rem; color: var(--text-secondary, #aab3c2); }
+.auth-field input { width: 100%; box-sizing: border-box; padding: 12px 13px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: rgba(0,0,0,.2); color: inherit; font: inherit; }
+.auth-field input:focus { outline: 2px solid var(--primary, #7c6cff); outline-offset: 1px; }
+.auth-submit { width: 100%; margin-top: 24px; padding: 12px; border: 0; border-radius: 8px; background: var(--primary, #7c6cff); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+.auth-submit:disabled { opacity: .6; cursor: wait; }
+.auth-error { margin: 14px 0 0; color: #ff8d8d; font-size: .9rem; }
+
 /* ========================================
    壁纸层
    ======================================== */

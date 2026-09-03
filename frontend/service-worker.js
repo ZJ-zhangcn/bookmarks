@@ -37,6 +37,7 @@ self.addEventListener('fetch', event => {
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return;
 
+    // Authenticated bootstrap data must never be served from an offline cache.
     if (url.pathname === BOOTSTRAP_PATH) {
         event.respondWith(networkFirst(request));
         return;
@@ -73,6 +74,7 @@ async function networkFirst(request, fallbackPath) {
         }
         return response;
     } catch (_err) {
+            if (new URL(request.url).pathname === BOOTSTRAP_PATH) throw _err;
         const cached = await cache.match(request);
         if (cached) return cached;
         if (fallbackPath) {

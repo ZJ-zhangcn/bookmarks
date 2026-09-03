@@ -7,6 +7,7 @@ import { toIconDisplayUrl, iconImageHtml } from './icon-display.js';
 import { apiRequest } from './api-client.js';
 import iconLoadQueueModule from './icon-load-queue.cjs';
 import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
+import { isAuthRequiredError } from './auth.js';
 
 const { createIconLoadQueue } = iconLoadQueueModule;
 
@@ -16,6 +17,8 @@ export async function loadCoreData() {
         payload = await apiRequest('/api/bootstrap-v2', { cache: 'no-store' }, { toast: false });
         writeBootstrapCache(payload).catch(() => {});
     } catch (error) {
+        if (isAuthRequiredError(error)) throw error;
+        if (globalThis.__BOOKMARK_NAV_SESSION_MODE__) throw error;
         const cached = await readBootstrapCache();
         payload = cached?.data || null;
         if (!payload) console.error('加载核心数据失败:', error);

@@ -105,8 +105,10 @@ npm run dev:frontend
 | 场景 | 变量 | 说明 |
 | --- | --- | --- |
 | 修改端口 | `PORT` | 后端监听端口，默认 `3000`；Docker 默认映射到宿主机 `8080`。 |
-| 访问控制 | `AUTH_MODE` | `anonymous` 适合个人内网；`token` 适合公网；`off` 完全关闭鉴权。 |
+| 访问控制 | `AUTH_MODE` | `anonymous` 适合个人内网；`token` 仅保护写接口；`session` 启用内置登录并保护整站；`off` 完全关闭鉴权。 |
 | 管理令牌 | `ADMIN_TOKEN` | `AUTH_MODE=token` 时，写接口需要 `Authorization: Bearer ***`。 |
+| 内置登录账号 | `AUTH_USERNAME` / `AUTH_PASSWORD` | `AUTH_MODE=session` 时使用，登录后通过 HttpOnly Cookie 保持会话，默认 30 天并自动续期。 |
+| 会话密钥 | `AUTH_SESSION_SECRET` | `AUTH_MODE=session` 时必填，建议使用随机生成的长字符串。 |
 | 内网访问 | `ALLOW_PRIVATE_NETWORK` | WebDAV、图标抓取或 AI 网关需要访问内网地址时开启。 |
 | 启用 AI | `AI_ENABLED` | 设置为 `true` 后，配置 OpenAI Key 即可。 |
 | 迁移备份数 | `DB_MIGRATION_BACKUP_LIMIT` | 数据库升级前自动备份的保留数量，默认 `5`。 |
@@ -139,6 +141,7 @@ OPENAI_API_KEY=your-key
 
 - 个人内网：SQLite 默认部署，保留 compose 中的免鉴权配置即可。
 - 公网访问：设置 `AUTH_MODE=token` 和 `ADMIN_TOKEN`。
+- 需要打开网站先登录：设置 `AUTH_MODE=session`、`AUTH_USERNAME`、`AUTH_PASSWORD` 和 `AUTH_SESSION_SECRET`。
 - WebDAV 同步 NAS：在 WebDAV 配置正确的基础上，增加 `ALLOW_PRIVATE_NETWORK=true`。
 - 数据库固定使用 SQLite，数据文件和自动备份都保存在 Docker 数据卷中。
 

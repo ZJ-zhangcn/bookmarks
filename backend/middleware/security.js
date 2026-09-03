@@ -6,9 +6,11 @@
 const dns = require('dns').promises;
 const net = require('net');
 const { isAdminAuthDisabled, isAnonymousWriteAllowed, isPrivateFetchAllowed } = require('../../shared/services/env');
+const { isSessionAuthEnabled } = require('./auth');
 
 function requireAdmin(req, res, next) {
     if (isAdminAuthDisabled()) return next();
+    if (isSessionAuthEnabled() && req.auth) return next();
     const token = String(process.env.ADMIN_TOKEN || '').trim();
     const allowAnonymous = isAnonymousWriteAllowed();
     if (!token) {
@@ -22,6 +24,7 @@ function requireAdmin(req, res, next) {
 
 function requireStrictAdmin(req, res, next) {
     if (isAdminAuthDisabled()) return next();
+    if (isSessionAuthEnabled() && req.auth) return next();
     const token = String(process.env.ADMIN_TOKEN || '').trim();
     if (!token) {
         return res.status(401).json({ success: false, error: '未配置 ADMIN_TOKEN，拒绝执行高风险批量操作' });

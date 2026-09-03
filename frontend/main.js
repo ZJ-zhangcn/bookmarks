@@ -11,8 +11,9 @@ import { bindAllEvents } from './modules/events.js';
 import { hideLoadingOverlay } from './modules/utils.js';
 import { initTheme } from './modules/theme.js';
 import { registerServiceWorker } from './modules/pwa.js';
+import { checkSession, bindAuthEvents, logout, showAuthOverlay } from './modules/auth.js';
 
-async function init() {
+async function initializeApp() {
     if ('scrollRestoration' in history) {
         history.scrollRestoration = 'manual';
     }
@@ -50,6 +51,23 @@ async function init() {
             console.error('延迟加载失败:', e);
         }
     }, 100);
+}
+
+async function init() {
+    globalThis.addEventListener?.('bookmark-nav-auth-required', () => showAuthOverlay('登录已过期，请重新登录'));
+    const authenticated = await checkSession();
+    bindAuthEvents(async () => {
+        await initializeApp();
+    });
+    if (authenticated) await initializeApp();
+    document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+        try {
+            await logout();
+            globalThis.location.reload();
+        } catch (error) {
+            showAuthOverlay(error.message || '退出登录失败');
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', init);

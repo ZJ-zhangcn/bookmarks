@@ -31,3 +31,11 @@ export async function writeBootstrapCache(data) {
         request.onerror = () => resolve();
     });
 }
+
+export async function clearBootstrapCache() {
+    if (!('indexedDB' in globalThis)) return;
+    await new Promise(resolve => {
+        const request = indexedDB.deleteDatabase(DB_NAME);
+        request.onsuccess = request.onerror = request.onblocked = () => resolve();
+    });
+}
