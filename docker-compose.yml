@@ -22,7 +22,7 @@ services:
       # 鉴权（推荐配置）
       # =====================
       # 访问控制：anonymous / token / session / off
-      - AUTH_MODE=anonymous
+      - AUTH_MODE=${AUTH_MODE:-anonymous}
       # 管理员令牌（AUTH_MODE=token 时写操作需要 Authorization: Bearer ***）
       # - ADMIN_TOKEN=your-secret-token
       # 内置登录（AUTH_MODE=session）时配置以下变量，密码和密钥请写入同目录 .env
