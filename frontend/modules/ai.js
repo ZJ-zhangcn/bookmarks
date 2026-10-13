@@ -72,8 +72,15 @@ export function updateAiUiVisibility() {
     const enabled = Boolean(state.aiStatus && state.aiStatus.enabled);
     DOM.bookmarkAiActions.style.display = enabled ? '' : 'none';
     if (enabled) {
-        const provider = state.aiStatus.provider ? String(state.aiStatus.provider).toUpperCase() : 'AI';
-        const model = state.aiStatus.model ? ` · ${state.aiStatus.model}` : '';
+        const clientSettings = getAiClientSettings();
+        const configuredProvider = String(clientSettings.provider || '').trim();
+        const activeProvider = state.aiStatus.allowClientProvider && configuredProvider
+            ? configuredProvider
+            : state.aiStatus.provider;
+        const provider = activeProvider ? String(activeProvider).toUpperCase() : 'AI';
+        const configuredModel = String(clientSettings.model || '').trim();
+        const modelName = configuredModel || state.aiStatus.model;
+        const model = modelName ? ` · ${modelName}` : '';
         DOM.aiStatusHint.textContent = `${provider}${model}`;
     } else {
         DOM.aiStatusHint.textContent = '';
