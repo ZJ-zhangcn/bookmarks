@@ -1,3 +1,4 @@
+/* global URL */
 function escapeHtml(text) {
     return String(text || '')
         .replace(/&/g, '&amp;')
