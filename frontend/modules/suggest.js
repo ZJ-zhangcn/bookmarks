@@ -5,6 +5,9 @@ import { DOM } from './dom.js';
 import * as state from './state.js';
 import { escapeHtml } from './utils.js';
 import { apiRequest } from './api-client.js';
+import searchHelpers from './search-helpers.cjs';
+
+const { resolveWebsiteUrl, buildWebSearchUrl } = searchHelpers;
 
 let suggestionsEl = null;
 let currentSuggestions = [];
@@ -29,7 +32,7 @@ function handleInput(e) {
     const q = e.target.value.trim();
     clearTimeout(debounceTimer);
     if (abortController) abortController.abort();
-    if (!q) { hide(); return; }
+    if (!q || resolveWebsiteUrl(q)) { hide(); return; }
     debounceTimer = setTimeout(() => fetchSuggestions(q), 150);
 }
 
@@ -116,7 +119,7 @@ function select(index) {
         const text = currentSuggestions[index];
         DOM.webSearchInput.value = text;
         hide();
-        window.open(state.currentEngine.url + encodeURIComponent(text), '_blank', 'noopener,noreferrer');
+        window.open(buildWebSearchUrl(text, state.currentEngine.url), '_blank', 'noopener,noreferrer');
         DOM.webSearchInput.value = '';
     }
 }

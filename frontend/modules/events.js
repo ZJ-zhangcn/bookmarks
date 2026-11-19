@@ -17,6 +17,9 @@ import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTod
 import { initUxFeedback, renderCategorySheet } from './ux.js';
 import { initCommandPalette } from './command-palette.js';
 import { bindBatchEvents } from './batch.js';
+import searchHelpers from './search-helpers.cjs';
+
+const { buildWebSearchUrl } = searchHelpers;
 
 // 防抖搜索函数
 const debouncedSearch = debounce((value) => {
@@ -144,9 +147,9 @@ export function bindAllEvents() {
     document.addEventListener('click', e => { if (!DOM.engineSelector.contains(e.target)) DOM.engineSelector.classList.remove('open'); });
     DOM.webSearchForm.addEventListener('submit', e => {
         e.preventDefault();
-        const q = DOM.webSearchInput.value.trim();
-        if (q) {
-            window.open(state.currentEngine.url + encodeURIComponent(q), '_blank');
+        const url = buildWebSearchUrl(DOM.webSearchInput.value, state.currentEngine.url);
+        if (url) {
+            window.open(url, '_blank', 'noopener,noreferrer');
             DOM.webSearchInput.value = '';
         }
     });
