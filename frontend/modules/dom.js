@@ -5,8 +5,6 @@ export let DOM = {};
 
 export function cacheDOMElements() {
     DOM = {
-        searchInput: document.getElementById('searchInput'),
-        searchClear: document.getElementById('searchClear'),
         categoryNav: document.getElementById('categoryNav'),
         categoryFab: document.getElementById('categoryFab'),
         categoryFabLabel: document.getElementById('categoryFabLabel'),
@@ -35,6 +33,7 @@ export function cacheDOMElements() {
         emptyState: document.getElementById('emptyState'),
         emptyAddBookmark: document.getElementById('emptyAddBookmark'),
         emptyAddCategory: document.getElementById('emptyAddCategory'),
+        webSearchContainer: document.getElementById('webSearchContainer'),
         webSearchForm: document.getElementById('webSearchForm'),
         webSearchInput: document.getElementById('webSearchInput'),
         engineBtn: document.getElementById('engineBtn'),
@@ -126,13 +125,6 @@ export function cacheDOMElements() {
         clockTime: document.getElementById('clockTime'),
         clockDate: document.getElementById('clockDate'),
         searchBarShow: document.getElementById('searchBarShow'),
-        bookmarkFilterShow: document.getElementById('bookmarkFilterShow'),
-        searchContainer: document.querySelector('.search-container'),
-        bookmarkSearchBtn: document.getElementById('bookmarkSearchBtn'),
-        bookmarkSearchOverlay: document.getElementById('bookmarkSearchOverlay'),
-        bookmarkSearchInput: document.getElementById('bookmarkSearchInput'),
-        bookmarkSearchClose: document.getElementById('bookmarkSearchClose'),
-        bookmarkSearchResults: document.getElementById('bookmarkSearchResults'),
         wallpaperUrl: document.getElementById('wallpaperUrl'),
         wallpaperBlur: document.getElementById('wallpaperBlur'),
         wallpaperBlurValue: document.getElementById('wallpaperBlurValue'),

@@ -31,7 +31,7 @@ test('serves hashed assets immutably while keeping entry files revalidatable', a
     expect(workerResponse.headers()['cache-control']).toContain('no-store');
 });
 
-test('creates, searches, edits and deletes a bookmark', async ({ page }) => {
+test('creates, edits and deletes a bookmark', async ({ page }) => {
     let bootstrapRequests = 0;
     page.on('request', request => {
         if (new URL(request.url()).pathname === '/api/bootstrap-v2') bootstrapRequests += 1;
@@ -39,10 +39,6 @@ test('creates, searches, edits and deletes a bookmark', async ({ page }) => {
     const name = `E2E 书签 ${Date.now()}`;
     const updatedName = `${name} 已更新`;
     await addBookmark(page, name, 'https://example.com/e2e');
-
-    await page.locator('#searchInput').fill(name);
-    await expect(page.locator('.bookmark-card', { hasText: name })).toHaveCount(1);
-    await page.locator('#searchClear').click();
 
     const card = page.locator('.bookmark-card', { hasText: name });
     await card.locator('.bookmark-action-btn.edit').click();

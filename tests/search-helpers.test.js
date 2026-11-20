@@ -1,15 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { buildSearchEmptyState, resolveWebsiteUrl, buildWebSearchUrl } = require('../frontend/modules/search-helpers.cjs');
-
-test('buildSearchEmptyState includes action buttons for no-result query', () => {
-    const html = buildSearchEmptyState('not-found');
-    assert.match(html, /没有找到匹配的书签/);
-    assert.match(html, /data-action="add-bookmark"/);
-    assert.match(html, /data-action="web-search"/);
-    assert.match(html, /not-found/);
-});
+const { resolveWebsiteUrl, buildWebSearchUrl } = require('../frontend/modules/search-helpers.cjs');
 
 test('resolveWebsiteUrl recognizes HTTP and HTTPS links with paths, queries and fragments', () => {
     const cases = [

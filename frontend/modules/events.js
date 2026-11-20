@@ -3,16 +3,15 @@
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
-import { debounce } from './utils.js';
 import { observeBookmarkIcons } from './api.js';
 import { renderBookmarks, updateCategoryQuickLabel } from './render.js';
 import { handleBookmarkClick, openBookmarkModal, closeBookmarkModal, saveBookmark, handleAiGenerate, handleCategoryRecChipClick, hideCategoryRecommendations, handleIconUpload } from './bookmark.js';
 import { openCategoryModal, closeCategoryModal, saveCategory } from './category.js';
 import { openEngineModal, closeEngineModal, saveEngine, resetEngineForm, handleEngineListClick, toggleEngineIconLibrary } from './engine.js';
 import { fetchFavicon, fetchEngineIcon, updateEngineIconPreviewUrl, fetchBookmarkMetadata } from './favicon.js';
-import { openBookmarkSearch, closeBookmarkSearch, handleBookmarkSearch } from './search.js';
 import { loadIconLibrary, renderIconLibrary, bindIconLibraryManageEvents } from './icon-library.js';
 import { initSearchSuggestions } from './suggest.js';
+import { initWebSearchSticky } from './web-search.js';
 import { handleTodoClick, closeTodoModal, saveTodo, bindQuickInputEvent, bindTodoDragEvents } from './todo.js';
 import { initUxFeedback, renderCategorySheet } from './ux.js';
 import { initCommandPalette } from './command-palette.js';
@@ -20,16 +19,6 @@ import { bindBatchEvents } from './batch.js';
 import searchHelpers from './search-helpers.cjs';
 
 const { buildWebSearchUrl } = searchHelpers;
-
-// 防抖搜索函数
-const debouncedSearch = debounce((value) => {
-    state.setCurrentSearch(value);
-    renderBookmarks();
-}, 200);
-
-const debouncedBookmarkSearch = debounce(() => {
-    handleBookmarkSearch();
-}, 150);
 
 function updateCategoryFabLabel() {
     updateCategoryQuickLabel();
@@ -121,12 +110,11 @@ function initCategoryQuickSwitcher() {
 
 export function bindAllEvents() {
     initUxFeedback();
+    initWebSearchSticky(DOM.webSearchContainer);
     initSearchSuggestions();
     initCategoryQuickSwitcher();
     initCommandPalette({ openBookmarkModal, openSettingsModal });
     bindBatchEvents();
-    DOM.searchInput.addEventListener('input', e => debouncedSearch(e.target.value));
-    DOM.searchClear.addEventListener('click', () => { DOM.searchInput.value = ''; state.setCurrentSearch(''); renderBookmarks(); });
 
     DOM.categoryNav.addEventListener('click', e => {
         const btn = e.target.closest('.category-btn');
@@ -215,11 +203,6 @@ export function bindAllEvents() {
     DOM.settingsModalClose.addEventListener('click', closeSettingsModal);
     DOM.settingsModal.addEventListener('click', e => { if (e.target === DOM.settingsModal) closeSettingsModal(); });
     DOM.addCategoryBtn.addEventListener('click', () => openCategoryModal());
-
-    DOM.bookmarkSearchBtn.addEventListener('click', openBookmarkSearch);
-    DOM.bookmarkSearchClose.addEventListener('click', closeBookmarkSearch);
-    DOM.bookmarkSearchOverlay.addEventListener('click', e => { if (e.target === DOM.bookmarkSearchOverlay) closeBookmarkSearch(); });
-    DOM.bookmarkSearchInput.addEventListener('input', debouncedBookmarkSearch);
 
     if (DOM.emptyAddBookmark) {
         DOM.emptyAddBookmark.addEventListener('click', () => openBookmarkModal());
@@ -321,13 +304,6 @@ export function bindAllEvents() {
         if ((e.ctrlKey || e.metaKey) && e.key === ',') {
             e.preventDefault();
             openSettingsModal();
-            return;
-        }
-
-        // Ctrl/Cmd + F: Open bookmark search
-        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-            e.preventDefault();
-            openBookmarkSearch();
             return;
         }
 

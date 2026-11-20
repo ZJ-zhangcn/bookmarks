@@ -32,7 +32,6 @@ test('frontend icon picker owns candidate rendering and render.js stays compatib
 test('frontend icon display owns saved-icon URL conversion and image HTML', () => {
     const display = read('frontend/modules/icon-display.js');
     const render = read('frontend/modules/render.js');
-    const search = read('frontend/modules/search.js');
     const api = read('frontend/modules/api.js');
 
     assert.match(display, /export function toIconDisplayUrl/);
@@ -41,6 +40,5 @@ test('frontend icon display owns saved-icon URL conversion and image HTML', () =
     assert.match(display, /iconPolicy\.getIconSource\(data\) === 'icon-horse'/);
     assert.match(display, /export function bindIconImageFallbacks/);
     assert.match(render, /from '\.\/icon-display\.js'/);
-    assert.match(search, /from '\.\/icon-display\.js'/);
     assert.match(api, /from '\.\/icon-display\.js'/);
 });

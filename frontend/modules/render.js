@@ -4,7 +4,7 @@
 import { DOM } from './dom.js';
 import * as state from './state.js';
 
-import { highlightText, toSafeImageUrl, escapeHtml, escapeHtmlAttribute, toSafeExternalUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
+import { toSafeImageUrl, escapeHtml, escapeHtmlAttribute, toSafeExternalUrl, toSafeDataImageUrl, bindImageFallbacks } from './utils.js';
 import { iconImageHtml } from './icon-display.js';
 export { renderIconSelection } from './icon-picker.js';
 import { observeBookmarkIcons } from './api.js';
@@ -47,8 +47,6 @@ export function updateCategoryQuickLabel() {
 }
 
 export function renderBookmarks() {
-    const searchTerm = state.currentSearch.toLowerCase().trim();
-    const isSearchMode = !!searchTerm;
     let hasResults = false;
 
     const bookmarksByCategory = new Map();
@@ -61,17 +59,8 @@ export function renderBookmarks() {
     state.categories.forEach((category, idx) => {
         const isCurrentCategoryActive = state.currentCategory === 'all' || state.currentCategory === category.id;
 
-        const catBookmarks = bookmarksByCategory.get(category.id) || [];
-        const filteredItems = catBookmarks.filter(item => {
-            if (!searchTerm) return true;
-            const searchText = item.searchText || [item.name, item.description, item.url, item.tags, item.category_name]
-                .map(value => Array.isArray(value) ? value.join(' ') : String(value || ''))
-                .join(' ')
-                .toLowerCase();
-            return searchText.includes(searchTerm);
-        });
-
-        const shouldShow = isCurrentCategoryActive && (filteredItems.length > 0 || state.currentCategory !== 'all');
+        const items = bookmarksByCategory.get(category.id) || [];
+        const shouldShow = isCurrentCategoryActive && (items.length > 0 || state.currentCategory !== 'all');
 
         let section = DOM.bookmarksContainer.querySelector(`.category-section[data-category-id="${CSS.escape(String(category.id))}"]`);
 
@@ -109,18 +98,14 @@ export function renderBookmarks() {
         const grid = section.querySelector('.bookmarks-grid');
         const countSpan = section.querySelector('.category-count');
 
-        const currentRenderMode = grid.dataset.renderMode || 'none';
-        const targetRenderMode = isSearchMode ? 'search' : 'full';
         const currentDataVersion = grid.dataset.version || '-1';
 
         const needsUpdate =
-            isSearchMode ||
-            currentRenderMode === 'search' ||
             currentDataVersion !== String(state.dataVersion) ||
             grid.childElementCount === 0;
 
         // 决定是否使用虚拟滚动
-        const useVirtualScroll = filteredItems.length >= VIRTUAL_SCROLL_THRESHOLD && !isSearchMode && !state.sortingCategory;
+        const useVirtualScroll = items.length >= VIRTUAL_SCROLL_THRESHOLD && !state.sortingCategory;
 
         if (needsUpdate) {
             if (useVirtualScroll) {
@@ -137,9 +122,9 @@ export function renderBookmarks() {
                         itemHeight: 140, // 卡片预估高度
                         viewportHeight: 'min(72vh, 720px)',
                         bufferSize: 2,
-                        renderItem: (item, index) => {
+                        renderItem: item => {
                             const div = document.createElement('div');
-                            div.innerHTML = createBookmarkCard(item, searchTerm, index);
+                            div.innerHTML = createBookmarkCard(item);
                             return div.firstElementChild;
                         }
                     });
@@ -160,7 +145,7 @@ export function renderBookmarks() {
                     state.scrollPositions.set(category.id, scrollPos.scrollTop);
                 }
 
-                vsInstance.setItems(filteredItems);
+                vsInstance.setItems(items);
                 grid.dataset.renderMode = 'virtual';
             } else {
                 // 使用普通渲染
@@ -175,9 +160,9 @@ export function renderBookmarks() {
                 }
 
                 grid.style.minHeight = '';
-                grid.innerHTML = filteredItems.map((item, i) => createBookmarkCard(item, searchTerm, i)).join('');
+                grid.innerHTML = items.map(item => createBookmarkCard(item)).join('');
                 bindImageFallbacks(grid);
-                grid.dataset.renderMode = targetRenderMode;
+                grid.dataset.renderMode = 'full';
 
                 // 恢复滚动位置（普通渲染）
                 const savedScrollTop = state.scrollPositions.get(category.id);
@@ -189,7 +174,7 @@ export function renderBookmarks() {
             }
 
             grid.dataset.version = state.dataVersion;
-            if (countSpan) countSpan.textContent = `${filteredItems.length} 个`;
+            if (countSpan) countSpan.textContent = `${items.length} 个`;
         }
     });
 
@@ -249,9 +234,9 @@ function renderBookmarkIconImage(src, name, fallbackIcon = '🌐') {
     });
 }
 
-export function createBookmarkCard(item, searchTerm) {
-    const name = highlightText(item.name, searchTerm);
-    const desc = highlightText(item.description || '', searchTerm);
+export function createBookmarkCard(item) {
+    const name = escapeHtml(item.name);
+    const desc = escapeHtml(item.description || '');
 
     let iconHtml;
     const cachedIcon = state.iconCache.get(item.id);

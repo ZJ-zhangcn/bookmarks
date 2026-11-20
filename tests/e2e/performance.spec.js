@@ -31,7 +31,7 @@ function largeBootstrapPayload(bookmarkCount = 5000, categoryCount = 10) {
     };
 }
 
-test('5000-bookmark startup, JSON parse, virtual render and search baseline', async ({ page }) => {
+test('5000-bookmark startup, JSON parse, virtual render and command palette baseline', async ({ page }) => {
     const payload = largeBootstrapPayload();
     const serialized = JSON.stringify(payload);
     const parseMs = await page.evaluate(value => {
@@ -51,8 +51,9 @@ test('5000-bookmark startup, JSON parse, virtual render and search baseline', as
     const renderedCards = await page.locator('.bookmark-card').count();
 
     const searchStart = Date.now();
-    await page.locator('#searchInput').fill('唯一性能命中项');
-    await expect(page.locator('.bookmark-card', { hasText: '唯一性能命中项' })).toHaveCount(1);
+    await page.keyboard.press('Control+k');
+    await page.locator('.command-palette-input').fill('唯一性能命中项');
+    await expect(page.locator('.command-palette-item', { hasText: '唯一性能命中项' })).toHaveCount(1);
     const searchMs = Date.now() - searchStart;
 
     console.log(JSON.stringify({

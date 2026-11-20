@@ -103,65 +103,44 @@
                 </div>
             </div>
             <p class="tagline">常用入口 · 快速检索 · 本地同步</p>
+        </header>
 
-            <!-- 网页搜索 -->
-            <div class="web-search-container">
-                <form class="web-search-form" id="webSearchForm">
-                    <div class="engine-selector">
-                        <button type="button" class="engine-btn" id="engineBtn" aria-label="选择搜索引擎">
-                            <span class="engine-icon" id="engineIcon">🌐</span>
-                            <span class="engine-name" id="engineName">Google</span>
-                            <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="m6 9 6 6 6-6" />
-                            </svg>
-                        </button>
-                        <div class="engine-dropdown" id="engineDropdown">
-                            <!-- 搜索引擎列表将由 JavaScript 动态渲染 -->
-                            <div class="engine-dropdown-divider"></div>
-                            <div class="engine-manage-btn" id="engineManageBtn">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 5v14M5 12h14" />
-                                </svg>
-                                <span>管理搜索引擎</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="web-search-box">
-                        <input type="search" id="webSearchInput" class="web-search-input" placeholder="输入关键词搜索或网址直达..."
-                            autocomplete="off" data-form-type="other" aria-label="网页搜索关键词或网站链接">
-                        <button type="submit" class="web-search-btn" aria-label="搜索">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <path d="m21 21-4.35-4.35"></path>
-                            </svg>
-                        </button>
-                        <div class="search-suggestions" id="searchSuggestions"></div>
-                    </div>
-                </form>
-            </div>
-
-            <!-- 书签过滤 -->
-            <div class="search-container">
-                <!-- 隐藏假输入框欺骗浏览器密码管理器 -->
-                <input type="text" style="display:none" autocomplete="username">
-                <input type="password" style="display:none" autocomplete="new-password">
-                <div class="search-box">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.35-4.35"></path>
-                    </svg>
-                    <input type="text" id="searchInput" class="search-input" placeholder="过滤书签..." autocomplete="off"
-                        autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true"
-                        data-form-type="other" aria-label="过滤书签">
-                    <button class="search-clear" id="searchClear" aria-label="清除搜索">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 6 6 18M6 6l12 12"></path>
+        <!-- 网页搜索：独立于头部，滚动后吸顶 -->
+        <div class="web-search-container" id="webSearchContainer">
+            <form class="web-search-form" id="webSearchForm" role="search" aria-label="网页搜索或网址直达">
+                <div class="engine-selector">
+                    <button type="button" class="engine-btn" id="engineBtn" aria-label="选择搜索引擎">
+                        <span class="engine-icon" id="engineIcon">🌐</span>
+                        <span class="engine-name" id="engineName">Google</span>
+                        <svg class="dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="m6 9 6 6 6-6" />
                         </svg>
                     </button>
+                    <div class="engine-dropdown" id="engineDropdown">
+                        <!-- 搜索引擎列表将由 JavaScript 动态渲染 -->
+                        <div class="engine-dropdown-divider"></div>
+                        <div class="engine-manage-btn" id="engineManageBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12h14" />
+                            </svg>
+                            <span>管理搜索引擎</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </header>
+                <div class="web-search-box">
+                    <input type="search" id="webSearchInput" class="web-search-input" placeholder="输入关键词搜索或网址直达..."
+                        autocomplete="off" data-form-type="other" aria-label="网页搜索关键词或网站链接">
+                    <button type="submit" class="web-search-btn" aria-label="搜索">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                    </button>
+                    <div class="search-suggestions" id="searchSuggestions"></div>
+                </div>
+            </form>
+        </div>
 
         <!-- TODO 待办区域 -->
         <section class="todos-container" id="todosContainer">
@@ -293,12 +272,6 @@
 
     <!-- 固定按钮组 - 右上角 -->
     <div class="fixed-buttons" id="fixedButtons">
-        <button class="fixed-btn" id="bookmarkSearchBtn" title="搜索书签">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-            </svg>
-        </button>
         <button class="fixed-btn" id="batchModeBtn" title="选择书签" aria-label="批量整理">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -313,27 +286,6 @@
                     d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
             </svg>
         </button>
-    </div>
-
-    <!-- 书签搜索浮层 -->
-    <div class="bookmark-search-overlay" id="bookmarkSearchOverlay">
-        <div class="bookmark-search-panel">
-            <div class="bookmark-search-header">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <path d="m21 21-4.35-4.35"></path>
-                </svg>
-                <input type="text" id="bookmarkSearchInput" placeholder="搜索书签..." autocomplete="off">
-                <button class="bookmark-search-close" id="bookmarkSearchClose">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 6 6 18M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-            <div class="bookmark-search-results" id="bookmarkSearchResults">
-                <!-- 搜索结果将通过 JavaScript 动态渲染 -->
-            </div>
-        </div>
     </div>
 
     <!-- 搜索引擎管理弹窗 -->
@@ -656,15 +608,6 @@
                                 <label class="switch"><input type="checkbox" id="searchBarShow" checked><span
                                         class="slider"></span></label>
                             </div>
-                        </div>
-                        <div class="setting-card">
-                            <h5 class="card-subtitle">书签过滤输入框</h5>
-                            <div class="setting-row">
-                                <div class="setting-info"><span>显示</span></div>
-                                <label class="switch"><input type="checkbox" id="bookmarkFilterShow" checked><span
-                                        class="slider"></span></label>
-                            </div>
-                            <small class="setting-hint">隐藏后可通过右上角搜索按钮搜索书签</small>
                         </div>
                         <div class="setting-card">
                             <h5 class="card-subtitle">壁纸</h5>

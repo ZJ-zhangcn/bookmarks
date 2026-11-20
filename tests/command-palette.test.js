@@ -18,6 +18,8 @@ test('command palette module is wired to keyboard shortcuts', () => {
   assert.match(module, /command:\s*'add-bookmark'/);
   assert.match(module, /command:\s*'open-settings'/);
   assert.match(module, /command:\s*'open-todos'/);
+  assert.match(module, /command:\s*'focus-web-search'/);
+  assert.doesNotMatch(module, /focus-filter|#searchInput/);
 });
 
 test('command palette has accessible overlay styles', () => {

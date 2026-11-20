@@ -6,14 +6,7 @@ import { renderAll, renderBookmarks } from './render.js';
 import { showToast, showConfirm } from './ux.js';
 
 function visibleBookmarks() {
-    const search = state.currentSearch.toLowerCase().trim();
-    return state.bookmarks.filter(bookmark => {
-        if (state.currentCategory !== 'all' && bookmark.category_id !== state.currentCategory) return false;
-        if (!search) return true;
-        const tags = Array.isArray(bookmark.tags) ? bookmark.tags.join(' ') : String(bookmark.tags || '');
-        return [bookmark.name, bookmark.description, bookmark.url, tags]
-            .some(value => String(value || '').toLowerCase().includes(search));
-    });
+    return state.bookmarks.filter(bookmark => state.currentCategory === 'all' || bookmark.category_id === state.currentCategory);
 }
 
 function updateCategoryOptions() {

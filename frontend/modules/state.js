@@ -8,7 +8,6 @@ export let bookmarks = [];
 export let todos = [];
 export let engines = [];
 export let currentCategory = 'all';
-export let currentSearch = '';
 export let currentEngine = { name: 'Google', icon: '🌐', url: 'https://www.google.com/search?q=' };
 export let editingBookmarkId = null;
 export let editingCategoryId = null;
@@ -69,7 +68,6 @@ export function setBookmarks(val) {
 export function setTodos(val) { todos = val; dataVersion++; }
 export function setEngines(val) { engines = val; }
 export function setCurrentCategory(val) { currentCategory = val; }
-export function setCurrentSearch(val) { currentSearch = val; }
 export function setCurrentEngine(val) { currentEngine = val; }
 export function setEditingBookmarkId(val) { editingBookmarkId = val; }
 export function setEditingCategoryId(val) { editingCategoryId = val; }
