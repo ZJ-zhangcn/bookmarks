@@ -5,19 +5,21 @@ export function initWebSearchSticky(container) {
     const page = container?.closest('.container');
     if (!page) return;
 
-    const updateOffset = () => {
-        const height = container.getBoundingClientRect().height;
+    const update = () => {
+        const rect = container.getBoundingClientRect();
         const style = getComputedStyle(container);
         const top = parseFloat(style.top) || 0;
         const gap = parseFloat(style.marginBottom) || 0;
-        const offset = height > 0 ? Math.ceil(height + top + gap) : 0;
+        const offset = rect.height > 0 ? Math.ceil(rect.height + top + gap) : 0;
         page.style.setProperty('--web-search-offset', `${offset}px`);
+        container.classList.toggle('is-stuck', rect.height > 0 && rect.top <= top + 1);
     };
 
-    updateOffset();
+    update();
     if ('ResizeObserver' in window) {
-        const observer = new ResizeObserver(updateOffset);
+        const observer = new ResizeObserver(update);
         observer.observe(container);
     }
-    window.addEventListener('resize', updateOffset, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    window.addEventListener('scroll', update, { passive: true });
 }

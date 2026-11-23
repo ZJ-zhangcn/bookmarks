@@ -5934,7 +5934,8 @@ body {
 }
 
 @media (max-width: 960px) {
-    .web-search-container {
+    /* 仅在搜索栏吸顶后为右上角固定按钮让位，未吸顶时占满内容区 */
+    .web-search-container.is-stuck {
         width: calc(100% - 128px - env(safe-area-inset-right));
         margin-left: 0;
         margin-right: calc(128px + env(safe-area-inset-right));

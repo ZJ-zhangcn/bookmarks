@@ -32,7 +32,7 @@ test('sticky styles reserve space for categories and fixed actions without legac
     assert.match(css, /\.web-search-container\s*\{[^}]*position:\s*sticky;[^}]*top:\s*calc\(12px \+ env\(safe-area-inset-top\)\);[^}]*z-index:\s*200;/);
     assert.match(css, /\.category-header\s*\{[^}]*top:\s*var\(--web-search-offset, 0px\)/);
     assert.match(css, /\.category-section\s*\{[^}]*scroll-margin-top:\s*var\(--web-search-offset, 0px\)/);
-    assert.match(css, /@media \(max-width: 960px\)\s*\{\s*\.web-search-container\s*\{[^}]*128px/);
+    assert.match(css, /@media \(max-width: 960px\)\s*\{(?:\s*\/\*[\s\S]*?\*\/)?\s*\.web-search-container\.is-stuck\s*\{[^}]*128px/);
     assert.match(css, /\.web-search-input\s*\{[^}]*min-width:\s*0;/);
     assert.doesNotMatch(css, /\.bookmark-search-|\.search-result-|\.search-container\b|\.search-input\b|\.search-clear\b/);
 });
@@ -41,16 +41,25 @@ async function withStickyLayout(hasObserver, run) {
     const names = ['window', 'getComputedStyle', 'ResizeObserver'];
     const originals = new Map(names.map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
     const properties = new Map();
+    const classes = new Set();
     let height = 56;
     let top = '12px';
     let marginBottom = '16px';
+    let rectTop = 200;
     let notify;
     let resize;
+    let scroll;
     let observed;
     const page = { style: { setProperty(name, value) { properties.set(name, value); } } };
     const container = {
         closest(selector) { assert.equal(selector, '.container'); return page; },
-        getBoundingClientRect() { return { height }; }
+        getBoundingClientRect() { return { height, top: rectTop }; },
+        classList: {
+            toggle(name, force) {
+                if (force) classes.add(name);
+                else classes.delete(name);
+            }
+        }
     };
 
     try {
@@ -59,7 +68,11 @@ async function withStickyLayout(hasObserver, run) {
             return { top, marginBottom };
         };
         globalThis.window = {
-            addEventListener(event, callback) { assert.equal(event, 'resize'); resize = callback; }
+            addEventListener(event, callback) {
+                if (event === 'resize') resize = callback;
+                else if (event === 'scroll') scroll = callback;
+                else assert.fail(`unexpected event ${event}`);
+            }
         };
         if (hasObserver) {
             globalThis.ResizeObserver = class {
@@ -72,14 +85,17 @@ async function withStickyLayout(hasObserver, run) {
         initWebSearchSticky(container);
         await run({
             properties,
+            classes,
             get observed() { return observed; },
             container,
             notify: () => notify(),
             resize: () => resize(),
-            setLayout(nextHeight, nextTop = top, nextMargin = marginBottom) {
+            scroll: () => scroll(),
+            setLayout(nextHeight, nextTop = top, nextMargin = marginBottom, nextRectTop = rectTop) {
                 height = nextHeight;
                 top = nextTop;
                 marginBottom = nextMargin;
+                rectTop = nextRectTop;
             }
         });
     } finally {
@@ -95,12 +111,32 @@ test('sticky offsets follow actual height, hidden state and responsive spacing',
     await withStickyLayout(true, layout => {
         assert.equal(layout.observed, layout.container);
         assert.equal(layout.properties.get('--web-search-offset'), '84px');
+        assert.equal(layout.classes.has('is-stuck'), false);
         layout.setLayout(0);
         layout.notify();
         assert.equal(layout.properties.get('--web-search-offset'), '0px');
+        assert.equal(layout.classes.has('is-stuck'), false);
         layout.setLayout(64, '20px', '8px');
         layout.resize();
         assert.equal(layout.properties.get('--web-search-offset'), '92px');
+    });
+});
+
+test('is-stuck toggles only while the bar is pinned to its sticky top', async () => {
+    await withStickyLayout(true, layout => {
+        assert.equal(layout.classes.has('is-stuck'), false);
+        layout.setLayout(56, '12px', '16px', 200);
+        layout.scroll();
+        assert.equal(layout.classes.has('is-stuck'), false);
+        layout.setLayout(56, '12px', '16px', 12);
+        layout.scroll();
+        assert.equal(layout.classes.has('is-stuck'), true);
+        layout.setLayout(56, '12px', '16px', -40);
+        layout.scroll();
+        assert.equal(layout.classes.has('is-stuck'), true);
+        layout.setLayout(0);
+        layout.scroll();
+        assert.equal(layout.classes.has('is-stuck'), false);
     });
 });
 

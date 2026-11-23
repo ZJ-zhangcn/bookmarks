@@ -77,6 +77,42 @@ for (const viewport of [
     });
 }
 
+test('web search bar spans full content width on mobile before it becomes sticky', async ({ page }) => {
+    for (const width of [390, 320]) {
+        await page.setViewportSize({ width, height: 900 });
+        const before = await page.evaluate(() => {
+            const bar = document.getElementById('webSearchContainer');
+            const page1 = bar.closest('.container');
+            const barRect = bar.getBoundingClientRect();
+            const contentRect = page1.getBoundingClientRect();
+            const pad = parseFloat(getComputedStyle(page1).paddingLeft) || 0;
+            return {
+                stuck: bar.classList.contains('is-stuck'),
+                barLeft: Math.round(barRect.left),
+                barRight: Math.round(barRect.right),
+                contentLeft: Math.round(contentRect.left + pad),
+                contentRight: Math.round(contentRect.right - pad),
+                scrollY: window.scrollY
+            };
+        });
+        expect(before.scrollY).toBe(0);
+        expect(before.stuck).toBe(false);
+        expect(Math.abs(before.barLeft - before.contentLeft)).toBeLessThanOrEqual(1);
+        expect(Math.abs(before.barRight - before.contentRight)).toBeLessThanOrEqual(1);
+    }
+});
+
+test('sticky web search reserves space for fixed buttons on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await scrollPastSearch(page);
+    expect(await page.locator('#webSearchContainer').evaluate(node => node.classList.contains('is-stuck'))).toBe(true);
+    expect(await page.evaluate(() => {
+        const bar = document.getElementById('webSearchContainer').getBoundingClientRect();
+        const actions = document.getElementById('fixedButtons').getBoundingClientRect();
+        return bar.right < actions.left - 4;
+    })).toBe(true);
+});
+
 test('engine menu and suggestions remain clickable above category headers while sticky', async ({ page }) => {
     await scrollPastSearch(page);
     await page.locator('#engineBtn').click();
