@@ -34,6 +34,8 @@ test('sticky styles reserve space for categories and fixed actions without legac
     assert.match(css, /\.category-section\s*\{[^}]*scroll-margin-top:\s*var\(--web-search-offset, 0px\)/);
     assert.match(css, /@media \(max-width: 960px\)\s*\{(?:\s*\/\*[\s\S]*?\*\/)?\s*\.web-search-container\.is-stuck\s*\{[^}]*128px/);
     assert.match(css, /\.web-search-input\s*\{[^}]*min-width:\s*0;/);
+    assert.match(css, /\.web-search-container\s*\{[^}]*transition:[^}]*width/);
+    assert.match(css, /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.web-search-container\s*\{[^}]*transition:\s*none/);
     assert.doesNotMatch(css, /\.bookmark-search-|\.search-result-|\.search-container\b|\.search-input\b|\.search-clear\b/);
 });
 

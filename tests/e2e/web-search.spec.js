@@ -113,6 +113,19 @@ test('sticky web search reserves space for fixed buttons on mobile', async ({ pa
     })).toBe(true);
 });
 
+test('search bar surface matches the surrounding glass cards', async ({ page }) => {
+    const colors = await page.evaluate(() => {
+        const read = selector => getComputedStyle(document.querySelector(selector)).backgroundColor;
+        return {
+            bar: read('#webSearchContainer'),
+            nav: read('.category-nav'),
+            input: read('#webSearchInput')
+        };
+    });
+    expect(colors.bar).toBe(colors.nav);
+    expect(colors.bar).toBe(colors.input);
+});
+
 test('engine menu and suggestions remain clickable above category headers while sticky', async ({ page }) => {
     await scrollPastSearch(page);
     await page.locator('#engineBtn').click();
