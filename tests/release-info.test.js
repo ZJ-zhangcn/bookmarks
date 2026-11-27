@@ -2,8 +2,21 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const { getReleaseInfo } = require('../backend/release-info');
+
+const root = path.resolve(__dirname, '..');
+
+function gitVersion() {
+    try {
+        return execFileSync('git', ['describe', '--tags', '--always', '--abbrev=7'], {
+            cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']
+        }).trim();
+    } catch {
+        return require('../package.json').version;
+    }
+}
 
 test('release info exposes image version, commit and build time with local fallbacks', () => {
     assert.deepEqual(getReleaseInfo({
@@ -15,13 +28,11 @@ test('release info exposes image version, commit and build time with local fallb
         commit: 'abc123',
         buildTime: '2026-08-29T00:00:00Z'
     });
-    assert.equal(getReleaseInfo({}).version, require('../package.json').version);
+    assert.equal(getReleaseInfo({}).version, gitVersion());
     assert.equal(getReleaseInfo({}).commit, 'development');
     assert.equal(getReleaseInfo({}).buildTime, null);
 });
-
 test('Docker and CI inject release metadata into the published image', () => {
-    const root = path.resolve(__dirname, '..');
     const dockerfile = fs.readFileSync(path.join(root, 'Dockerfile'), 'utf8');
     const workflow = fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8');
     assert.match(dockerfile, /ARG APP_VERSION/);
