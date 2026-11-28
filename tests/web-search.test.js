@@ -24,7 +24,7 @@ test('bookmark search is removed from event wiring, state and personalization', 
     assert.equal(fs.existsSync(path.join(root, 'frontend/modules/search.js')), false);
     assert.doesNotMatch(read('frontend/modules/events.js'), /\.key\s*===\s*'f'/);
     assert.match(read('frontend/modules/events.js'), /initWebSearchSticky\(DOM\.webSearchContainer\)/);
-    assert.match(read('frontend/modules/settings.js'), /DOM\.webSearchContainer\.style\.display = config\.searchBarShow !== false \? '' : 'none'/);
+    assert.match(read('frontend/modules/personalization.js'), /DOM\.webSearchContainer\.style\.display = config\.searchBarShow !== false \? '' : 'none'/);
 });
 
 test('sticky styles reserve space for categories and fixed actions without legacy search CSS', () => {

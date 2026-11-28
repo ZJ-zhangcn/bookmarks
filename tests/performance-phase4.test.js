@@ -12,6 +12,7 @@ test('phase 4 keeps settings and AI out of the startup import graph', () => {
   const main = read('frontend/main.js');
   const events = read('frontend/modules/events.js');
   const bookmark = read('frontend/modules/bookmark.js');
+  const bookmarkAi = read('frontend/modules/bookmark-ai.js');
   const vite = read('frontend/vite.config.js');
 
   assert.doesNotMatch(main, /from '\.\/modules\/settings\.js'/);
@@ -23,7 +24,8 @@ test('phase 4 keeps settings and AI out of the startup import graph', () => {
   assert.match(events, /import\('\.\/ai\.js'\)/);
 
   assert.doesNotMatch(bookmark, /from '\.\/ai\.js'/);
-  assert.match(bookmark, /import\('\.\/ai\.js'\)/);
+  assert.doesNotMatch(bookmarkAi, /from '\.\/ai\.js'/);
+  assert.match(bookmarkAi, /import\('\.\/ai\.js'\)/);
 
   assert.match(vite, /return 'settings'/);
   assert.match(vite, /return 'ai'/);

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const css = fs.readFileSync(path.join(__dirname, '../frontend/index.css'), 'utf8');
-const settingsSource = fs.readFileSync(path.join(__dirname, '../frontend/modules/settings.js'), 'utf8');
+const settingsSource = fs.readFileSync(path.join(__dirname, '../frontend/modules/personalization.js'), 'utf8');
 
 test('wallpaper luminance maps to adaptive foreground tone after dim overlay', () => {
   assert.match(settingsSource, /export function getWallpaperToneFromLuminance\(luminance, dimPercent = 30\)/);

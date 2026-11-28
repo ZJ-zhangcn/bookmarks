@@ -1,5 +1,10 @@
 /**
- * 书签管理模块
+ * 书签管理模块（CRUD 与交互调度）
+ *
+ * 拆分出去的功能：
+ * - bookmark-sort.js  排序与拖拽
+ * - bookmark-ai.js    AI 生成与分类推荐
+ * 这里通过 re-export 保持 events.js 等调用方的导入路径不变。
  */
 import { DOM } from './dom.js';
 import * as state from './state.js';
@@ -10,21 +15,23 @@ import { refreshIconLibraryCache } from './icon-library.js';
 import { getSelectedIconUrl } from './icon-picker.js';
 import { toggleCategoryCollapse, createCategoryForBookmark } from './category.js';
 import { showToast, showActionToast, showConfirm, showPrompt } from './ux.js';
-import sortHelpers from './sort-helpers.cjs';
 import { apiRequest, runWithButton } from './api-client.js';
 import { toggleBatchSelection } from './batch.js';
+import { hideCategoryRecommendations, refreshAiUiVisibility } from './bookmark-ai.js';
+import { toggleBookmarkSorting } from './bookmark-sort.js';
 
-const { moveItemInList } = sortHelpers;
-
-async function loadAiModule() {
-    return import('./ai.js');
-}
-
-function refreshAiUiVisibility() {
-    loadAiModule()
-        .then(ai => ai.updateAiUiVisibility())
-        .catch(() => {});
-}
+export {
+    toggleBookmarkSorting,
+    moveSelectedBookmark,
+    enableBookmarkDrag,
+    saveBookmarkOrder
+} from './bookmark-sort.js';
+export {
+    handleAiGenerate,
+    showCategoryRecommendations,
+    hideCategoryRecommendations,
+    handleCategoryRecChipClick
+} from './bookmark-ai.js';
 
 export function handleBookmarkClick(e) {
     const batchSelect = e.target.closest('.batch-select');
@@ -328,130 +335,6 @@ export async function deleteBookmark(id) {
     }
 }
 
-export function toggleBookmarkSorting(categoryId) {
-    const section = document.querySelector(`.category-section[data-category-id="${categoryId}"]`);
-    if (!section) return;
-
-    const grid = section.querySelector('.bookmarks-grid');
-    const sortBtn = section.querySelector('.sort-btn');
-    const moveToolbar = section.querySelector('.mobile-sort-toolbar');
-
-    if (state.sortingCategory === categoryId) {
-        state.setSortingCategory(null);
-        grid.classList.remove('sorting-mode');
-        sortBtn.classList.remove('active');
-        const saveBtn = section.querySelector('.save-sort-btn');
-        if (saveBtn) saveBtn.remove();
-        if (moveToolbar) moveToolbar.remove();
-    } else {
-        state.setSortingCategory(categoryId);
-        grid.classList.add('sorting-mode');
-        sortBtn.classList.add('active');
-
-        const header = section.querySelector('.category-header');
-        if (!section.querySelector('.save-sort-btn')) {
-            const saveBtn = document.createElement('button');
-            saveBtn.className = 'btn btn-primary save-sort-btn';
-            saveBtn.textContent = '💾 保存排序';
-            saveBtn.onclick = () => saveBookmarkOrder(categoryId);
-            header.insertAdjacentElement('afterend', saveBtn);
-        }
-        if (!section.querySelector('.mobile-sort-toolbar')) {
-            const toolbar = document.createElement('div');
-            toolbar.className = 'mobile-sort-toolbar';
-            toolbar.innerHTML = '<button type="button" class="btn btn-secondary btn-sm mobile-move-btn" data-direction="-1">↑ 上移</button><button type="button" class="btn btn-secondary btn-sm mobile-move-btn" data-direction="1">↓ 下移</button><span>先点选卡片，再上移/下移</span>';
-            toolbar.addEventListener('click', e => {
-                const btn = e.target.closest('.mobile-move-btn');
-                if (!btn) return;
-                moveSelectedBookmark(grid, Number(btn.dataset.direction));
-            });
-            header.insertAdjacentElement('afterend', toolbar);
-        }
-
-        enableBookmarkDrag(grid, categoryId);
-    }
-}
-
-export function moveSelectedBookmark(grid, direction) {
-    const cards = Array.from(grid.querySelectorAll('.bookmark-card'));
-    const selectedIndex = cards.findIndex(card => card.classList.contains('sort-selected'));
-    if (selectedIndex < 0) {
-        showToast('先选择一个书签卡片', 'info');
-        return;
-    }
-    const reordered = moveItemInList(cards, selectedIndex, direction);
-    if (reordered[selectedIndex] === cards[selectedIndex]) return;
-    reordered.forEach(card => grid.appendChild(card));
-    reordered.forEach(card => card.classList.remove('sort-selected'));
-    const newIndex = Math.max(0, Math.min(reordered.length - 1, selectedIndex + direction));
-    reordered[newIndex]?.classList.add('sort-selected');
-}
-
-export function enableBookmarkDrag(grid, _categoryId) {
-    let draggedItem = null;
-
-    const cards = grid.querySelectorAll('.bookmark-card');
-    cards.forEach(card => {
-        card.draggable = true;
-        card.onclick = (e) => {
-            if (!grid.classList.contains('sorting-mode')) return;
-            e.preventDefault();
-            cards.forEach(item => item.classList.remove('sort-selected'));
-            card.classList.add('sort-selected');
-        };
-
-        card.ondragstart = (e) => {
-            draggedItem = card;
-            card.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        };
-
-        card.ondragend = () => {
-            card.classList.remove('dragging');
-            draggedItem = null;
-        };
-
-        card.ondragover = (e) => {
-            e.preventDefault();
-            if (!draggedItem || draggedItem === card) return;
-
-            const rect = card.getBoundingClientRect();
-            const midX = rect.left + rect.width / 2;
-
-            if (e.clientX < midX) {
-                grid.insertBefore(draggedItem, card);
-            } else {
-                grid.insertBefore(draggedItem, card.nextSibling);
-            }
-        };
-    });
-}
-
-export async function saveBookmarkOrder(categoryId) {
-    const section = document.querySelector(`.category-section[data-category-id="${categoryId}"]`);
-    const grid = section.querySelector('.bookmarks-grid');
-    const cards = grid.querySelectorAll('.bookmark-card');
-
-    const order = Array.from(cards).map((card, index) => ({
-        id: card.dataset.id,
-        sort_order: index
-    }));
-
-    try {
-        await apiRequest('/api/bookmarks', {
-            method: 'PUT',
-            json: { order }
-        }, { errorPrefix: '保存书签排序失败' });
-
-        toggleBookmarkSorting(categoryId);
-
-        await loadData();
-        renderAll();
-    } catch {
-        // apiRequest 已统一提示
-    }
-}
-
 export function handleIconUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -461,182 +344,4 @@ export function handleIconUpload(e) {
         DOM.iconPreviewUpload.innerHTML = `<img src="${toSafeDataImageUrl(reader.result)}">`;
     };
     reader.readAsDataURL(file);
-}
-
-export async function handleAiGenerate({ mode }) {
-    if (!state.aiStatus || !state.aiStatus.enabled) {
-        showToast('AI 功能未启用（建议仅在 Docker 主站开启）', 'warning');
-        return;
-    }
-
-    const now = Date.now();
-    if (state.aiRequestInFlight) {
-        if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = 'AI 正在处理中，请稍候...';
-        return;
-    }
-    if (now - state.aiLastActionAt < state.AI_CLICK_COOLDOWN_MS) {
-        const left = Math.ceil((state.AI_CLICK_COOLDOWN_MS - (now - state.aiLastActionAt)) / 1000);
-        if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = `操作太频繁，请 ${left}s 后再试`;
-        return;
-    }
-
-    const name = DOM.bookmarkInputName.value.trim();
-    const url = DOM.bookmarkInputUrl.value.trim();
-    const description = DOM.bookmarkInputDesc.value.trim();
-    if (!name && !url) {
-        showToast('请先填写名称或网址', 'warning');
-        return;
-    }
-
-    const ai = await loadAiModule();
-    state.setAiRequestInFlight(true);
-    state.setAiLastActionAt(now);
-    ai.setAiButtonsDisabled(true);
-    if (DOM.aiStatusHint) DOM.aiStatusHint.textContent = mode === 'refine' ? '精炼中...' : '生成中...';
-    try {
-        const clientCfg = ai.getAiClientSettings();
-        const payload = { name, url, description };
-        if (mode === 'refine') {
-            payload.mode = 'refine';
-            const tagsHint = DOM.bookmarkInputTags ? DOM.bookmarkInputTags.value.trim() : '';
-            if (tagsHint) payload.tagsHint = tagsHint;
-        }
-
-        const provider = String(clientCfg.provider || '').trim();
-        if (provider && state.aiStatus.allowClientProvider) payload.provider = provider;
-
-        const model = String(clientCfg.model || '').trim();
-        if (model) payload.model = model;
-
-        const baseUrl = String(clientCfg.apiBaseUrl || '').trim();
-        if (baseUrl && state.aiStatus.allowClientBaseUrl) payload.apiBaseUrl = baseUrl;
-
-        const apiKey = String(clientCfg.apiKey || '').trim();
-        if (apiKey && state.aiStatus.allowClientKey) payload.apiKey = apiKey;
-
-        payload.categories = state.categories.map(c => c.name);
-
-        const data = await apiRequest('/api/ai?action=generate', {
-            method: 'POST',
-            json: payload
-        }, { errorPrefix: 'AI 生成失败' });
-        const tags = Array.isArray(data.tags) ? data.tags : [];
-        const summary = String(data.summary || '').trim();
-
-        if (summary) {
-            if (!DOM.bookmarkInputDesc.value) {
-                DOM.bookmarkInputDesc.value = summary;
-            } else {
-                const ok = await showConfirm({
-                    title: '覆盖描述？',
-                    message: 'AI 已生成摘要，是否覆盖当前“描述”？',
-                    confirmText: '覆盖'
-                });
-                if (ok) DOM.bookmarkInputDesc.value = summary;
-            }
-        } else if (mode !== 'refine') {
-            if (!DOM.bookmarkInputDesc.value && tags.length > 0) {
-                DOM.bookmarkInputDesc.value = ai.buildLocalFallbackSummary({ name, url, tags });
-            }
-        }
-
-        if (DOM.bookmarkInputTags && tags.length > 0) {
-            const next = tags.join(',');
-            if (!DOM.bookmarkInputTags.value.trim()) {
-                DOM.bookmarkInputTags.value = next;
-            } else {
-                const ok = await showConfirm({
-                    title: '覆盖标签？',
-                    message: 'AI 已生成标签，是否覆盖当前“标签”？',
-                    confirmText: '覆盖'
-                });
-                if (ok) DOM.bookmarkInputTags.value = next;
-            }
-        }
-
-        const recommendedCategory = String(data.category || '').trim();
-        const suggestedNewCategory = String(data.newCategory || '').trim();
-        console.log('[AI] category recommendation:', { recommendedCategory, suggestedNewCategory, allCategories: state.categories.map(c => c.name) });
-        showCategoryRecommendations(recommendedCategory, suggestedNewCategory);
-    } catch {
-        // apiRequest 已统一提示
-    } finally {
-        state.setAiRequestInFlight(false);
-        ai.setAiButtonsDisabled(false);
-        ai.updateAiUiVisibility();
-    }
-}
-
-export function showCategoryRecommendations(recommendedCategory, suggestedNewCategory) {
-    if (!DOM.categoryRecommendations || !DOM.categoryRecChips) return;
-
-    DOM.categoryRecChips.innerHTML = '';
-    let hasContent = false;
-
-    if (recommendedCategory) {
-        const matchedCat = state.categories.find(c => c.name === recommendedCategory);
-        if (matchedCat && DOM.bookmarkInputCategory.value !== matchedCat.id) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'rec-chip existing';
-            btn.dataset.categoryId = matchedCat.id;
-            btn.textContent = `${matchedCat.icon || '📁'} ${matchedCat.name}`;
-            DOM.categoryRecChips.appendChild(btn);
-            hasContent = true;
-        }
-    }
-
-    if (suggestedNewCategory) {
-        const normalizedNew = suggestedNewCategory.trim().toLowerCase();
-        const existingCat = state.categories.find(c => c.name.toLowerCase() === normalizedNew);
-        if (!existingCat) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'rec-chip new-category';
-            btn.dataset.newCategory = suggestedNewCategory;
-            const icon = document.createElement('span');
-            icon.className = 'chip-icon';
-            icon.textContent = '+';
-            btn.appendChild(icon);
-            btn.appendChild(document.createTextNode(suggestedNewCategory));
-            DOM.categoryRecChips.appendChild(btn);
-            hasContent = true;
-        }
-    }
-
-    DOM.categoryRecommendations.style.display = hasContent ? 'flex' : 'none';
-}
-
-export function hideCategoryRecommendations() {
-    if (DOM.categoryRecommendations) {
-        DOM.categoryRecommendations.style.display = 'none';
-    }
-}
-
-export async function handleCategoryRecChipClick(e) {
-    const chip = e.target.closest('.rec-chip');
-    if (!chip) return;
-
-    if (chip.classList.contains('existing')) {
-        const categoryId = chip.dataset.categoryId;
-        if (categoryId && DOM.bookmarkInputCategory) {
-            DOM.bookmarkInputCategory.value = categoryId;
-        }
-        hideCategoryRecommendations();
-    } else if (chip.classList.contains('new-category')) {
-        const newCategoryName = chip.dataset.newCategory;
-        if (newCategoryName) {
-            const normalizedNew = newCategoryName.trim().toLowerCase();
-            const existingCat = state.categories.find(c => c.name.toLowerCase() === normalizedNew);
-            if (existingCat) {
-                DOM.bookmarkInputCategory.value = existingCat.id;
-                hideCategoryRecommendations();
-            } else {
-                const created = await createCategoryForBookmark(newCategoryName);
-                if (created) {
-                    hideCategoryRecommendations();
-                }
-            }
-        }
-    }
 }
