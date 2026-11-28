@@ -44,31 +44,35 @@
    CSS 变量定义
    ======================================== */
 :root {
-    /* 主色调 */
-    --primary-hue: 250;
-    --primary: hsl(var(--primary-hue), 100%, 65%);
-    --primary-light: hsl(var(--primary-hue), 100%, 75%);
-    --primary-dark: hsl(var(--primary-hue), 100%, 50%);
-
-    /* 强调色 */
-    --accent-1: hsl(340, 100%, 65%);
-    --accent-2: hsl(180, 100%, 50%);
-    --accent-3: hsl(45, 100%, 60%);
-
-    /* 背景色 */
-    --bg-primary: hsl(230, 25%, 8%);
-    --bg-secondary: hsl(230, 25%, 12%);
-    --bg-tertiary: hsl(230, 25%, 16%);
-
-    /* 玻璃态 */
-    --glass-bg: hsla(230, 30%, 15%, 0.6);
-    --glass-border: hsla(0, 0%, 100%, 0.08);
-    --glass-shadow: 0 8px 32px hsla(0, 0%, 0%, 0.3);
-
-    /* 文字颜色 */
-    --text-primary: hsl(0, 0%, 95%);
-    --text-secondary: hsl(230, 15%, 70%);
-    --text-tertiary: hsl(230, 15%, 50%);
+    --primary-hue: 152;
+    --primary: hsl(152, 72%, 46%);
+    --primary-light: hsl(151, 70%, 60%);
+    --primary-dark: hsl(154, 80%, 32%);
+    --accent-1: hsl(152, 70%, 46%);
+    --accent-2: hsl(181, 48%, 46%);
+    --accent-3: hsl(42, 70%, 55%);
+    --accent-primary: var(--primary);
+    --bg-primary: hsl(220, 14%, 7%);
+    --bg-secondary: hsl(220, 13%, 10%);
+    --bg-tertiary: hsl(220, 12%, 15%);
+    --glass-bg: hsla(220, 13%, 12%, 0.78);
+    --glass-border: hsla(152, 40%, 64%, 0.13);
+    --glass-shadow: 0 14px 40px hsla(0, 0%, 0%, 0.34);
+    --text-primary: hsl(210, 18%, 94%);
+    --text-secondary: hsl(210, 12%, 72%);
+    --text-tertiary: hsl(210, 9%, 56%);
+    --text-muted: var(--text-tertiary);
+    --adaptive-surface: hsla(220, 13%, 12%, 0.82);
+    --adaptive-surface-strong: hsla(220, 13%, 10%, 0.94);
+    --adaptive-text: hsl(210, 18%, 94%);
+    --adaptive-muted: hsl(210, 12%, 72%);
+    --adaptive-border: hsla(152, 40%, 64%, 0.16);
+    --adaptive-shadow: 0 14px 40px hsla(0, 0%, 0%, 0.36);
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-full: 9999px;
 
     /* 间距 */
     --spacing-xs: 0.25rem;
@@ -77,13 +81,6 @@
     --spacing-lg: 1.5rem;
     --spacing-xl: 2rem;
     --spacing-2xl: 3rem;
-
-    /* 圆角 */
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
-    --radius-full: 9999px;
 
     /* 动画 */
     --transition-fast: 150ms ease;
@@ -96,22 +93,30 @@
 
 /* 浅色主题 */
 [data-theme="light"] {
-    --primary-hue: 250;
-    --primary: hsl(var(--primary-hue), 85%, 55%);
-    --primary-light: hsl(var(--primary-hue), 85%, 65%);
-    --primary-dark: hsl(var(--primary-hue), 85%, 45%);
-
-    --bg-primary: hsl(220, 20%, 97%);
-    --bg-secondary: hsl(220, 20%, 94%);
-    --bg-tertiary: hsl(220, 20%, 90%);
-
-    --glass-bg: hsla(220, 20%, 100%, 0.8);
-    --glass-border: hsla(220, 20%, 50%, 0.15);
-    --glass-shadow: 0 8px 32px hsla(220, 20%, 0%, 0.08);
-
-    --text-primary: hsl(220, 25%, 15%);
-    --text-secondary: hsl(220, 15%, 40%);
-    --text-tertiary: hsl(220, 10%, 55%);
+    --primary-hue: 152;
+    --primary: hsl(152, 64%, 34%);
+    --primary-light: hsl(151, 58%, 36%);
+    --primary-dark: hsl(154, 70%, 24%);
+    --accent-1: hsl(152, 64%, 34%);
+    --accent-2: hsl(181, 42%, 34%);
+    --accent-3: hsl(42, 64%, 38%);
+    --accent-primary: var(--primary);
+    --bg-primary: hsl(210, 22%, 96%);
+    --bg-secondary: hsl(210, 20%, 92%);
+    --bg-tertiary: hsl(210, 16%, 84%);
+    --glass-bg: hsla(0, 0%, 100%, 0.9);
+    --glass-border: hsla(152, 28%, 32%, 0.22);
+    --glass-shadow: 0 10px 28px hsla(215, 24%, 26%, 0.12);
+    --text-primary: hsl(222, 34%, 12%);
+    --text-secondary: hsl(218, 22%, 28%);
+    --text-tertiary: hsl(215, 16%, 38%);
+    --text-muted: hsl(215, 14%, 42%);
+    --adaptive-surface: hsla(0, 0%, 100%, 0.88);
+    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.96);
+    --adaptive-text: hsl(222, 34%, 12%);
+    --adaptive-muted: hsl(215, 16%, 38%);
+    --adaptive-border: hsla(152, 28%, 32%, 0.24);
+    --adaptive-shadow: 0 14px 36px hsla(215, 24%, 26%, 0.16);
 }
 
 /* ========================================
@@ -4115,8 +4120,66 @@ select:focus {
 }
 
 /* 快速输入框 */
+.todo-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
 .todo-quick-add {
+    flex: 1;
+    min-width: 0;
     margin-bottom: var(--spacing-sm);
+}
+
+.todo-collapse-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-bottom: var(--spacing-sm);
+    flex-shrink: 0;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    background: var(--glass-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.todo-collapse-btn:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.todo-collapse-btn .toggle-icon {
+    width: 18px;
+    height: 18px;
+    transition: transform var(--transition-fast);
+}
+
+.todo-collapse-btn .toggle-icon.expanded {
+    transform: rotate(180deg);
+}
+
+.todos-collapsed-summary {
+    display: block;
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    background: var(--glass-bg);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.todos-collapsed-summary:hover {
+    color: var(--primary);
+    border-color: var(--primary);
 }
 
 .todo-quick-input {
@@ -4470,88 +4533,9 @@ select:focus {
         opacity: 1; /* 移动端常显拖拽手柄 */
     }
 }
-.bookmark-insights {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: var(--spacing-md);
-    margin: var(--spacing-lg) 0;
-}
-
-.insight-section {
-    padding: var(--spacing-md);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-lg);
-    background: var(--glass-bg);
-    backdrop-filter: blur(18px);
-}
-
-.insight-heading {
-    color: var(--text-primary);
-    font-weight: 700;
-    margin-bottom: var(--spacing-sm);
-}
-
-.insight-grid {
-    display: grid;
-    gap: var(--spacing-sm);
-}
-
-.insight-card {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: 0.65rem 0.75rem;
-    border-radius: var(--radius-md);
-    color: var(--text-primary);
-    text-decoration: none;
-    background: rgba(255, 255, 255, 0.04);
-    transition: transform 0.2s ease, background 0.2s ease;
-}
-
-.insight-card:hover {
-    transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.insight-icon {
-    width: 2rem;
-    height: 2rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 0.75rem;
-    background: rgba(255, 255, 255, 0.08);
-    flex-shrink: 0;
-}
-
-
-.insight-icon img {
-    width: 1.25rem;
-    height: 1.25rem;
-    object-fit: contain;
-    border-radius: 0.25rem;
-}
-
-.insight-text {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-}
-
-.insight-text strong {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-.insight-text small,
 .bookmark-stats {
     color: var(--text-muted);
     font-size: 0.78rem;
-}
-
-.bookmark-stats {
     margin-top: 0.35rem;
 }
 .mobile-sort-toolbar {
@@ -4771,62 +4755,6 @@ select:focus {
 /* ========================================
    本地版视觉收敛：石墨灰导航台 + 绿色运维探针
    ======================================== */
-:root {
-    --primary-hue: 152;
-    --primary: hsl(152, 72%, 46%);
-    --primary-light: hsl(151, 70%, 60%);
-    --primary-dark: hsl(154, 80%, 32%);
-    --accent-1: hsl(152, 70%, 46%);
-    --accent-2: hsl(181, 48%, 46%);
-    --accent-3: hsl(42, 70%, 55%);
-    --accent-primary: var(--primary);
-    --bg-primary: hsl(220, 14%, 7%);
-    --bg-secondary: hsl(220, 13%, 10%);
-    --bg-tertiary: hsl(220, 12%, 15%);
-    --glass-bg: hsla(220, 13%, 12%, 0.78);
-    --glass-border: hsla(152, 40%, 64%, 0.13);
-    --glass-shadow: 0 14px 40px hsla(0, 0%, 0%, 0.34);
-    --text-primary: hsl(210, 18%, 94%);
-    --text-secondary: hsl(210, 12%, 72%);
-    --text-tertiary: hsl(210, 9%, 56%);
-    --text-muted: var(--text-tertiary);
-    --adaptive-surface: hsla(220, 13%, 12%, 0.82);
-    --adaptive-surface-strong: hsla(220, 13%, 10%, 0.94);
-    --adaptive-text: hsl(210, 18%, 94%);
-    --adaptive-muted: hsl(210, 12%, 72%);
-    --adaptive-border: hsla(152, 40%, 64%, 0.16);
-    --adaptive-shadow: 0 14px 40px hsla(0, 0%, 0%, 0.36);
-    --radius-lg: 14px;
-    --radius-xl: 18px;
-}
-
-[data-theme="light"] {
-    --primary-hue: 152;
-    --primary: hsl(152, 64%, 34%);
-    --primary-light: hsl(151, 58%, 36%);
-    --primary-dark: hsl(154, 70%, 24%);
-    --accent-1: hsl(152, 64%, 34%);
-    --accent-2: hsl(181, 42%, 34%);
-    --accent-3: hsl(42, 64%, 38%);
-    --accent-primary: var(--primary);
-    --bg-primary: hsl(210, 22%, 96%);
-    --bg-secondary: hsl(210, 20%, 92%);
-    --bg-tertiary: hsl(210, 16%, 84%);
-    --glass-bg: hsla(0, 0%, 100%, 0.9);
-    --glass-border: hsla(152, 28%, 32%, 0.22);
-    --glass-shadow: 0 10px 28px hsla(215, 24%, 26%, 0.12);
-    --text-primary: hsl(222, 34%, 12%);
-    --text-secondary: hsl(218, 22%, 28%);
-    --text-tertiary: hsl(215, 16%, 38%);
-    --text-muted: hsl(215, 14%, 42%);
-    --adaptive-surface: hsla(0, 0%, 100%, 0.88);
-    --adaptive-surface-strong: hsla(0, 0%, 100%, 0.96);
-    --adaptive-text: hsl(222, 34%, 12%);
-    --adaptive-muted: hsl(215, 16%, 38%);
-    --adaptive-border: hsla(152, 28%, 32%, 0.24);
-    --adaptive-shadow: 0 14px 36px hsla(215, 24%, 26%, 0.16);
-}
-
 body {
     background:
         linear-gradient(180deg, hsla(220, 16%, 9%, 0.98), hsla(220, 14%, 6%, 1)),
@@ -5248,12 +5176,11 @@ body {
 [data-wallpaper-tone] .bookmark-action-btn,
 [data-wallpaper-tone] .add-bookmark-btn,
 [data-wallpaper-tone] .todo-quick-input,
+[data-wallpaper-tone] .todo-collapse-btn,
+[data-wallpaper-tone] .todos-collapsed-summary,
 [data-wallpaper-tone] .todo-card,
 [data-wallpaper-tone] .todo-action-btn,
 [data-wallpaper-tone] .todos-clear-btn,
-[data-wallpaper-tone] .insight-section,
-[data-wallpaper-tone] .insight-card,
-[data-wallpaper-tone] .insight-icon,
 [data-wallpaper-tone] .command-palette-item,
 [data-wallpaper-tone] .command-palette-input,
 [data-wallpaper-tone] .modal,
@@ -5299,11 +5226,11 @@ body {
 [data-wallpaper-tone] .bookmark-action-btn,
 [data-wallpaper-tone] .add-bookmark-btn,
 [data-wallpaper-tone] .todo-quick-input,
+[data-wallpaper-tone] .todo-collapse-btn,
+[data-wallpaper-tone] .todos-collapsed-summary,
 [data-wallpaper-tone] .todo-card,
 [data-wallpaper-tone] .todo-action-btn,
 [data-wallpaper-tone] .todos-clear-btn,
-[data-wallpaper-tone] .insight-section,
-[data-wallpaper-tone] .insight-card,
 [data-wallpaper-tone] .command-palette-item,
 [data-wallpaper-tone] .command-palette-input,
 [data-wallpaper-tone] .modal,
@@ -5324,7 +5251,6 @@ body {
 
 [data-wallpaper-tone] .tagline,
 [data-wallpaper-tone] .bookmark-desc,
-[data-wallpaper-tone] .insight-text small,
 [data-wallpaper-tone] .bookmark-stats,
 [data-wallpaper-tone] .mobile-sort-toolbar,
 [data-wallpaper-tone] .form-hint,
