@@ -110,7 +110,7 @@ npm run dev:frontend
 | 内置登录账号 | `AUTH_USERNAME` / `AUTH_PASSWORD` | `AUTH_MODE=session` 时使用，登录后通过 HttpOnly Cookie 保持会话，默认 30 天并自动续期。 |
 | 会话密钥 | `AUTH_SESSION_SECRET` | `AUTH_MODE=session` 时必填，建议使用随机生成的长字符串。 |
 | 内网访问 | `ALLOW_PRIVATE_NETWORK` | WebDAV、图标抓取或 AI 网关需要访问内网地址时开启。 |
-| 启用 AI | `AI_ENABLED` | 设置为 `true` 后，配置 OpenAI Key 即可。 |
+| 启用 AI | `AI_ENABLED` | 设置为 `true` 后，配置 `AI_PROVIDER`（默认 `openai`，可选 `gemini`/`claude`）及对应 Key 即可。 |
 | 迁移备份数 | `DB_MIGRATION_BACKUP_LIMIT` | 数据库升级前自动备份的保留数量，默认 `5`。 |
 | 每日备份 | `DB_DAILY_BACKUP_ENABLED` | 是否自动创建每日 SQLite 备份，默认开启。 |
 | 每日备份数 | `DB_DAILY_BACKUP_LIMIT` | 每日备份的保留数量，默认 `14`。 |
@@ -124,18 +124,30 @@ npm run dev:frontend
 
 ### AI 配置
 
-仅支持 OpenAI 兼容接口（可用于 OpenAI、DeepSeek、OneAPI 等）：
+支持三种 Provider：`openai`（默认，兼容 OpenAI 的接口均可用，如 DeepSeek、OneAPI）、`gemini` 和 `claude`。服务端只需配置所用 Provider 对应的 Key。
 
 ```env
 AI_ENABLED=true
-AI_MODEL=gpt-4o-mini
-AI_BASE_URL=https://api.openai.com/v1
-OPENAI_API_KEY=your-key
+AI_PROVIDER=openai            # openai / gemini / claude
+AI_MODEL=gpt-4o-mini          # 可选：不设置时使用 Provider 默认模型
+
+# 按选择的 Provider 配置其中一个 Key
+OPENAI_API_KEY=your-key       # openai
+GEMINI_API_KEY=your-key       # gemini（也支持 GOOGLE_API_KEY）
+ANTHROPIC_API_KEY=your-key    # claude
 ```
 
-前端默认允许临时传入自定义 Key 和 Base URL，自用部署无需额外配置。
+各 Provider 的默认模型和 API 地址：
 
-高级 AI 参数、CORS 等开关见 `.env.example`。这些不是常规部署必需项，建议只在明确需要时开启。
+| Provider | 默认模型 | 默认 API 地址 | 专用模型变量 |
+| --- | --- | --- | --- |
+| `openai` | `gpt-4o-mini` | `https://api.openai.com/v1` | `OPENAI_MODEL` |
+| `gemini` | `gemini-2.5-flash` | `https://generativelanguage.googleapis.com/v1beta` | `GEMINI_MODEL` |
+| `claude` | `claude-opus-4-7` | `https://api.anthropic.com/v1` | `ANTHROPIC_MODEL` |
+
+`AI_BASE_URL` 可统一覆盖 API 地址，`AI_MODEL` 可统一覆盖模型，二者优先级高于上表的 Provider 默认值。也可用 `AI_TIMEOUT_MS` 调整超时（默认 8000ms）。高级 AI 参数、CORS 等开关见 `.env.example`，建议只在明确需要时开启。
+
+前端在“AI 设置”里可以临时传入自定义 Provider、模型、Key 和 API 地址；服务端默认不允许前端覆盖这些值，需要设置 `AI_CLIENT_OVERRIDES=true` 才放开。地址必须是 HTTPS，内网/本地地址还需 `ALLOW_PRIVATE_NETWORK=true`。
 
 ### 推荐组合
 
@@ -232,7 +244,7 @@ bookmarks/
 
 - 页面能打开但保存失败：检查 `AUTH_MODE` 和 `ADMIN_TOKEN`。
 - WebDAV 到 NAS 失败：确认 URL、账号、路径正确，并开启 `ALLOW_PRIVATE_NETWORK=true`。
-- AI 按钮提示未启用：确认 `AI_ENABLED=true`，并配置当前 provider 对应的 Key。
+- AI 按钮提示未启用：确认 `AI_ENABLED=true`，并配置当前 Provider（`AI_PROVIDER`，默认 `openai`）对应的 Key；多 Provider 配置见“AI 配置”。
 
 ## 许可证
 
