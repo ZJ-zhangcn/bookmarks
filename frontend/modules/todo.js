@@ -14,14 +14,42 @@ let draggedTodo = null;
 let dragOverTodo = null;
 let quickAddPending = false;
 
+const TODOS_COLLAPSED_KEY = 'todos:collapsed';
+
+function loadTodosCollapsed() {
+    state.setTodosCollapsed(localStorage.getItem(TODOS_COLLAPSED_KEY) === 'true');
+}
+
+// 首次加载折叠偏好（在 renderAll 之前执行）
+loadTodosCollapsed();
+
+function toggleTodosCollapsed() {
+    const next = !state.todosCollapsed;
+    state.setTodosCollapsed(next);
+    localStorage.setItem(TODOS_COLLAPSED_KEY, String(next));
+    renderTodos();
+}
+
+export function expandTodos() {
+    if (!state.todosCollapsed) return;
+    state.setTodosCollapsed(false);
+    localStorage.setItem(TODOS_COLLAPSED_KEY, 'false');
+    renderTodos();
+}
+
 export function handleTodoClick(e) {
     const checkBtn = e.target.closest('.todo-check');
     const editBtn = e.target.closest('.todo-action-btn.edit');
     const deleteBtn = e.target.closest('.todo-action-btn.delete');
     const completedHeader = e.target.closest('#todosCompletedHeader');
     const clearBtn = e.target.closest('#todosClearCompleted');
+    const collapseBtn = e.target.closest('#todosCollapseBtn, #todosCollapsedSummary');
 
-    if (checkBtn) {
+    if (collapseBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleTodosCollapsed();
+    } else if (checkBtn) {
         e.preventDefault();
         e.stopPropagation();
         toggleTodoComplete(checkBtn.dataset.id);
@@ -70,6 +98,10 @@ async function quickAddTodo(title, input) {
             json: { title }
         }, { errorPrefix: '添加待办失败' });
         await loadTodos();
+        if (state.todosCollapsed) {
+            state.setTodosCollapsed(false);
+            localStorage.setItem(TODOS_COLLAPSED_KEY, 'false');
+        }
         renderTodos();
         bindQuickInputEvent();
         bindTodoDragEvents();

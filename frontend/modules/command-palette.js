@@ -4,6 +4,7 @@
  */
 import * as state from './state.js';
 import { escapeHtml, escapeHtmlAttribute, toSafeExternalUrl } from './utils.js';
+import { expandTodos } from './todo.js';
 
 let overlay;
 let input;
@@ -134,7 +135,7 @@ function buildCommandItems(query) {
     const staticCommands = [
         { command: 'add-bookmark', icon: '➕', title: '新增书签', subtitle: '打开添加书签窗口', type: '操作', run: () => commandActions.openBookmarkModal?.() },
         { command: 'open-settings', icon: '⚙️', title: '打开设置', subtitle: '主题、同步、AI、导入导出', type: '操作', run: () => commandActions.openSettingsModal?.() },
-        { command: 'open-todos', icon: '✅', title: '查看 TODO', subtitle: '跳转到待办区域', type: '操作', run: () => scrollToElement('#todosContainer') },
+        { command: 'open-todos', icon: '✅', title: '查看 TODO', subtitle: '跳转到待办区域', type: '操作', run: () => { expandTodos(); scrollToElement('#todosContainer'); } },
         { command: 'focus-web-search', icon: '🌐', title: '网页搜索／网址直达', subtitle: '聚焦首页网页搜索框', type: '操作', run: () => focusElement('#webSearchInput') }
     ];
 

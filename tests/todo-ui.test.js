@@ -16,6 +16,21 @@ test('todo quick add guards IME composition and duplicate submissions', () => {
     assert.match(source, /input\.disabled\s*=\s*false/);
 });
 
+test('todo collapse state persists and shows a summary instead of the list', () => {
+    const todo = read('frontend/modules/todo.js');
+    const render = read('frontend/modules/render.js');
+    const state = read('frontend/modules/state.js');
+    const palette = read('frontend/modules/command-palette.js');
+
+    assert.match(todo, /TODOS_COLLAPSED_KEY\s*=\s*'todos:collapsed'/);
+    assert.match(todo, /localStorage\.setItem\(TODOS_COLLAPSED_KEY/);
+    assert.match(todo, /export function expandTodos/);
+    assert.match(state, /setTodosCollapsed/);
+    assert.match(render, /todosCollapsedSummary/);
+    assert.match(render, /待办 \$\{pendingTodos\.length\} 项/);
+    assert.match(palette, /expandTodos\(\); scrollToElement/);
+});
+
 test('todo layout keeps the empty state compact and rows aligned', () => {
     const css = read('frontend/index.css');
 

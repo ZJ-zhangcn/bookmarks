@@ -343,15 +343,35 @@ export function renderTodos() {
 
     let html = '';
 
-    // 快速输入框
+    // 快速输入框与折叠切换
     html += `
         <div class="todo-header">
             <div class="todo-quick-add">
                 <input type="text" id="todoQuickInput" class="todo-quick-input"
                        placeholder="添加新待办，按回车确认..." autocomplete="off">
             </div>
+            ${allTodos.length > 0 ? `
+            <button type="button" class="todo-collapse-btn" id="todosCollapseBtn"
+                    aria-label="${state.todosCollapsed ? '展开待办列表' : '折叠待办列表'}"
+                    aria-expanded="${!state.todosCollapsed}">
+                <svg class="toggle-icon ${state.todosCollapsed ? '' : 'expanded'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m6 9 6 6 6-6"/>
+                </svg>
+            </button>` : ''}
         </div>
     `;
+
+    if (state.todosCollapsed && allTodos.length > 0) {
+        const completedCount = completedTodos.length;
+        const summary = completedCount > 0
+            ? `待办 ${pendingTodos.length} 项 · ${completedCount} 项已完成`
+            : `待办 ${pendingTodos.length} 项`;
+        html += `<button type="button" class="todos-collapsed-summary" id="todosCollapsedSummary">${summary} · 点击展开</button>`;
+        DOM.todosContainer.innerHTML = html;
+        bindQuickInputEvent();
+        bindTodoDragEvents();
+        return;
+    }
 
     // 待办列表
     if (pendingTodos.length > 0) {

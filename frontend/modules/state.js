@@ -26,6 +26,7 @@ export const batchSelectedIds = new Set();
 export let personalizationConfig = undefined;
 export let editingTodoId = null;
 export let todoShowCompleted = true; // 是否显示已完成区域
+export let todosCollapsed = false; // TODO 区域是否折叠
 
 export const AI_CLIENT_STORAGE = {
     apiBaseUrl: 'aiApiBaseUrl',
@@ -87,6 +88,7 @@ export function setBatchMode(val) {
 export function setPersonalizationConfig(val) { personalizationConfig = val; }
 export function setEditingTodoId(val) { editingTodoId = val; }
 export function setTodoShowCompleted(val) { todoShowCompleted = val; }
+export function setTodosCollapsed(val) { todosCollapsed = val; }
 export function setAvailableIcons(val) { availableIcons = val; }
 export function setIconLibraryCache(val) { iconLibraryCache = val; }
 export function setSelectedLibraryIcon(val) { selectedLibraryIcon = val; }
